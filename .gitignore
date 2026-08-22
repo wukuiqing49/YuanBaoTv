@@ -7,11 +7,6 @@ local.properties
 app/build/
 core/*/build/
 feature/*/build/
-.ai-work/
 
-keystore.properties
-*.jks
-*.keystore
-*.p12
-*.bks
+
 
