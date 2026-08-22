@@ -1,0 +1,17 @@
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+
+app/build/
+core/*/build/
+feature/*/build/
+.ai-work/
+
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.bks
+

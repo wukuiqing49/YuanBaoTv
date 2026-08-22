@@ -1,0 +1,1 @@
+-keep class com.wkq.bao.core.media.** { *; }

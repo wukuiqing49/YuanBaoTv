@@ -1,0 +1,33 @@
+plugins {
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
+}
+
+android {
+    namespace = 'com.wkq.bao.core.database'
+    compileSdk = libs.versions.compileSdk.get().toInteger()
+
+    defaultConfig {
+        minSdk = libs.versions.minSdk.get().toInteger()
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation project(':core:core_base')
+    implementation project(':core:core_utils')
+    api libs.androidx.room.runtime
+    api libs.androidx.room.ktx
+    ksp libs.androidx.room.compiler
+    api libs.kotlinx.coroutines.core
+}

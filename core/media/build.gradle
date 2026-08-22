@@ -1,0 +1,44 @@
+plugins {
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
+}
+
+android {
+    namespace = 'com.wkq.bao.core.media'
+    compileSdk = libs.versions.compileSdk.get().toInteger()
+
+    defaultConfig {
+        minSdk = libs.versions.minSdk.get().toInteger()
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation project(':core:core_base')
+    implementation project(':core:core_utils')
+    implementation project(':core:database')
+    
+    // Media3
+    api libs.androidx.media3.exoplayer
+    api libs.androidx.media3.ui
+    api libs.androidx.media3.session
+    
+    // SMB
+    implementation libs.smbj
+    
+    // SAF & Storage
+    implementation libs.androidx.documentfile
+
+    // Coroutines
+    implementation libs.kotlinx.coroutines.core
+    implementation libs.kotlinx.coroutines.android
+}

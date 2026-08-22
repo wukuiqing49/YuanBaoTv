@@ -1,0 +1,2 @@
+-keep class com.wkq.bao.core.database.entity.** { *; }
+-keep class com.wkq.bao.core.database.dao.** { *; }

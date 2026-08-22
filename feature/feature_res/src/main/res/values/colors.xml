@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 全局黑场与文本 (来自 Figma 变量) -->
+    <color name="tv_bg_dark">#131313</color>
+    <color name="tv_bg_card">#1E293B</color>
+    <color name="tv_bg_glass">#331E293B</color>
+    <color name="tv_text_primary">#E5E2E1</color>
+    <color name="tv_text_secondary">#D3C5AF</color>
+    <color name="tv_text_tertiary">#94A3B8</color>
+
+    <!-- 高亮与功能色 -->
+    <color name="tv_accent_cyan">#84F5E8</color>
+    <color name="tv_accent_gold">#FFDEA6</color>
+    <color name="tv_accent_blue">#38BDF8</color>
+    
+    <!-- 徽章色彩 -->
+    <color name="tv_badge_local">#10B981</color>
+    <color name="tv_badge_nas">#06B6D4</color>
+    <color name="tv_badge_offline">#64748B</color>
+
+    <!-- Figma 真实按键色彩 -->
+    <color name="tv_hero_btn_bg">#FFE1B0</color>
+    <color name="tv_hero_btn_text">#412D00</color>
+
+    <!-- 焦点与光晕边框 -->
+    <color name="tv_focus_ring">#84F5E8</color>
+    <color name="tv_focus_ring_cyan">#84F5E8</color>
+    <color name="tv_focus_ring_gold">#FFE1B0</color>
+</resources>

@@ -1,0 +1,26 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri('https://jitpack.io') }
+    }
+}
+
+rootProject.name = 'YuanBaoTv'
+
+include ':app'
+include ':core:core_base'
+include ':core:core_utils'
+include ':core:database'
+include ':core:media'
+include ':feature:feature_app'
+include ':feature:feature_res'
