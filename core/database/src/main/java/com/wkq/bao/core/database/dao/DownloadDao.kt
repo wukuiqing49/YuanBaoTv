@@ -12,6 +12,9 @@ interface DownloadDao {
     @Query("SELECT * FROM download_tasks WHERE status = :status ORDER BY createdAt ASC")
     suspend fun getTasksByStatus(status: String): List<DownloadTaskEntity>
 
+    @Query("SELECT * FROM download_tasks WHERE status IN (:statuses) ORDER BY createdAt ASC")
+    suspend fun getTasksByStatuses(statuses: List<String>): List<DownloadTaskEntity>
+
     @Query("SELECT * FROM download_tasks WHERE episodeId = :episodeId LIMIT 1")
     suspend fun getTaskByEpisodeId(episodeId: Long): DownloadTaskEntity?
 

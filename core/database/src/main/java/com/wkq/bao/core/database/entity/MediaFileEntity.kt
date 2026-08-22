@@ -45,6 +45,7 @@ data class MediaFileEntity(
     val nasSourceId: Long? = null,
     val nasUri: String = "",
     val localUri: String? = null,
+    val localStorageType: String = "",
     val fileName: String = "",
     val fileSize: Long = 0L,
     val mimeType: String = "video/mp4",

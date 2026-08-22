@@ -30,6 +30,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="mytv" />
+            </intent-filter>
         </activity>
 
         <!-- 首页 (强制横屏) -->
@@ -42,27 +48,6 @@
         <!-- 详情页 (强制横屏) -->
         <activity
             android:name="com.wkq.bao.feature.app.DetailActivity"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape" />
-
-        <!-- 媒体库分类 (强制横屏) -->
-        <activity
-            android:name="com.wkq.bao.feature.app.MediaLibraryActivity"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape" />
-
-        <!-- NAS 设置 (强制横屏) -->
-        <activity
-            android:name="com.wkq.bao.feature.app.NasSettingsActivity"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape" />
-
-        <!-- 下载管理 (强制横屏) -->
-        <activity
-            android:name="com.wkq.bao.feature.app.DownloadsActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
             android:exported="false"
             android:screenOrientation="sensorLandscape" />

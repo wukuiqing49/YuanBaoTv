@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/tv_bg_dark"
+    android:paddingStart="48dp"
+    android:paddingTop="28dp"
+    android:paddingEnd="48dp"
+    android:paddingBottom="24dp">
+
+    <!-- 顶部标题与外置存储状态卡片 -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_header_storage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/title_downloads"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- 外置存储卡片 (USB SSD) -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/card_storage_info"
+            android:layout_width="380dp"
+            android:layout_height="72dp"
+            android:background="@drawable/bg_glass_card"
+            android:paddingStart="16dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="10dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/tv_storage_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="USB 外置存储"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_storage_capacity"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="428.5 GB 可用 / 512 GB"
+                android:textColor="@color/tv_text_secondary"
+                android:textSize="11sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_storage_label" />
+
+            <Button
+                android:id="@+id/btn_select_storage"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:paddingHorizontal="10dp"
+                android:text="设置目录"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="11sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ProgressBar
+                android:id="@+id/pb_storage"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="6dp"
+                android:max="100"
+                android:progress="22"
+                android:progressTint="@color/tv_accent_cyan"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 正在下载区域 -->
+    <TextView
+        android:id="@+id/tv_label_downloading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/section_downloading"
+        android:textColor="@color/tv_text_primary"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_header_storage" />
+
+    <!-- 正在下载任务卡片 (Focused Example) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/card_download_task"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_tv_focus_ring"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:padding="16dp"
+        app:layout_constraintTop_toBottomOf="@id/tv_label_downloading">
+
+        <TextView
+            android:id="@+id/tv_task_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="汪汪队立大功 S03E05 • 超级狗狗大冲刺.mkv"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_task_speed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="18.6 MB/s • 450 MB / 1.2 GB"
+            android:textColor="@color/tv_accent_cyan"
+            android:textSize="12sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_task_title" />
+
+        <ProgressBar
+            android:id="@+id/pb_task"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="0dp"
+            android:layout_height="6dp"
+            android:layout_marginEnd="24dp"
+            android:max="100"
+            android:progress="38"
+            android:progressTint="@color/tv_accent_blue"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/ll_task_actions"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/ll_task_actions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <Button
+                android:id="@+id/btn_task_pause"
+                android:layout_width="80dp"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:text="@string/btn_pause"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_task_cancel"
+                android:layout_width="80dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:text="@string/btn_cancel"
+                android:textColor="@color/tv_text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 已下载媒体海报流 -->
+    <TextView
+        android:id="@+id/tv_label_downloaded"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="@string/section_downloaded_gallery"
+        android:textColor="@color/tv_text_primary"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/card_download_task" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_downloaded"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        android:clipToPadding="false"
+        android:orientation="horizontal"
+        android:scrollbars="none"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_label_downloaded"
+        tools:listitem="@layout/item_poster_card" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

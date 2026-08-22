@@ -1,23 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/tv_bg_dark">
-
-    <!-- 背景环境光晕 -->
-    <View
-        android:id="@+id/v_glow"
-        android:layout_width="400dp"
-        android:layout_height="400dp"
-        android:background="@drawable/bg_glass_card"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- 居中品牌容器 -->
     <LinearLayout
         android:id="@+id/ll_brand"
         android:layout_width="wrap_content"
@@ -28,54 +14,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
-
-        <!-- Logo 标题 -->
-        <TextView
-            android:id="@+id/tv_splash_logo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textColor="@color/tv_text_primary"
-            android:textSize="48sp"
-            android:textStyle="bold" />
-
-        <!-- Slogan -->
-        <TextView
-            android:id="@+id/tv_splash_slogan"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/splash_slogan"
-            android:textColor="@color/tv_text_secondary"
-            android:textSize="18sp"
-            android:letterSpacing="0.05" />
-
+        <ImageView android:id="@+id/iv_splash_logo" android:layout_width="144dp" android:layout_height="144dp" android:src="@drawable/bg_glass_card" />
+        <TextView android:id="@+id/tv_splash_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/app_name" android:textColor="@color/tv_text_primary" android:textSize="30sp" android:textStyle="bold" />
+        <TextView android:id="@+id/tv_splash_slogan" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/splash_slogan" android:textColor="@color/tv_text_secondary" android:textSize="13sp" />
     </LinearLayout>
-
-    <!-- 底部初始化加载提示 -->
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="48dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <ProgressBar
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:indeterminate="true"
-            android:indeterminateTint="@color/tv_accent_cyan" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:text="@string/splash_loading"
-            android:textColor="@color/tv_text_tertiary"
-            android:textSize="14sp" />
-    </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

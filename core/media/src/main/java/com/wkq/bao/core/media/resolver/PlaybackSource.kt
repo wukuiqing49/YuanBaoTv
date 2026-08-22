@@ -1,13 +1,18 @@
 package com.wkq.bao.core.media.resolver
 
 import android.net.Uri
+import com.wkq.bao.core.media.storage.MediaStorageLocation
 
 /**
  * 解析后的播放媒体源
  */
 sealed class PlaybackSource {
     /** 本地外置存储 (USB / SSD / 本地沙盒) */
-    data class Local(val uri: Uri, val title: String) : PlaybackSource()
+    data class Local(
+        val uri: Uri,
+        val title: String,
+        val location: MediaStorageLocation
+    ) : PlaybackSource()
 
     /** 局域网 NAS 串流 */
     data class NasStream(val uri: Uri, val title: String, val nasSourceId: Long) : PlaybackSource()

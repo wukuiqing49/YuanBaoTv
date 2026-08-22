@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/tv_bg_dark"
+    android:paddingStart="48dp"
+    android:paddingTop="28dp"
+    android:paddingEnd="48dp"
+    android:paddingBottom="24dp">
+
+    <!-- 顶部标题与分类过滤栏 -->
+    <LinearLayout
+        android:id="@+id/layout_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/nav_all_media"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <!-- 筛选 Tab 按钮组 -->
+        <LinearLayout
+            android:id="@+id/ll_filter_tabs"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_filter_all"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:text="全部"
+                android:textColor="@color/tv_text_primary" />
+
+            <Button
+                android:id="@+id/btn_filter_cartoon"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginStart="12dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:text="@string/nav_cartoon"
+                android:textColor="@color/tv_text_secondary" />
+
+            <Button
+                android:id="@+id/btn_filter_tv"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginStart="12dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:text="@string/nav_tv"
+                android:textColor="@color/tv_text_secondary" />
+
+            <Button
+                android:id="@+id/btn_filter_movie"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginStart="12dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:text="@string/nav_movie"
+                android:textColor="@color/tv_text_secondary" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 媒体多列网格 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_media_grid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:clipToPadding="false"
+        android:scrollbars="none"
+        app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_header"
+        app:spanCount="5"
+        tools:listitem="@layout/item_poster_card" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

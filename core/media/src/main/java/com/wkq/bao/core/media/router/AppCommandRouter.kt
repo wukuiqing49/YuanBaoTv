@@ -25,12 +25,16 @@ object AppCommandRouter {
         val host = uri.host ?: return null
         return when (host) {
             "play" -> {
-                val seriesId = uri.getQueryParameter("seriesId")?.toLongOrNull() ?: 1L
-                val episodeId = uri.getQueryParameter("episodeId")?.toLongOrNull() ?: 1L
+                val seriesId = uri.getQueryParameter("seriesId")?.toLongOrNull() ?: 0L
+                val episodeId = uri.getQueryParameter("episodeId")?.toLongOrNull()
+                    ?: uri.pathSegments.lastOrNull()?.toLongOrNull()
+                    ?: 0L
                 AppCommand.PlayEpisode(seriesId, episodeId)
             }
             "series" -> {
-                val seriesId = uri.getQueryParameter("seriesId")?.toLongOrNull() ?: 1L
+                val seriesId = uri.getQueryParameter("seriesId")?.toLongOrNull()
+                    ?: uri.pathSegments.lastOrNull()?.toLongOrNull()
+                    ?: 0L
                 AppCommand.OpenSeries(seriesId)
             }
             "search" -> {

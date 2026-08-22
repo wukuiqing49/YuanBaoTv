@@ -38,6 +38,14 @@ class TvPlayerController(
     private var currentSeasonId: Long = 0L
     private var currentEpisodeId: Long = 0L
     private var progressTrackingJob: Job? = null
+    private var pendingPlayback: PlaybackRequest? = null
+
+    private data class PlaybackRequest(
+        val seriesId: Long,
+        val seasonId: Long,
+        val episodeId: Long,
+        val onResult: ((Boolean, String) -> Unit)?
+    )
 
     /**
      * 连接后台 PlaybackService
@@ -46,11 +54,14 @@ class TvPlayerController(
         val sessionToken = SessionToken(context, ComponentName(context, TvPlaybackService::class.java))
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         controllerFuture?.addListener({
-            val controller = controllerFuture?.get()
-            player = controller
-            setupPlayerListeners(controller)
-            if (controller != null) {
+            runCatching { controllerFuture?.get() }.getOrNull()?.let { controller ->
+                player = controller
+                setupPlayerListeners(controller)
                 onConnected?.invoke(controller)
+                pendingPlayback?.let { request ->
+                    pendingPlayback = null
+                    playEpisode(request.seriesId, request.seasonId, request.episodeId, request.onResult)
+                }
             }
         }, MoreExecutors.directExecutor())
     }
@@ -82,6 +93,10 @@ class TvPlayerController(
      * 播放指定集并自动恢复历史播放进度
      */
     fun playEpisode(seriesId: Long, seasonId: Long, episodeId: Long, onResult: ((Boolean, String) -> Unit)? = null) {
+        if (player == null) {
+            pendingPlayback = PlaybackRequest(seriesId, seasonId, episodeId, onResult)
+            return
+        }
         currentSeriesId = seriesId
         currentSeasonId = seasonId
         currentEpisodeId = episodeId
@@ -90,11 +105,11 @@ class TvPlayerController(
             when (val source = mediaResolver.resolve(episodeId)) {
                 is PlaybackSource.Local -> {
                     startPlay(source.uri.toString(), source.title)
-                    onResult?.invoke(true, "Playing from local storage")
+                    onResult?.invoke(true, source.location.name)
                 }
                 is PlaybackSource.NasStream -> {
                     startPlay(source.uri.toString(), source.title)
-                    onResult?.invoke(true, "Streaming from NAS")
+                    onResult?.invoke(true, "NAS")
                 }
                 is PlaybackSource.Unavailable -> {
                     onResult?.invoke(false, source.reason)
@@ -130,7 +145,8 @@ class TvPlayerController(
 
     fun seekForward(ms: Long = 10000) {
         val p = player ?: return
-        p.seekTo(p.currentPosition + ms)
+        val duration = p.duration.takeIf { it > 0 } ?: Long.MAX_VALUE
+        p.seekTo((p.currentPosition + ms).coerceAtMost(duration))
     }
 
     fun seekRewind(ms: Long = 10000) {
@@ -180,5 +196,6 @@ class TvPlayerController(
             MediaController.releaseFuture(it)
         }
         player = null
+        pendingPlayback = null
     }
 }

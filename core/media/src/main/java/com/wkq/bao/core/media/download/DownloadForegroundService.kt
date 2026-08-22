@@ -11,6 +11,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.database.entity.DownloadTaskEntity
+import com.wkq.bao.core.database.entity.DownloadTaskStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,7 +52,7 @@ class DownloadForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         serviceScope.launch {
-            val pendingTasks = database.downloadDao().getTasksByStatus("WAITING")
+            val pendingTasks = database.downloadDao().getTasksByStatus(DownloadTaskStatus.WAITING)
             for (task in pendingTasks) {
                 downloadEngine.executeTask(task) { progress ->
                     val notification = buildNotification("正在下载剧集 (Episode ${task.episodeId})", progress)

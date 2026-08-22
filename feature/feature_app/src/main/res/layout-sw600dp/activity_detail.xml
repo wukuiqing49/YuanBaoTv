@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/tv_bg_dark">
+
+    <!-- 1. 底层 16:9 Backdrop 大背景 -->
+    <ImageView
+        android:id="@+id/iv_backdrop"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg_glass_card"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- 2. 中层 90% 暗角黑幕遮罩 -->
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#E60A0C10"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- 3. 上层主信息区 (左侧 2:3 立牌海报 + 右侧元数据文字与操作按钮) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_top_content"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="64dp"
+        android:layout_marginTop="36dp"
+        android:layout_marginEnd="64dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- 左侧 2:3 海报立牌 (180dp x 270dp) -->
+        <ImageView
+            android:id="@+id/iv_series_poster"
+            android:layout_width="180dp"
+            android:layout_height="270dp"
+            android:background="@drawable/bg_tv_focus_ring"
+            android:clipToPadding="false"
+            android:focusable="true"
+            android:scaleType="centerCrop"
+            android:src="@drawable/bg_glass_card"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- 右侧元数据内容与操作区 -->
+        <LinearLayout
+            android:id="@+id/layout_meta"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="36dp"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="@id/iv_series_poster"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/iv_series_poster"
+            app:layout_constraintTop_toTopOf="@id/iv_series_poster">
+
+            <!-- NAS 在线状态 Badge -->
+            <TextView
+                android:id="@+id/tv_nas_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_badge_nas"
+                android:text="@string/badge_nas_online"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <!-- 剧集标题 -->
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="汪汪队立大功 (Paw Patrol)"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="30sp"
+                android:textStyle="bold" />
+
+            <!-- 元数据 (年代 • 分类 • 季数) -->
+            <TextView
+                android:id="@+id/tv_meta_tags"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="2023 • 动画 / 益智 • 7 季"
+                android:textColor="@color/tv_accent_cyan"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <!-- 简介 -->
+            <TextView
+                android:id="@+id/tv_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:ellipsize="end"
+                android:lineSpacingExtra="3dp"
+                android:maxLines="3"
+                android:text="精通科技的10岁男孩莱德救了6条小狗，并将它们训练成了高本领的狗狗巡逻队。每个小狗都具备鲜明的性格和特长，无论遇到什么困难，他们总能团结协作化解危机。"
+                android:textColor="@color/tv_text_secondary"
+                android:textSize="13sp" />
+
+            <!-- 主操作按钮组 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_play"
+                    android:layout_width="140dp"
+                    android:layout_height="46dp"
+                    android:background="@drawable/bg_hero_play_btn"
+                    android:drawableStart="@drawable/ic_tv_play"
+                    android:drawablePadding="6dp"
+                    android:text="@string/btn_play_now"
+                    android:textColor="#0A0C10"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btn_download_season"
+                    android:layout_width="130dp"
+                    android:layout_height="46dp"
+                    android:layout_marginStart="16dp"
+                    android:background="@drawable/bg_tv_button_focus"
+                    android:drawableStart="@drawable/ic_tv_download"
+                    android:drawablePadding="6dp"
+                    android:text="@string/btn_download_season"
+                    android:textColor="@color/tv_text_primary"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/btn_favorite"
+                    android:layout_width="100dp"
+                    android:layout_height="46dp"
+                    android:layout_marginStart="16dp"
+                    android:background="@drawable/bg_tv_button_focus"
+                    android:drawableStart="@drawable/ic_tv_favorite"
+                    android:drawablePadding="6dp"
+                    android:text="@string/btn_favorite"
+                    android:textColor="@color/tv_text_primary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 4. 底部选集流与分季 Tab -->
+    <LinearLayout
+        android:id="@+id/layout_episodes_section"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="64dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="64dp"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_top_content">
+
+        <!-- 分季选择 Tab 栏 (动态生成) -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/ll_season_tabs"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <!-- 选集列表 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_episodes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:clipToPadding="false"
+            android:orientation="horizontal"
+            android:scrollbars="none"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/item_episode_card" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

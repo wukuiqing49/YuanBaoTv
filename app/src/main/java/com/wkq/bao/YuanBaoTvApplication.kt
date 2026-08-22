@@ -16,6 +16,5 @@ class YuanBaoTvApplication : Application() {
                 logCaptureCrash = false
             )
         )
-        com.wkq.bao.core.database.SampleDataPreloader.preloadSampleData(this)
     }
 }

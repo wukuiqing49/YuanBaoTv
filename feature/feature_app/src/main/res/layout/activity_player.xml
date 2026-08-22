@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/player_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black"
     android:keepScreenOn="true">
 
-    <!-- 1. Media3 ExoPlayer Surface (全屏铺满) -->
     <androidx.media3.ui.PlayerView
         android:id="@+id/player_view"
         android:layout_width="0dp"
@@ -20,166 +18,42 @@
         app:resize_mode="fit"
         app:use_controller="false" />
 
-    <!-- 2. OSD 沉浸式交互控制层 (5 秒无操作自动淡出) -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_osd"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:background="#99000000"
-        android:paddingStart="48dp"
-        android:paddingTop="28dp"
-        android:paddingEnd="48dp"
-        android:paddingBottom="24dp">
+        android:padding="16dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-        <!-- 顶部信息栏 (剧集标题 + 来源徽章 + 时钟) -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/layout_top_bar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:layout_constraintTop_toTopOf="parent">
+        <TextView android:id="@+id/tv_title" android:layout_width="0dp" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_primary" android:textSize="17sp" android:textStyle="bold" app:layout_constraintEnd_toStartOf="@id/tv_source_badge" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+        <TextView android:id="@+id/tv_source_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_badge_local" android:paddingHorizontal="6dp" android:paddingVertical="3dp" android:textColor="@color/tv_text_primary" android:textSize="10sp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent" />
 
-            <TextView
-                android:id="@+id/tv_title"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="16dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="汪汪队立大功 - S01E03"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@id/tv_source_badge"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <TextView
-                android:id="@+id/tv_source_badge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_badge_local"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp"
-                android:text="本地离线"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                app:layout_constraintBottom_toBottomOf="@id/tv_title"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@id/tv_title" />
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <!-- 底部控制面板 (进度条 + 居中遥控器按键组) -->
         <LinearLayout
             android:id="@+id/layout_bottom_panel"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintBottom_toBottomOf="parent">
-
-            <!-- 时间与 SeekBar 进度条 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/tv_current_time"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="00:00"
-                    android:textColor="@color/tv_text_primary"
-                    android:textSize="13sp" />
-
-                <SeekBar
-                    android:id="@+id/seek_progress"
-                    android:layout_width="0dp"
-                    android:layout_height="28dp"
-                    android:layout_marginHorizontal="12dp"
-                    android:layout_weight="1"
-                    android:focusable="true"
-                    android:max="1000"
-                    android:progress="0"
-                    android:progressBackgroundTint="#55FFFFFF"
-                    android:progressTint="@color/tv_accent_cyan"
-                    android:thumbTint="@color/tv_accent_cyan" />
-
-                <TextView
-                    android:id="@+id/tv_total_time"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="23:40"
-                    android:textColor="@color/tv_text_secondary"
-                    android:textSize="13sp" />
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+                <TextView android:id="@+id/tv_current_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
+                <SeekBar android:id="@+id/seek_progress" android:layout_width="0dp" android:layout_height="28dp" android:layout_marginHorizontal="8dp" android:layout_weight="1" android:focusable="true" android:max="1000" android:progressBackgroundTint="#55FFFFFF" android:progressTint="@color/tv_accent_cyan" android:thumbTint="@color/tv_accent_cyan" />
+                <TextView android:id="@+id/tv_total_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/tv_text_secondary" android:textSize="11sp" />
             </LinearLayout>
-
-            <!-- 遥控器居中快捷按键组 -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="14dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btn_rewind"
-                    android:layout_width="88dp"
-                    android:layout_height="40dp"
-                    android:background="@drawable/bg_tv_button_focus"
-                    android:text="-10s"
-                    android:textColor="@color/tv_text_primary"
-                    android:textSize="13sp" />
-
-                <Button
-                    android:id="@+id/btn_play_pause"
-                    android:layout_width="110dp"
-                    android:layout_height="44dp"
-                    android:layout_marginStart="14dp"
-                    android:background="@drawable/bg_hero_play_btn"
-                    android:drawableStart="@drawable/ic_tv_play"
-                    android:drawablePadding="4dp"
-                    android:text="播放"
-                    android:textColor="#0A0C10"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/btn_fast_forward"
-                    android:layout_width="88dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="14dp"
-                    android:background="@drawable/bg_tv_button_focus"
-                    android:text="+10s"
-                    android:textColor="@color/tv_text_primary"
-                    android:textSize="13sp" />
-
-                <Button
-                    android:id="@+id/btn_speed"
-                    android:layout_width="88dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="14dp"
-                    android:background="@drawable/bg_tv_button_focus"
-                    android:text="1.0x"
-                    android:textColor="@color/tv_text_primary"
-                    android:textSize="13sp" />
-
-                <Button
-                    android:id="@+id/btn_next_episode"
-                    android:layout_width="100dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="14dp"
-                    android:background="@drawable/bg_tv_button_focus"
-                    android:text="下一集"
-                    android:textColor="@color/tv_text_primary"
-                    android:textSize="13sp" />
-            </LinearLayout>
-
+            <HorizontalScrollView android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:scrollbars="none">
+                <LinearLayout android:layout_width="wrap_content" android:layout_height="match_parent" android:gravity="center_vertical" android:orientation="horizontal">
+                    <Button android:id="@+id/btn_rewind" android:layout_width="64dp" android:layout_height="38dp" android:background="@drawable/bg_tv_button_focus" android:text="-10s" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
+                    <Button android:id="@+id/btn_play_pause" android:layout_width="78dp" android:layout_height="40dp" android:layout_marginStart="8dp" android:background="@drawable/bg_hero_play_btn" android:textColor="@color/tv_hero_btn_text" android:textSize="11sp" />
+                    <Button android:id="@+id/btn_fast_forward" android:layout_width="64dp" android:layout_height="38dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="+10s" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
+                    <Button android:id="@+id/btn_speed" android:layout_width="64dp" android:layout_height="38dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="1.0x" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
+                    <Button android:id="@+id/btn_next_episode" android:layout_width="82dp" android:layout_height="38dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/btn_play_now" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
+                </LinearLayout>
+            </HorizontalScrollView>
         </LinearLayout>
-
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

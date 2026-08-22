@@ -22,6 +22,7 @@ data class DownloadTaskEntity(
     val episodeId: Long,
     val sourceUri: String,
     val targetUri: String = "",
+    val targetStorageType: String = "",
     val totalBytes: Long = 0L,
     val downloadedBytes: Long = 0L,
     val status: String = "WAITING", // WAITING, DOWNLOADING, PAUSED, SUCCESS, FAILED

@@ -2,6 +2,7 @@ package com.wkq.bao.core.database.dao
 
 import androidx.room.*
 import com.wkq.bao.core.database.entity.EpisodeEntity
+import com.wkq.bao.core.database.entity.EpisodeWithSource
 import com.wkq.bao.core.database.entity.MediaFileEntity
 import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import com.wkq.bao.core.database.entity.SeasonEntity
@@ -11,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 interface MediaDao {
     @Query("SELECT * FROM media_series ORDER BY updatedAt DESC")
     fun getAllSeries(): Flow<List<MediaSeriesEntity>>
+
+    @Query("SELECT * FROM media_series WHERE EXISTS (SELECT 1 FROM media_files WHERE media_files.seriesId = media_series.id AND localUri IS NOT NULL) ORDER BY updatedAt DESC")
+    fun getDownloadedSeries(): Flow<List<MediaSeriesEntity>>
 
     @Query("SELECT * FROM media_series ORDER BY updatedAt DESC")
     suspend fun getAllSeriesSync(): List<MediaSeriesEntity>
@@ -49,6 +53,15 @@ interface MediaDao {
     // === Episode ===
     @Query("SELECT * FROM episodes WHERE seriesId = :seriesId AND seasonId = :seasonId ORDER BY episodeNumber ASC")
     fun getEpisodes(seriesId: Long, seasonId: Long): Flow<List<EpisodeEntity>>
+
+    @Query("""
+        SELECT episodes.*, media_files.localUri, media_files.localStorageType, media_files.nasUri
+        FROM episodes
+        LEFT JOIN media_files ON media_files.episodeId = episodes.id
+        WHERE episodes.seriesId = :seriesId AND episodes.seasonId = :seasonId
+        ORDER BY episodes.episodeNumber ASC
+    """)
+    fun getEpisodesWithSource(seriesId: Long, seasonId: Long): Flow<List<EpisodeWithSource>>
 
     @Query("SELECT * FROM episodes WHERE seriesId = :seriesId AND seasonId = :seasonId ORDER BY episodeNumber ASC")
     suspend fun getEpisodesSync(seriesId: Long, seasonId: Long): List<EpisodeEntity>

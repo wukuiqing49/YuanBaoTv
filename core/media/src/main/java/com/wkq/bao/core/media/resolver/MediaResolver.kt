@@ -4,6 +4,9 @@ import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.wkq.bao.core.database.AppDatabase
+import com.wkq.bao.core.media.smb.SmbCredentialRegistry
+import com.wkq.bao.core.media.storage.MediaStorageLocation
+import com.wkq.bao.core.media.storage.TvStorageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -33,7 +36,9 @@ class MediaResolver(private val context: Context) {
         if (!localUriString.isNullOrEmpty()) {
             val localUri = Uri.parse(localUriString)
             if (isLocalFileValid(localUri)) {
-                return@withContext PlaybackSource.Local(localUri, title)
+                val location = MediaStorageLocation.fromStored(mediaFile.localStorageType)
+                    ?: TvStorageManager(context).resolveLocalLocation(localUri)
+                return@withContext PlaybackSource.Local(localUri, title, location)
             }
         }
 
@@ -42,6 +47,7 @@ class MediaResolver(private val context: Context) {
         if (nasSourceId != null && mediaFile.nasUri.isNotEmpty()) {
             val nasSource = nasDao.getSourceById(nasSourceId)
             if (nasSource != null && nasSource.enabled) {
+                SmbCredentialRegistry.register(nasSource)
                 return@withContext PlaybackSource.NasStream(Uri.parse(mediaFile.nasUri), title, nasSourceId)
             }
         }

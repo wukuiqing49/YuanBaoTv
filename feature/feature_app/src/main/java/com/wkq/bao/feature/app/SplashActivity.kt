@@ -3,8 +3,11 @@ package com.wkq.bao.feature.app
 import android.content.Intent
 import androidx.lifecycle.lifecycleScope
 import com.wkq.base.activity.BaseActivity
+import com.wkq.bao.core.database.AppDatabase
+import com.wkq.bao.core.media.router.AppCommand
+import com.wkq.bao.core.media.router.AppCommandRouter
 import com.wkq.bao.feature.app.databinding.ActivitySplashBinding
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -28,15 +31,45 @@ class SplashActivity : BaseActivity<ActivitySplashBinding>() {
 
     override fun initData() {
         lifecycleScope.launch {
-            // 等待资源与数据库初始化完成
-            delay(1500)
-            navigateToHome()
+            val command = intent?.data?.let(AppCommandRouter::parse)
+            if (command != null && routeCommand(command)) return@launch
+            val hasNasSource = AppDatabase.getInstance(this@SplashActivity).nasDao().getAllSources().first().isNotEmpty()
+            navigateToHome(if (hasNasSource) MainPageNavigator.HOME else MainPageNavigator.NAS)
         }
     }
 
-    private fun navigateToHome() {
-        val intent = Intent(this, HomeActivity::class.java)
+    private fun navigateTo(target: Class<*>) {
+        val intent = Intent(this, target)
         startActivity(intent)
         finish()
+    }
+
+    private fun navigateToHome(page: Int) {
+        startActivity(Intent(this, HomeActivity::class.java).putExtra(HomeActivity.EXTRA_INITIAL_PAGE, page))
+        finish()
+    }
+
+    private fun routeCommand(command: AppCommand): Boolean {
+        return when (command) {
+            is AppCommand.PlayEpisode -> {
+                if (command.seriesId <= 0L || command.episodeId <= 0L) false
+                else {
+                    PlayerActivity.start(this, command.seriesId, command.episodeId, "")
+                    finish()
+                    true
+                }
+            }
+            is AppCommand.OpenSeries -> {
+                if (command.seriesId <= 0L) false
+                else {
+                    startActivity(Intent(this, DetailActivity::class.java).putExtra("seriesId", command.seriesId))
+                    finish()
+                    true
+                }
+            }
+            AppCommand.OpenDownloads -> { navigateToHome(MainPageNavigator.DOWNLOADS); true }
+            AppCommand.OpenSettings -> { navigateToHome(MainPageNavigator.NAS); true }
+            AppCommand.ContinueWatching, is AppCommand.Search -> false
+        }
     }
 }

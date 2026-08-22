@@ -1,167 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/tv_bg_dark"
-    android:paddingStart="48dp"
-    android:paddingTop="32dp"
-    android:paddingEnd="48dp"
-    android:paddingBottom="24dp">
-
-    <!-- 顶部标题 -->
-    <TextView
-        android:id="@+id/tv_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/title_nas_settings"
-        android:textColor="@color/tv_text_primary"
-        android:textSize="26sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- NAS 连接卡片容器 (横向流) -->
-    <LinearLayout
-        android:id="@+id/layout_nas_cards"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/tv_title">
-
-        <!-- 已连接 NAS 卡片 1 (Focused Example) -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/card_active_nas"
-            android:layout_width="320dp"
-            android:layout_height="220dp"
-            android:background="@drawable/bg_tv_focus_ring"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:padding="20dp">
-
-            <!-- 状态 Badge -->
-            <TextView
-                android:id="@+id/tv_nas_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_badge_nas"
-                android:text="@string/status_connected"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <!-- NAS 名称 -->
-            <TextView
-                android:id="@+id/tv_nas_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Home NAS (Synology)"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <!-- 协议与 IP 路径 -->
-            <TextView
-                android:id="@+id/tv_nas_host"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="SMB • 192.168.1.100\nShare: /volume1/Media"
-                android:textColor="@color/tv_text_secondary"
-                android:textSize="13sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tv_nas_name" />
-
-            <!-- 操作按钮 (扫描 / 测试 / 编辑) -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                app:layout_constraintBottom_toBottomOf="parent">
-
-                <Button
-                    android:id="@+id/btn_scan"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tv_button_focus"
-                    android:drawableStart="@drawable/ic_tv_search"
-                    android:drawablePadding="4dp"
-                    android:text="@string/btn_scan_now"
-                    android:textColor="@color/tv_text_primary"
-                    android:textSize="12sp" />
-
-                <Button
-                    android:id="@+id/btn_test_conn"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="10dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tv_button_focus"
-                    android:drawableStart="@drawable/ic_tv_nas"
-                    android:drawablePadding="4dp"
-                    android:text="@string/btn_test_conn"
-                    android:textColor="@color/tv_text_primary"
-                    android:textSize="12sp" />
+    android:fillViewport="true"
+    android:scrollbars="none">
+    <androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="16dp" android:paddingTop="12dp" android:paddingEnd="16dp" android:paddingBottom="24dp">
+        <TextView android:id="@+id/tv_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/title_nas_settings" android:textColor="@color/tv_text_primary" android:textSize="22sp" android:textStyle="bold" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+        <androidx.constraintlayout.widget.ConstraintLayout android:id="@+id/card_active_nas" android:layout_width="0dp" android:layout_height="184dp" android:layout_marginTop="14dp" android:background="@drawable/bg_tv_focus_ring" android:focusable="true" android:padding="14dp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/tv_title">
+            <TextView android:id="@+id/tv_nas_name" android:layout_width="0dp" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_primary" android:textSize="17sp" android:textStyle="bold" app:layout_constraintEnd_toStartOf="@id/tv_nas_status" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+            <TextView android:id="@+id/tv_nas_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_badge_nas" android:paddingHorizontal="6dp" android:paddingVertical="3dp" android:textColor="@color/tv_text_primary" android:textSize="10sp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent" />
+            <TextView android:id="@+id/tv_nas_host" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:ellipsize="end" android:maxLines="2" android:textColor="@color/tv_text_secondary" android:textSize="12sp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/tv_nas_name" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:orientation="horizontal" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent">
+                <Button android:id="@+id/btn_scan" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:background="@drawable/bg_tv_button_focus" android:text="@string/btn_scan_now" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
+                <Button android:id="@+id/btn_test_conn" android:layout_width="0dp" android:layout_height="40dp" android:layout_marginStart="8dp" android:layout_weight="1" android:background="@drawable/bg_tv_button_focus" android:text="@string/btn_test_conn" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
             </LinearLayout>
-
         </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <!-- 添加 NAS 卡片 -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/card_add_nas"
-            android:layout_width="260dp"
-            android:layout_height="220dp"
-            android:layout_marginStart="24dp"
-            android:background="@drawable/bg_tv_focus_ring"
-            android:focusable="true"
-            android:focusableInTouchMode="true">
-
-            <TextView
-                android:id="@+id/tv_plus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="+"
-                android:textColor="@color/tv_text_secondary"
-                android:textSize="48sp"
-                app:layout_constraintBottom_toTopOf="@id/tv_add_text"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_chainStyle="packed" />
-
-            <TextView
-                android:id="@+id/tv_add_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/btn_add_nas"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="16sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tv_plus" />
-
+        <androidx.constraintlayout.widget.ConstraintLayout android:id="@+id/card_add_nas" android:layout_width="0dp" android:layout_height="88dp" android:layout_marginTop="12dp" android:background="@drawable/bg_tv_focus_ring" android:focusable="true" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/card_active_nas">
+            <TextView android:id="@+id/tv_plus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="+" android:textColor="@color/tv_text_secondary" android:textSize="32sp" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+            <TextView android:id="@+id/tv_add_text" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="@string/btn_add_nas" android:textColor="@color/tv_text_primary" android:textSize="16sp" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toEndOf="@id/tv_plus" app:layout_constraintTop_toTopOf="parent" />
         </androidx.constraintlayout.widget.ConstraintLayout>
-
-    </LinearLayout>
-
-    <!-- 底部遥控器操作指引 -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:text="提示：使用遥控器 [OK] 键选择操作，按 [返回] 键返回主菜单"
-        android:textColor="@color/tv_text_tertiary"
-        android:textSize="13sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.core.widget.NestedScrollView>

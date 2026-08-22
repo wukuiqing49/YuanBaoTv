@@ -4,15 +4,17 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.wkq.bao.core.database.entity.EpisodeEntity
+import com.wkq.bao.core.database.entity.EpisodeWithSource
+import com.wkq.bao.core.media.storage.MediaStorageLocation
 import com.wkq.bao.feature.app.databinding.ItemEpisodeCardBinding
 import com.wkq.bao.feature.app.utils.TvFocusHelper
 
 class EpisodeAdapter(
-    private var items: List<EpisodeEntity> = emptyList(),
+    private var items: List<EpisodeWithSource> = emptyList(),
     private val onItemClick: (EpisodeEntity) -> Unit
 ) : RecyclerView.Adapter<EpisodeAdapter.ViewHolder>() {
 
-    fun submitList(newList: List<EpisodeEntity>) {
+    fun submitList(newList: List<EpisodeWithSource>) {
         items = newList
         notifyDataSetChanged()
     }
@@ -40,21 +42,38 @@ class EpisodeAdapter(
             binding.root.setOnClickListener {
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) {
-                    onItemClick(items[pos])
+                    onItemClick(items[pos].episode)
                 }
             }
         }
 
-        fun bind(item: EpisodeEntity) {
-            binding.tvEpisodeNum.text = "第 %02d 集".format(item.episodeNumber)
-            binding.tvEpisodeTitle.text = item.title.ifEmpty { "单集正片" }
-            binding.tvBadge.text = "NAS 在线"
-            binding.tvBadge.setBackgroundResource(com.wkq.bao.feature.res.R.drawable.bg_badge_nas)
+        fun bind(item: EpisodeWithSource) {
+            binding.tvEpisodeNum.text = binding.root.context.getString(
+                com.wkq.bao.feature.res.R.string.episode_format,
+                item.episode.episodeNumber
+            )
+            binding.tvEpisodeTitle.text = item.episode.title.ifEmpty {
+                binding.root.context.getString(com.wkq.bao.feature.res.R.string.episode_default_title)
+            }
+            val source = MediaStorageLocation.fromStored(item.localStorageType)
+            val (labelRes, backgroundRes) = when {
+                !item.localUri.isNullOrBlank() && source == MediaStorageLocation.TF_CARD ->
+                    com.wkq.bao.feature.res.R.string.badge_tf_card to com.wkq.bao.feature.res.R.drawable.bg_badge_local
+                !item.localUri.isNullOrBlank() && source == MediaStorageLocation.USB_DRIVE ->
+                    com.wkq.bao.feature.res.R.string.badge_usb_drive to com.wkq.bao.feature.res.R.drawable.bg_badge_local
+                !item.localUri.isNullOrBlank() ->
+                    com.wkq.bao.feature.res.R.string.badge_downloaded to com.wkq.bao.feature.res.R.drawable.bg_badge_local
+                !item.nasUri.isNullOrBlank() ->
+                    com.wkq.bao.feature.res.R.string.badge_nas_stream to com.wkq.bao.feature.res.R.drawable.bg_badge_nas
+                else -> com.wkq.bao.feature.res.R.string.badge_offline to com.wkq.bao.feature.res.R.drawable.bg_badge_local
+            }
+            binding.tvBadge.setText(labelRes)
+            binding.tvBadge.setBackgroundResource(backgroundRes)
 
-            if (item.thumbnailUri.isNotEmpty()) {
+            if (item.episode.thumbnailUri.isNotEmpty()) {
                 coil.Coil.imageLoader(binding.root.context).enqueue(
                     coil.request.ImageRequest.Builder(binding.root.context)
-                        .data(item.thumbnailUri)
+                        .data(item.episode.thumbnailUri)
                         .target(binding.ivThumbnail)
                         .crossfade(true)
                         .build()

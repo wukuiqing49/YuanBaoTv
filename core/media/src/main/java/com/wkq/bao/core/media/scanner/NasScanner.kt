@@ -7,6 +7,7 @@ import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import com.wkq.bao.core.database.entity.NasSourceEntity
 import com.wkq.bao.core.database.entity.SeasonEntity
 import com.wkq.bao.core.media.parser.MediaFileNameParser
+import com.wkq.bao.core.media.smb.SmbCredentialRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -26,14 +27,8 @@ class NasScanner(private val database: AppDatabase) {
      * 连接真实 NAS 并执行扫描入库
      */
     suspend fun scanAndImport(nasSource: NasSourceEntity): Result<Int> = withContext(Dispatchers.IO) {
-        val listResult = com.wkq.bao.core.media.smb.SmbClientManager.listFilesRecursive(
-            host = nasSource.host,
-            port = nasSource.port,
-            username = nasSource.username,
-            password = nasSource.passwordEncrypted,
-            shareName = nasSource.shareName,
-            subPath = nasSource.rootPath
-        )
+        SmbCredentialRegistry.register(nasSource)
+        val listResult = com.wkq.bao.core.media.smb.SmbClientManager.listFilesRecursive(nasSource)
         if (listResult.isFailure) {
             return@withContext Result.failure(listResult.exceptionOrNull() ?: Exception("扫描失败"))
         }
@@ -107,7 +102,7 @@ class NasScanner(private val database: AppDatabase) {
             )
 
             // 4. 插入或更新 MediaFile 关联映射 (NasUri -> LocalUri)
-            val nasUri = "smb://${nasSource.host}/${nasSource.shareName.trim('/')}/${filePath.trim('/')}"
+            val nasUri = com.wkq.bao.core.media.smb.SmbClientManager.buildUri(nasSource, filePath)
             val existingFile = database.mediaDao().getMediaFiles(episodeId).firstOrNull()
 
             if (existingFile == null) {
@@ -120,6 +115,15 @@ class NasScanner(private val database: AppDatabase) {
                         fileName = fileName,
                         fileSize = 850000000L,
                         mimeType = "video/*"
+                    )
+                )
+            } else if (existingFile.nasUri != nasUri || existingFile.nasSourceId != nasSource.id) {
+                database.mediaDao().updateMediaFile(
+                    existingFile.copy(
+                        nasSourceId = nasSource.id,
+                        nasUri = nasUri,
+                        fileName = fileName,
+                        updatedAt = System.currentTimeMillis()
                     )
                 )
             }
