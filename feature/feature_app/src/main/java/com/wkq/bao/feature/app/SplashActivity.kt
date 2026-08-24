@@ -1,21 +1,25 @@
 package com.wkq.bao.feature.app
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.lifecycle.lifecycleScope
+import androidx.activity.viewModels
 import com.wkq.base.activity.BaseActivity
-import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.media.router.AppCommand
 import com.wkq.bao.core.media.router.AppCommandRouter
 import com.wkq.bao.feature.app.databinding.ActivitySplashBinding
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
  * 圆宝TV 开屏页面
  */
 class SplashActivity : BaseActivity<ActivitySplashBinding>() {
+    private val viewModel by viewModels<SplashViewModel> { SplashViewModel.Factory(applicationContext) }
 
     override fun initView() {
+        requestNotificationPermissionIfNeeded()
         // 品牌 Logo 淡入与缩放动画
         binding.llBrand.alpha = 0f
         binding.llBrand.scaleX = 0.9f
@@ -29,12 +33,19 @@ class SplashActivity : BaseActivity<ActivitySplashBinding>() {
             .start()
     }
 
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
+        }
+    }
+
     override fun initData() {
         lifecycleScope.launch {
             val command = intent?.data?.let(AppCommandRouter::parse)
             if (command != null && routeCommand(command)) return@launch
-            val hasNasSource = AppDatabase.getInstance(this@SplashActivity).nasDao().getAllSources().first().isNotEmpty()
-            navigateToHome(if (hasNasSource) MainPageNavigator.HOME else MainPageNavigator.NAS)
+            navigateToHome(viewModel.resolveInitialPage())
         }
     }
 
@@ -71,5 +82,9 @@ class SplashActivity : BaseActivity<ActivitySplashBinding>() {
             AppCommand.OpenSettings -> { navigateToHome(MainPageNavigator.NAS); true }
             AppCommand.ContinueWatching, is AppCommand.Search -> false
         }
+    }
+
+    private companion object {
+        const val REQUEST_NOTIFICATIONS = 100
     }
 }

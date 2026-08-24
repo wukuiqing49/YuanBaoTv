@@ -2,20 +2,17 @@ package com.wkq.bao.feature.app.adapter
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.wkq.bao.core.database.entity.MediaSeriesEntity
+import com.wkq.bao.core.database.entity.MediaSeriesType
 import com.wkq.bao.feature.app.databinding.ItemPosterCardBinding
 import com.wkq.bao.feature.app.utils.TvFocusHelper
 
 class PosterCardAdapter(
-    private var items: List<MediaSeriesEntity> = emptyList(),
     private val onItemClick: (MediaSeriesEntity) -> Unit
-) : RecyclerView.Adapter<PosterCardAdapter.ViewHolder>() {
-
-    fun submitList(newList: List<MediaSeriesEntity>) {
-        items = newList
-        notifyDataSetChanged()
-    }
+) : ListAdapter<MediaSeriesEntity, PosterCardAdapter.ViewHolder>(DIFF_CALLBACK) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemPosterCardBinding.inflate(
@@ -27,10 +24,8 @@ class PosterCardAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(items[position])
+        holder.bind(getItem(position))
     }
-
-    override fun getItemCount(): Int = items.size
 
     inner class ViewHolder(private val binding: ItemPosterCardBinding) :
         RecyclerView.ViewHolder(binding.root) {
@@ -39,24 +34,37 @@ class PosterCardAdapter(
             TvFocusHelper.applyFocusScale(binding.root)
             binding.root.setOnClickListener {
                 val pos = bindingAdapterPosition
-                if (pos != RecyclerView.NO_POSITION) {
-                    onItemClick(items[pos])
-                }
+                if (pos != RecyclerView.NO_POSITION) onItemClick(getItem(pos))
             }
         }
 
         fun bind(item: MediaSeriesEntity) {
+            val context = binding.root.context
+            val genre = item.genre.ifEmpty { item.type }
             binding.tvTitle.text = item.title
-            binding.tvSubtitle.text = "${item.totalSeasons} 季 • ${item.genre.ifEmpty { item.type }}"
+            binding.tvSubtitle.text = if (MediaSeriesType.isMovie(item.type)) {
+                context.getString(com.wkq.bao.feature.res.R.string.poster_movie_subtitle, genre)
+            } else {
+                context.getString(com.wkq.bao.feature.res.R.string.poster_series_subtitle, item.totalSeasons, genre)
+            }
             if (item.posterUri.isNotEmpty()) {
-                coil.Coil.imageLoader(binding.ivPoster.context).enqueue(
-                    coil.request.ImageRequest.Builder(binding.ivPoster.context)
+                coil.Coil.imageLoader(context).enqueue(
+                    coil.request.ImageRequest.Builder(context)
                         .data(item.posterUri)
                         .target(binding.ivPoster)
                         .crossfade(true)
                         .build()
                 )
+            } else {
+                binding.ivPoster.setImageResource(com.wkq.bao.feature.res.R.drawable.bg_glass_card)
             }
+        }
+    }
+
+    private companion object {
+        val DIFF_CALLBACK = object : DiffUtil.ItemCallback<MediaSeriesEntity>() {
+            override fun areItemsTheSame(oldItem: MediaSeriesEntity, newItem: MediaSeriesEntity): Boolean = oldItem.id == newItem.id
+            override fun areContentsTheSame(oldItem: MediaSeriesEntity, newItem: MediaSeriesEntity): Boolean = oldItem == newItem
         }
     }
 }

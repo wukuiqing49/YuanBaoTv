@@ -2,6 +2,8 @@ package com.wkq.bao.feature.app.adapter
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.wkq.bao.core.database.entity.EpisodeEntity
 import com.wkq.bao.core.database.entity.EpisodeWithSource
@@ -10,14 +12,8 @@ import com.wkq.bao.feature.app.databinding.ItemEpisodeCardBinding
 import com.wkq.bao.feature.app.utils.TvFocusHelper
 
 class EpisodeAdapter(
-    private var items: List<EpisodeWithSource> = emptyList(),
     private val onItemClick: (EpisodeEntity) -> Unit
-) : RecyclerView.Adapter<EpisodeAdapter.ViewHolder>() {
-
-    fun submitList(newList: List<EpisodeWithSource>) {
-        items = newList
-        notifyDataSetChanged()
-    }
+) : ListAdapter<EpisodeWithSource, EpisodeAdapter.ViewHolder>(DIFF_CALLBACK) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemEpisodeCardBinding.inflate(
@@ -29,10 +25,8 @@ class EpisodeAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(items[position])
+        holder.bind(getItem(position))
     }
-
-    override fun getItemCount(): Int = items.size
 
     inner class ViewHolder(private val binding: ItemEpisodeCardBinding) :
         RecyclerView.ViewHolder(binding.root) {
@@ -42,7 +36,7 @@ class EpisodeAdapter(
             binding.root.setOnClickListener {
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) {
-                    onItemClick(items[pos].episode)
+                    onItemClick(getItem(pos).episode)
                 }
             }
         }
@@ -78,7 +72,16 @@ class EpisodeAdapter(
                         .crossfade(true)
                         .build()
                 )
+            } else {
+                binding.ivThumbnail.setImageResource(com.wkq.bao.feature.res.R.drawable.bg_glass_card)
             }
+        }
+    }
+
+    private companion object {
+        val DIFF_CALLBACK = object : DiffUtil.ItemCallback<EpisodeWithSource>() {
+            override fun areItemsTheSame(oldItem: EpisodeWithSource, newItem: EpisodeWithSource): Boolean = oldItem.episode.id == newItem.episode.id
+            override fun areContentsTheSame(oldItem: EpisodeWithSource, newItem: EpisodeWithSource): Boolean = oldItem == newItem
         }
     }
 }

@@ -36,6 +36,7 @@ dependencies {
     implementation project(':core:core_base')
     implementation project(':core:core_utils')
     implementation project(':core:database')
+    implementation project(':core:nas')
     implementation project(':core:media')
     implementation project(':feature:feature_app')
     implementation libs.androidx.core.ktx
@@ -43,4 +44,6 @@ dependencies {
     implementation libs.androidx.appcompat
     implementation libs.material
     implementation libs.androidx.constraintlayout
+    implementation libs.androidx.work.runtime
+    implementation libs.kotlinx.coroutines.android
 }

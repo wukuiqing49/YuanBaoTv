@@ -8,7 +8,7 @@ import android.os.storage.StorageManager
 import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 
-/** 管理用户授权的 TF 卡或 USB 硬盘目录，并识别本地媒体所在卷。 */
+/** 管理用户授权的本机、TF 卡、USB 或移动硬盘目录，并识别本地媒体所在卷。 */
 class TvStorageManager(private val context: Context) {
 
     data class StorageInfo(
@@ -48,20 +48,29 @@ class TvStorageManager(private val context: Context) {
         return storageInfoFor(target.uri)
     }
 
-    /** 仅允许作为下载目标的已挂载可移除卷，避免把内部存储误标成 TF 或 USB。 */
+    /** 可识别卷空间不足时提前拒绝下载；无法识别容量的文档提供方保留实际写入校验。 */
+    fun hasAvailableBytes(target: StorageTarget, requiredBytes: Long): Boolean {
+        if (requiredBytes < 0L || !target.isAvailable) return false
+        val storageInfo = getStorageInfo(target)
+        return storageInfo.totalBytes <= 0L || storageInfo.freeBytes >= requiredBytes
+    }
+
+    /** 允许系统文件选择器授予的本机或已挂载外接卷，拒绝无法识别的文档提供方。 */
     fun isStorageTargetAvailable(uri: Uri): Boolean {
         val volumeId = volumeId(uri) ?: return false
-        if (volumeId.equals("primary", ignoreCase = true)) return false
+        val root = DocumentFile.fromTreeUri(context, uri) ?: return false
+        if (!root.exists()) return false
+        if (volumeId.equals("primary", ignoreCase = true)) return true
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             val volume = findStorageVolume(volumeId) ?: return false
-            if (!volume.isRemovable || volume.state != Environment.MEDIA_MOUNTED) return false
+            if (volume.state != Environment.MEDIA_MOUNTED) return false
         } else {
             val externalDirectory = findExternalFilesDirectory(volumeId) ?: return false
-            if (!Environment.isExternalStorageRemovable(externalDirectory)) return false
+            if (externalDirectory.exists().not()) return false
         }
 
-        return DocumentFile.fromTreeUri(context, uri)?.exists() == true
+        return true
     }
 
     fun createLocalMediaFile(treeUri: Uri, relativeName: String): DocumentFile? {
@@ -81,7 +90,7 @@ class TvStorageManager(private val context: Context) {
 
     private fun inferLocation(uri: Uri): MediaStorageLocation {
         val volumeId = volumeId(uri) ?: return MediaStorageLocation.EXTERNAL_STORAGE
-        if (volumeId.equals("primary", ignoreCase = true)) return MediaStorageLocation.EXTERNAL_STORAGE
+        if (volumeId.equals("primary", ignoreCase = true)) return MediaStorageLocation.INTERNAL_STORAGE
 
         val description = findStorageVolume(volumeId)?.getDescription(context).orEmpty().lowercase()
 

@@ -30,6 +30,7 @@ dependencies {
     implementation project(':core:core_base')
     implementation project(':core:core_utils')
     implementation project(':core:database')
+    implementation project(':core:nas')
     implementation project(':core:media')
     implementation project(':feature:feature_res')
     implementation libs.androidx.appcompat
@@ -42,4 +43,6 @@ dependencies {
     implementation libs.androidx.recyclerview
     implementation libs.androidx.viewpager2
     implementation libs.coil
+    testImplementation libs.junit
+    testImplementation libs.kotlinx.coroutines.test
 }

@@ -6,11 +6,15 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Toast
+import androidx.activity.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
 import com.wkq.base.activity.BaseActivity
 import com.wkq.bao.core.media.controller.TvPlayerController
 import com.wkq.bao.feature.app.databinding.ActivityPlayerBinding
+import com.wkq.bao.feature.app.utils.TvFocusHelper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -40,6 +44,7 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
     }
 
     private lateinit var playerController: TvPlayerController
+    private val viewModel: PlayerViewModel by viewModels { PlayerViewModel.Factory(this) }
     private var seriesId = 0L
     private var seasonId = 0L
     private var episodeId = 0L
@@ -47,6 +52,7 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
     private var osdHideJob: Job? = null
     private var progressTrackerJob: Job? = null
     private var activePlayer: Player? = null
+    private var initialEpisodeLoaded = false
 
     private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -84,6 +90,15 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
         binding.btnRewind.setOnClickListener { playerController.seekRewind(); resetOsdTimer() }
         binding.btnFastForward.setOnClickListener { playerController.seekForward(); resetOsdTimer() }
         binding.btnNextEpisode.setOnClickListener { playNextEpisode() }
+        listOf(
+            binding.btnPlayPause,
+            binding.btnRewind,
+            binding.btnFastForward,
+            binding.btnNextEpisode,
+            binding.btnSpeed,
+            binding.seekProgress
+        ).forEach(TvFocusHelper::applyFocusScale)
+        TvFocusHelper.requestInitialFocus(binding.root, binding.btnPlayPause)
 
         val speeds = listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f)
         var speedIndex = 1
@@ -114,16 +129,34 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
 
     override fun initData() {
         lifecycleScope.launch {
-            if (seasonId == 0L) {
-                seasonId = com.wkq.bao.core.database.AppDatabase
-                    .getInstance(this@PlayerActivity)
-                    .mediaDao()
-                    .getEpisodeById(episodeId)
-                    ?.seasonId
-                    ?: 0L
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.uiState.collect { state ->
+                        val resolvedSeasonId = state.initialSeasonId ?: return@collect
+                        if (!initialEpisodeLoaded) {
+                            initialEpisodeLoaded = true
+                            seasonId = resolvedSeasonId
+                            loadEpisode(episodeId)
+                        }
+                    }
+                }
+                launch {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            is PlayerEvent.PlayNext -> {
+                                seasonId = event.episode.seasonId
+                                binding.tvTitle.text = event.episode.title
+                                loadEpisode(event.episode.id)
+                            }
+                            PlayerEvent.LastEpisodeReached -> {
+                                Toast.makeText(this@PlayerActivity, com.wkq.bao.feature.res.R.string.player_last_episode, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
             }
-            loadEpisode(episodeId)
         }
+        viewModel.initialize(seasonId, episodeId)
         startProgressTracker()
     }
 
@@ -138,6 +171,7 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
 
     private fun renderSourceBadge(source: String) {
         val (labelRes, backgroundRes) = when (source) {
+            "INTERNAL_STORAGE" -> com.wkq.bao.feature.res.R.string.storage_internal to com.wkq.bao.feature.res.R.drawable.bg_badge_local
             "TF_CARD" -> com.wkq.bao.feature.res.R.string.badge_tf_card to com.wkq.bao.feature.res.R.drawable.bg_badge_local
             "USB_DRIVE" -> com.wkq.bao.feature.res.R.string.badge_usb_drive to com.wkq.bao.feature.res.R.drawable.bg_badge_local
             "NAS" -> com.wkq.bao.feature.res.R.string.badge_nas_stream to com.wkq.bao.feature.res.R.drawable.bg_badge_nas
@@ -163,38 +197,38 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
     }
 
     private fun playNextEpisode() {
-        lifecycleScope.launch {
-            val database = com.wkq.bao.core.database.AppDatabase.getInstance(this@PlayerActivity)
-            val current = database.mediaDao().getEpisodeById(episodeId)
-            val nextInSeason = current?.let { database.mediaDao().getEpisodeByNumber(it.seasonId, it.episodeNumber + 1) }
-            val next = nextInSeason ?: current?.let { currentEpisode ->
-                val seasons = database.mediaDao().getSeasonsSync(seriesId)
-                val currentIndex = seasons.indexOfFirst { it.id == currentEpisode.seasonId }
-                seasons.getOrNull(currentIndex + 1)?.let { nextSeason ->
-                    database.mediaDao().getEpisodeByNumber(nextSeason.id, 1)
-                }
-            }
-            if (next == null || next.seriesId != seriesId) {
-                Toast.makeText(this@PlayerActivity, com.wkq.bao.feature.res.R.string.player_last_episode, Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            seasonId = next.seasonId
-            binding.tvTitle.text = next.title
-            loadEpisode(next.id)
-        }
+        viewModel.playNextEpisode(seriesId, episodeId)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        // OSD 可见时交给已聚焦的控件处理方向键和确认键，保证倍速、下一集等按钮可达。
+        if (binding.layoutOsd.visibility == View.VISIBLE) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_SPACE -> {
+                    playerController.togglePlayPause()
+                    resetOsdTimer()
+                    return true
+                }
+                KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                    playNextEpisode()
+                    return true
+                }
+                KeyEvent.KEYCODE_BACK -> {
+                    hideOsd()
+                    return true
+                }
+            }
+            return super.onKeyDown(keyCode, event)
+        }
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                if (binding.layoutOsd.visibility == View.VISIBLE) hideOsd() else showOsd()
+                showOsd()
                 return true
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> { playerController.seekRewind(); showOsd(); return true }
             KeyEvent.KEYCODE_DPAD_RIGHT -> { playerController.seekForward(); showOsd(); return true }
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_SPACE -> { playerController.togglePlayPause(); showOsd(); return true }
             KeyEvent.KEYCODE_MEDIA_NEXT -> { playNextEpisode(); return true }
-            KeyEvent.KEYCODE_BACK -> if (binding.layoutOsd.visibility == View.VISIBLE) { hideOsd(); return true }
         }
         return super.onKeyDown(keyCode, event)
     }
@@ -207,6 +241,7 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
 
     private fun hideOsd() {
         binding.layoutOsd.visibility = View.GONE
+        binding.playerView.requestFocus()
         osdHideJob?.cancel()
     }
 
@@ -220,7 +255,10 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
 
     private fun formatTime(milliseconds: Long): String {
         val seconds = milliseconds / 1000
-        return String.format("%02d:%02d", seconds / 60, seconds % 60)
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
+        return if (hours > 0) String.format("%d:%02d:%02d", hours, minutes, seconds % 60)
+        else String.format("%02d:%02d", minutes, seconds % 60)
     }
 
     private fun hideSystemUi() {

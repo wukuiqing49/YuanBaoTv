@@ -25,6 +25,7 @@ modules:
   coreBase: core/core_base
   coreUtils: core/core_utils
   coreDatabase: core/database
+  coreNas: core/nas
   coreMedia: core/media
   featureApp: feature/feature_app
   featureRes: feature/feature_res

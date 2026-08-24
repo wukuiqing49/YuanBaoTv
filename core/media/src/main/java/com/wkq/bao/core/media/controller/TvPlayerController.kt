@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackException
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
@@ -39,6 +40,9 @@ class TvPlayerController(
     private var currentEpisodeId: Long = 0L
     private var progressTrackingJob: Job? = null
     private var pendingPlayback: PlaybackRequest? = null
+    private var activeSource: PlaybackSource? = null
+    private var activeResultCallback: ((Boolean, String) -> Unit)? = null
+    private val failedNasSourceIds = mutableSetOf<Long>()
 
     private data class PlaybackRequest(
         val seriesId: Long,
@@ -86,6 +90,10 @@ class TvPlayerController(
                     saveWatchProgress(completed = false)
                 }
             }
+
+            override fun onPlayerError(error: PlaybackException) {
+                fallbackFromPlaybackError()
+            }
         })
     }
 
@@ -100,14 +108,19 @@ class TvPlayerController(
         currentSeriesId = seriesId
         currentSeasonId = seasonId
         currentEpisodeId = episodeId
+        activeSource = null
+        activeResultCallback = onResult
+        failedNasSourceIds.clear()
 
         scope.launch {
             when (val source = mediaResolver.resolve(episodeId)) {
                 is PlaybackSource.Local -> {
+                    activeSource = source
                     startPlay(source.uri.toString(), source.title)
                     onResult?.invoke(true, source.location.name)
                 }
                 is PlaybackSource.NasStream -> {
+                    activeSource = source
                     startPlay(source.uri.toString(), source.title)
                     onResult?.invoke(true, "NAS")
                 }
@@ -118,7 +131,37 @@ class TvPlayerController(
         }
     }
 
-    private suspend fun startPlay(uriString: String, title: String) {
+    /** 本地盘或当前 NAS 播放失败时，使用未失败的 NAS 来源继续播放。 */
+    private fun fallbackFromPlaybackError() {
+        val failedSource = activeSource ?: return
+        val failedEpisodeId = currentEpisodeId
+        val resumePosition = player?.currentPosition?.coerceAtLeast(0L) ?: 0L
+        val callback = activeResultCallback
+        if (failedSource is PlaybackSource.NasStream) {
+            failedNasSourceIds += failedSource.nasSourceId
+        }
+        activeSource = null // 等待新来源解析，防止同一次错误重复触发回退。
+
+        scope.launch {
+            when (val fallback = mediaResolver.resolve(
+                episodeId = failedEpisodeId,
+                allowLocal = false,
+                excludedNasSourceIds = failedNasSourceIds
+            )) {
+                is PlaybackSource.NasStream -> {
+                    activeSource = fallback
+                    startPlay(fallback.uri.toString(), fallback.title, resumePosition)
+                    callback?.invoke(true, "NAS")
+                }
+                is PlaybackSource.Unavailable -> {
+                    callback?.invoke(false, "播放源回退失败: ${fallback.reason}")
+                }
+                is PlaybackSource.Local -> Unit
+            }
+        }
+    }
+
+    private suspend fun startPlay(uriString: String, title: String, resumePosition: Long? = null) {
         val p = player ?: return
         val mediaItem = MediaItem.Builder()
             .setUri(uriString)
@@ -129,8 +172,11 @@ class TvPlayerController(
 
         // 查找历史进度并恢复
         val history = watchHistoryDao.getHistoryByEpisodeId(currentEpisodeId)
-        if (history != null && !history.completed && history.positionMs > 5000) {
-            p.seekTo(history.positionMs)
+        val initialPosition = resumePosition ?: history
+            ?.takeIf { !it.completed && it.positionMs > 5000 }
+            ?.positionMs
+        if (initialPosition != null && initialPosition > 0L) {
+            p.seekTo(initialPosition)
         }
 
         p.prepare()
@@ -156,7 +202,7 @@ class TvPlayerController(
 
     private fun startProgressTracking() {
         progressTrackingJob?.cancel()
-        progressTrackingJob = scope.launch(Dispatchers.IO) {
+        progressTrackingJob = scope.launch {
             while (isActive) {
                 delay(15000) // 每 15 秒保存一次进度
                 saveWatchProgress(completed = false)
@@ -172,15 +218,19 @@ class TvPlayerController(
     private fun saveWatchProgress(completed: Boolean) {
         val p = player ?: return
         if (currentEpisodeId == 0L) return
+        // 在切集前固定归属，避免异步写库时将上一集进度写进下一集。
+        val seriesId = currentSeriesId
+        val seasonId = currentSeasonId
+        val episodeId = currentEpisodeId
         val pos = if (completed) 0L else p.currentPosition
         val duration = p.duration.coerceAtLeast(0L)
 
         scope.launch(Dispatchers.IO) {
             watchHistoryDao.saveHistory(
                 WatchHistoryEntity(
-                    seriesId = currentSeriesId,
-                    seasonId = currentSeasonId,
-                    episodeId = currentEpisodeId,
+                    seriesId = seriesId,
+                    seasonId = seasonId,
+                    episodeId = episodeId,
                     positionMs = pos,
                     durationMs = duration,
                     completed = completed,
@@ -197,5 +247,7 @@ class TvPlayerController(
         }
         player = null
         pendingPlayback = null
+        activeSource = null
+        activeResultCallback = null
     }
 }

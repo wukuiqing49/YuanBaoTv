@@ -1,5 +1,6 @@
 package com.wkq.bao.core.media.parser
 
+import com.wkq.bao.core.database.entity.MediaSeriesType
 import java.util.regex.Pattern
 
 /**
@@ -12,7 +13,8 @@ object MediaFileNameParser {
         val seriesTitle: String,
         val seasonNumber: Int,
         val episodeNumber: Int,
-        val episodeTitle: String = ""
+        val episodeTitle: String = "",
+        val mediaType: String = MediaSeriesType.MOVIE
     )
 
     // S01E02 或 s1e2
@@ -34,7 +36,7 @@ object MediaFileNameParser {
             val season = matcherSE.group(2)?.toIntOrNull() ?: 1
             val episode = matcherSE.group(3)?.toIntOrNull() ?: 1
             val epTitle = cleanTitle(matcherSE.group(4) ?: "")
-            return ParsedMediaInfo(title.ifEmpty { fileName }, season, episode, epTitle)
+            return ParsedMediaInfo(title.ifEmpty { fileName }, season, episode, epTitle, MediaSeriesType.TV)
         }
 
         // 2. 尝试 中文：第1季 第2集
@@ -44,7 +46,7 @@ object MediaFileNameParser {
             val season = matcherZH.group(2)?.toIntOrNull() ?: 1
             val episode = matcherZH.group(3)?.toIntOrNull() ?: 1
             val epTitle = cleanTitle(matcherZH.group(4) ?: "")
-            return ParsedMediaInfo(title.ifEmpty { fileName }, season, episode, epTitle)
+            return ParsedMediaInfo(title.ifEmpty { fileName }, season, episode, epTitle, MediaSeriesType.TV)
         }
 
         // 3. 尝试 01x02
@@ -54,7 +56,7 @@ object MediaFileNameParser {
             val season = matcherX.group(2)?.toIntOrNull() ?: 1
             val episode = matcherX.group(3)?.toIntOrNull() ?: 1
             val epTitle = cleanTitle(matcherX.group(4) ?: "")
-            return ParsedMediaInfo(title.ifEmpty { fileName }, season, episode, epTitle)
+            return ParsedMediaInfo(title.ifEmpty { fileName }, season, episode, epTitle, MediaSeriesType.TV)
         }
 
         // 4. 尝试 中文单集
@@ -63,11 +65,11 @@ object MediaFileNameParser {
             val title = cleanTitle(matcherZHEp.group(1) ?: "")
             val episode = matcherZHEp.group(2)?.toIntOrNull() ?: 1
             val epTitle = cleanTitle(matcherZHEp.group(3) ?: "")
-            return ParsedMediaInfo(title.ifEmpty { fileName }, 1, episode, epTitle)
+            return ParsedMediaInfo(title.ifEmpty { fileName }, 1, episode, epTitle, MediaSeriesType.TV)
         }
 
         // 默认作为第 1 季第 1 集
-        return ParsedMediaInfo(cleanTitle(fileName), 1, 1)
+        return ParsedMediaInfo(cleanTitle(fileName), 1, 1, mediaType = MediaSeriesType.MOVIE)
     }
 
     private fun cleanTitle(raw: String): String {

@@ -158,7 +158,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        android:text="提示：使用遥控器 [OK] 键选择操作，按 [返回] 键返回主菜单"
+        android:text="@string/tv_remote_hint"
         android:textColor="@color/tv_text_tertiary"
         android:textSize="13sp"
         app:layout_constraintBottom_toBottomOf="parent"

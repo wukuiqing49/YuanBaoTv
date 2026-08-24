@@ -12,6 +12,9 @@ interface NasDao {
     @Query("SELECT * FROM nas_sources WHERE enabled = 1")
     suspend fun getEnabledSources(): List<NasSourceEntity>
 
+    @Query("SELECT * FROM nas_sources")
+    suspend fun getAllSourcesSync(): List<NasSourceEntity>
+
     @Query("SELECT * FROM nas_sources WHERE id = :id LIMIT 1")
     suspend fun getSourceById(id: Long): NasSourceEntity?
 

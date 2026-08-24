@@ -22,7 +22,11 @@ class MediaResolver(private val context: Context) {
     /**
      * 解析指定集的实际播放源
      */
-    suspend fun resolve(episodeId: Long): PlaybackSource = withContext(Dispatchers.IO) {
+    suspend fun resolve(
+        episodeId: Long,
+        allowLocal: Boolean = true,
+        excludedNasSourceIds: Set<Long> = emptySet()
+    ): PlaybackSource = withContext(Dispatchers.IO) {
         val episode = mediaDao.getEpisodeById(episodeId)
             ?: return@withContext PlaybackSource.Unavailable("Episode not found: $episodeId", episodeId)
 
@@ -31,20 +35,40 @@ class MediaResolver(private val context: Context) {
 
         val title = episode.title.ifEmpty { "Episode ${episode.episodeNumber}" }
 
-        // 1. 优先检查本地/USB存储是否存在有效文件
-        val localUriString = mediaFile.localUri
-        if (!localUriString.isNullOrEmpty()) {
-            val localUri = Uri.parse(localUriString)
-            if (isLocalFileValid(localUri)) {
+        // 1. 按最近使用顺序检查全部本机/外接副本
+        if (allowLocal) {
+            mediaDao.getMediaLocations(mediaFile.id).forEach { localLocation ->
+                val localUri = Uri.parse(localLocation.uri)
+                if (isLocalFileValid(localUri)) {
+                    val location = MediaStorageLocation.fromStored(localLocation.storageType)
+                        ?: TvStorageManager(context).resolveLocalLocation(localUri)
+                    return@withContext PlaybackSource.Local(localUri, title, location)
+                }
+            }
+
+            // 兼容尚未升级到多位置表的旧记录。
+            val legacyUri = mediaFile.localUri?.let(Uri::parse)
+            if (legacyUri != null && isLocalFileValid(legacyUri)) {
                 val location = MediaStorageLocation.fromStored(mediaFile.localStorageType)
-                    ?: TvStorageManager(context).resolveLocalLocation(localUri)
-                return@withContext PlaybackSource.Local(localUri, title, location)
+                    ?: TvStorageManager(context).resolveLocalLocation(legacyUri)
+                return@withContext PlaybackSource.Local(legacyUri, title, location)
             }
         }
 
-        // 2. 本地不存在，检查 NAS 是否配置且源可用
+        // 2. 本地不存在，按最近扫描顺序依次尝试已启用的 NAS 来源。
+        mediaDao.getMediaRemoteSources(mediaFile.id).forEach { remoteSource ->
+            val nasSourceId = remoteSource.nasSourceId ?: return@forEach
+            if (nasSourceId in excludedNasSourceIds) return@forEach
+            val nasSource = nasDao.getSourceById(nasSourceId)
+            if (nasSource != null && nasSource.enabled) {
+                SmbCredentialRegistry.register(nasSource)
+                return@withContext PlaybackSource.NasStream(Uri.parse(remoteSource.uri), title, nasSourceId)
+            }
+        }
+
+        // 兼容升级前只有一个 NAS 来源的媒体记录。
         val nasSourceId = mediaFile.nasSourceId
-        if (nasSourceId != null && mediaFile.nasUri.isNotEmpty()) {
+        if (nasSourceId != null && nasSourceId !in excludedNasSourceIds && mediaFile.nasUri.isNotEmpty()) {
             val nasSource = nasDao.getSourceById(nasSourceId)
             if (nasSource != null && nasSource.enabled) {
                 SmbCredentialRegistry.register(nasSource)

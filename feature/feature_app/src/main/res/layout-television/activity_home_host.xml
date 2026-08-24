@@ -27,6 +27,9 @@
             android:layout_weight="1"
             android:focusable="true"
             android:gravity="center"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
             android:text="@string/nav_home"
             android:textColor="@color/tv_text_primary"
             android:textSize="15sp" />
@@ -38,6 +41,9 @@
             android:layout_weight="1"
             android:focusable="true"
             android:gravity="center"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
             android:text="@string/nav_all_media"
             android:textColor="@color/tv_text_secondary"
             android:textSize="15sp" />
@@ -49,6 +55,9 @@
             android:layout_weight="1"
             android:focusable="true"
             android:gravity="center"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
             android:text="@string/nav_downloads"
             android:textColor="@color/tv_text_secondary"
             android:textSize="15sp" />
@@ -60,6 +69,9 @@
             android:layout_weight="1"
             android:focusable="true"
             android:gravity="center"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
             android:text="@string/nav_nas"
             android:textColor="@color/tv_text_secondary"
             android:textSize="15sp" />

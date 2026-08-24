@@ -26,14 +26,12 @@ dependencies {
     implementation project(':core:core_base')
     implementation project(':core:core_utils')
     implementation project(':core:database')
+    implementation project(':core:nas')
     
     // Media3
     api libs.androidx.media3.exoplayer
     api libs.androidx.media3.ui
     api libs.androidx.media3.session
-    
-    // SMB
-    implementation libs.smbj
     
     // SAF & Storage
     implementation libs.androidx.documentfile
@@ -41,4 +39,6 @@ dependencies {
     // Coroutines
     implementation libs.kotlinx.coroutines.core
     implementation libs.kotlinx.coroutines.android
+    implementation libs.androidx.work.runtime
+    testImplementation libs.junit
 }

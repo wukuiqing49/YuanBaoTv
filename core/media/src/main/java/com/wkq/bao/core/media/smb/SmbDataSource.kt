@@ -24,6 +24,7 @@ class SmbDataSource : DataSource {
     }
 
     override fun open(dataSpec: DataSpec): Long {
+        close()
         val source = SmbCredentialRegistry.resolve(dataSpec.uri)
             ?: throw IOException("未找到 SMB 媒体源配置，请先在 NAS 设置中完成连接")
         val openedHandle = try {
@@ -31,15 +32,19 @@ class SmbDataSource : DataSource {
         } catch (error: Throwable) {
             throw IOException("无法打开 NAS 媒体", error)
         }
+        val remaining = if (dataSpec.length == C.LENGTH_UNSET.toLong()) {
+            openedHandle.length - dataSpec.position
+        } else {
+            minOf(dataSpec.length, openedHandle.length - dataSpec.position)
+        }
+        if (remaining < 0L) {
+            openedHandle.close()
+            throw IOException("播放位置超出 SMB 文件长度")
+        }
         handle = openedHandle
         openedUri = dataSpec.uri
         readPosition = dataSpec.position
-        bytesRemaining = if (dataSpec.length == C.LENGTH_UNSET.toLong()) {
-            openedHandle.length - readPosition
-        } else {
-            minOf(dataSpec.length, openedHandle.length - readPosition)
-        }
-        if (bytesRemaining < 0L) throw IOException("播放位置超出 SMB 文件长度")
+        bytesRemaining = remaining
         return bytesRemaining
     }
 

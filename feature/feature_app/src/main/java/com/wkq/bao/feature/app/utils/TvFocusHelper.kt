@@ -1,5 +1,6 @@
 package com.wkq.bao.feature.app.utils
 
+import android.content.res.Configuration
 import android.view.View
 
 /**
@@ -24,6 +25,15 @@ object TvFocusHelper {
                     .start()
                 v.elevation = 0f
             }
+        }
+    }
+
+    /** 仅在电视设备上补齐首焦点，避免触屏设备无故显示键盘焦点环。 */
+    fun requestInitialFocus(root: View, preferred: View) {
+        val type = root.resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
+        if (type != Configuration.UI_MODE_TYPE_TELEVISION) return
+        root.post {
+            if (!root.hasFocus() && preferred.isShown && preferred.isEnabled) preferred.requestFocus()
         }
     }
 }

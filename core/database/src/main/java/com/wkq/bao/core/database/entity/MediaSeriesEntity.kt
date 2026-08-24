@@ -26,3 +26,13 @@ data class MediaSeriesEntity(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
+
+/** 媒体类型在扫描、列表与详情页之间共享，避免通过展示文案推断内容形态。 */
+object MediaSeriesType {
+    const val CARTOON = "CARTOON"
+    const val TV = "TV"
+    const val MOVIE = "MOVIE"
+    const val LOCAL = "LOCAL"
+
+    fun isMovie(type: String): Boolean = type == MOVIE
+}

@@ -1,0 +1,41 @@
+name: Android Verify
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Verify project structure and resources
+        run: |
+          python3 -X utf8 .agents/scripts/validate_android_workflows.py --project-root . --skip-figma
+
+      - name: Compile migration test, test download policy, lint, and build debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --max-workers=2 :core:database:assembleDebugAndroidTest :core:media:testDebugUnitTest :feature:feature_app:testDebugUnitTest :app:lintDebug :app:assembleDebug --console=plain
