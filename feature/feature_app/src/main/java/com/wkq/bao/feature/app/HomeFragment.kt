@@ -75,6 +75,12 @@ class HomeFragment : Fragment() {
     private fun renderState(state: HomeUiState) {
         continueAdapter.submitList(state.continueWatching)
         posterAdapter.submitList(state.cartoons)
+        val hasContinueWatching = state.continueWatching.isNotEmpty()
+        binding.tvLabelContinue.visibility = if (hasContinueWatching) View.VISIBLE else View.GONE
+        binding.rvContinueWatching.visibility = if (hasContinueWatching) View.VISIBLE else View.GONE
+        val hasCartoons = state.cartoons.isNotEmpty()
+        binding.tvLabelCartoons.visibility = if (hasCartoons) View.VISIBLE else View.GONE
+        binding.rvCartoons.visibility = if (hasCartoons) View.VISIBLE else View.GONE
         val featured = state.featured
         if (featured == null) {
             renderedFeatured = null

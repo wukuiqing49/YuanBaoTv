@@ -2,12 +2,14 @@ package com.wkq.bao.feature.app
 
 import android.os.Bundle
 import android.text.InputType
+import android.view.inputmethod.EditorInfo
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -24,6 +26,7 @@ import com.wkq.bao.feature.app.databinding.ActivityNasSettingsBinding
 import com.wkq.bao.feature.app.utils.TvFocusHelper
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 class NasSettingsFragment : Fragment() {
     private var _binding: ActivityNasSettingsBinding? = null
@@ -211,33 +214,79 @@ class NasSettingsFragment : Fragment() {
     }
 
     private fun showNasEditor(source: NasSourceEntity?) {
-        val container = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 24, 48, 8); gravity = Gravity.CENTER_VERTICAL }
-        fun field(label: Int, value: String, password: Boolean = false) = EditText(requireContext()).apply {
-            hint = getString(label); setText(value); isSingleLine = true
-            inputType = if (password) InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD else InputType.TYPE_CLASS_TEXT
-            container.addView(this, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val density = resources.displayMetrics.density
+        val horizontalPadding = (20 * density).roundToInt()
+        val verticalPadding = (12 * density).roundToInt()
+        val container = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+            gravity = Gravity.CENTER_VERTICAL
         }
-        val name = field(com.wkq.bao.feature.res.R.string.nas_name, source?.name.orEmpty())
-        val host = field(com.wkq.bao.feature.res.R.string.nas_host, source?.host.orEmpty())
-        val share = field(com.wkq.bao.feature.res.R.string.nas_share, source?.shareName.orEmpty())
-        val root = field(com.wkq.bao.feature.res.R.string.nas_root_path, source?.rootPath.orEmpty())
-        val username = field(com.wkq.bao.feature.res.R.string.nas_username, source?.username.orEmpty())
-        val password = field(com.wkq.bao.feature.res.R.string.nas_password, "", true)
-        AlertDialog.Builder(requireContext())
+        fun field(label: Int, value: String, type: Int, action: Int = EditorInfo.IME_ACTION_NEXT) =
+            EditText(requireContext()).apply {
+                hint = getString(label)
+                setText(value)
+                isSingleLine = true
+                inputType = type
+                imeOptions = action
+                container.addView(
+                    this,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                )
+            }
+        val name = field(
+            com.wkq.bao.feature.res.R.string.nas_name,
+            source?.name.orEmpty(),
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+        )
+        val host = field(
+            com.wkq.bao.feature.res.R.string.nas_host,
+            source?.host.orEmpty(),
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+        )
+        val share = field(com.wkq.bao.feature.res.R.string.nas_share, source?.shareName.orEmpty(), InputType.TYPE_CLASS_TEXT)
+        val root = field(com.wkq.bao.feature.res.R.string.nas_root_path, source?.rootPath.orEmpty(), InputType.TYPE_CLASS_TEXT)
+        val username = field(com.wkq.bao.feature.res.R.string.nas_username, source?.username.orEmpty(), InputType.TYPE_CLASS_TEXT)
+        val password = field(
+            com.wkq.bao.feature.res.R.string.nas_password,
+            "",
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+            EditorInfo.IME_ACTION_DONE
+        )
+        val scrollView = ScrollView(requireContext()).apply {
+            isFillViewport = true
+            addView(container)
+        }
+        val dialog = AlertDialog.Builder(requireContext())
             .setTitle(if (source == null) com.wkq.bao.feature.res.R.string.btn_add_nas else com.wkq.bao.feature.res.R.string.btn_edit_nas)
-            .setView(container)
+            .setView(scrollView)
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(com.wkq.bao.feature.res.R.string.btn_save) { _, _ ->
+            .setPositiveButton(com.wkq.bao.feature.res.R.string.btn_save, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val normalizedHost = host.text.toString().trim()
                 val normalizedShare = share.text.toString().trim().trim('/')
-                if (normalizedHost.isEmpty() || normalizedShare.isEmpty()) return@setPositiveButton
+                if (normalizedHost.isEmpty()) {
+                    host.error = getString(com.wkq.bao.feature.res.R.string.nas_field_required, getString(com.wkq.bao.feature.res.R.string.nas_host))
+                    host.requestFocus()
+                    return@setOnClickListener
+                }
+                if (normalizedShare.isEmpty()) {
+                    share.error = getString(com.wkq.bao.feature.res.R.string.nas_field_required, getString(com.wkq.bao.feature.res.R.string.nas_share))
+                    share.requestFocus()
+                    return@setOnClickListener
+                }
                 val encryptedPassword = runCatching {
                     password.text.toString().takeIf { it.isNotEmpty() }
                         ?.let(NasCredentialVault::encrypt)
                         ?: source?.passwordEncrypted.orEmpty()
                 }.getOrElse {
                     Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.nas_password_protection_failed, Toast.LENGTH_LONG).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 viewModel.save(NasSourceEntity(
                         id = source?.id ?: 0L,
@@ -252,7 +301,10 @@ class NasSettingsFragment : Fragment() {
                         lastScanAt = source?.lastScanAt ?: 0L
                     ))
                 AppDiagnostics.record(requireContext(), "nas", if (source == null) "source_added" else "source_updated")
-            }.show()
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
     }
 
     override fun onDestroyView() {

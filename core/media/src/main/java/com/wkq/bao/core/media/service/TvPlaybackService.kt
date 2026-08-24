@@ -18,6 +18,20 @@ class TvPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var player: ExoPlayer? = null
 
+    private val sessionCallback = object : MediaSession.Callback {
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo
+        ): MediaSession.ConnectionResult {
+            // 允许应用自身和通过系统信任校验的媒体控制器，拒绝普通第三方应用直接控制播放。
+            return if (controller.packageName == packageName || controller.isTrusted) {
+                super.onConnect(session, controller)
+            } else {
+                MediaSession.ConnectionResult.reject()
+            }
+        }
+    }
+
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
@@ -39,6 +53,7 @@ class TvPlaybackService : MediaSessionService() {
             }
 
         val sessionBuilder = MediaSession.Builder(this, exoPlayer)
+            .setCallback(sessionCallback)
         if (sessionActivityPendingIntent != null) {
             sessionBuilder.setSessionActivity(sessionActivityPendingIntent)
         }

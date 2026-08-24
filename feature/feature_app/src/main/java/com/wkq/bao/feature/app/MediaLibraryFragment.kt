@@ -11,6 +11,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.GridLayoutManager
 import com.wkq.bao.core.database.entity.MediaSeriesType
 import com.wkq.bao.feature.app.adapter.PosterCardAdapter
 import com.wkq.bao.feature.app.databinding.ActivityMediaLibraryBinding
@@ -34,6 +35,13 @@ class MediaLibraryFragment : Fragment() {
         posterAdapter = PosterCardAdapter { series ->
             startActivity(Intent(requireContext(), DetailActivity::class.java).putExtra("seriesId", series.id))
         }
+        binding.rvMediaGrid.layoutManager = GridLayoutManager(requireContext(), calculateSpanCount(resources.displayMetrics.widthPixels))
+        binding.rvMediaGrid.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            val width = right - left
+            if (width > 0 && width != oldRight - oldLeft) {
+                (binding.rvMediaGrid.layoutManager as? GridLayoutManager)?.spanCount = calculateSpanCount(width)
+            }
+        }
         binding.rvMediaGrid.adapter = posterAdapter
         binding.btnFilterAll.setOnClickListener { viewModel.selectType(null) }
         binding.btnFilterCartoon.setOnClickListener { viewModel.selectType(MediaSeriesType.CARTOON) }
@@ -53,6 +61,9 @@ class MediaLibraryFragment : Fragment() {
 
     private fun renderState(state: MediaLibraryUiState) {
         posterAdapter.submitList(state.series)
+        val isEmpty = state.series.isEmpty()
+        binding.rvMediaGrid.visibility = if (isEmpty) View.GONE else View.VISIBLE
+        binding.tvEmptyLibrary?.visibility = if (isEmpty) View.VISIBLE else View.GONE
         val selectedType = state.selectedType
         listOf(
             binding.btnFilterAll to null,
@@ -62,6 +73,11 @@ class MediaLibraryFragment : Fragment() {
         ).forEach { (button, type) ->
             button.updateSelection(type == selectedType)
         }
+    }
+
+    private fun calculateSpanCount(widthPx: Int): Int {
+        val minimumCardWidth = 116f * resources.displayMetrics.density
+        return (widthPx / minimumCardWidth).toInt().coerceIn(2, 6)
     }
 
     private fun Button.updateSelection(selected: Boolean) {

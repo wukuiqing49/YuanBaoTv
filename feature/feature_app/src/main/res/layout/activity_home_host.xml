@@ -5,87 +5,99 @@
     android:layout_height="match_parent"
     android:background="@color/tv_bg_dark">
 
-    <LinearLayout
-        android:id="@+id/layout_page_tabs"
-        android:layout_width="0dp"
-        android:layout_height="48dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
-        android:background="@drawable/bg_nav_pill_container"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="4dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <TextView
-            android:id="@+id/tab_home"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:focusable="true"
-            android:gravity="center"
-            android:ellipsize="end"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:text="@string/nav_home"
-            android:textColor="@color/tv_text_primary"
-            android:textSize="13sp" />
-
-        <TextView
-            android:id="@+id/tab_library"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:focusable="true"
-            android:gravity="center"
-            android:ellipsize="end"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:text="@string/nav_all_media"
-            android:textColor="@color/tv_text_secondary"
-            android:textSize="13sp" />
-
-        <TextView
-            android:id="@+id/tab_downloads"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:focusable="true"
-            android:gravity="center"
-            android:ellipsize="end"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:text="@string/nav_downloads"
-            android:textColor="@color/tv_text_secondary"
-            android:textSize="13sp" />
-
-        <TextView
-            android:id="@+id/tab_nas"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:focusable="true"
-            android:gravity="center"
-            android:ellipsize="end"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:text="@string/nav_nas"
-            android:textColor="@color/tv_text_secondary"
-            android:textSize="13sp" />
-    </LinearLayout>
-
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/vp_main_pages"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
         android:overScrollMode="never"
         android:scrollbars="none"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/layout_page_tabs"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_page_tabs" />
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/layout_page_tabs"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_nav_pill_container"
+        android:gravity="center_vertical"
+        android:minHeight="64dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="4dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/tab_home"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:drawableTop="@drawable/ic_tv_play"
+            android:drawablePadding="2dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="56dp"
+            android:text="@string/nav_home"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tab_library"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:drawableTop="@drawable/ic_tv_search"
+            android:drawablePadding="2dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="56dp"
+            android:text="@string/nav_all_media"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tab_downloads"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:drawableTop="@drawable/ic_tv_download"
+            android:drawablePadding="2dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="56dp"
+            android:text="@string/nav_downloads"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tab_nas"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:drawableTop="@drawable/ic_tv_nas"
+            android:drawablePadding="2dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="56dp"
+            android:text="@string/nav_nas"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

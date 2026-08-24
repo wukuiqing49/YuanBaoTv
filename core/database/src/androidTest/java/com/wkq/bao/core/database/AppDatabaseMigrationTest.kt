@@ -62,6 +62,23 @@ class AppDatabaseMigrationTest {
         migratedDatabase.close()
     }
 
+    @Test
+    fun migrationFrom10To12RunsSupportedChain() {
+        migrationHelper.createDatabase(TEST_DATABASE_NAME, 10).close()
+
+        val migratedDatabase = migrationHelper.runMigrationsAndValidate(
+            TEST_DATABASE_NAME,
+            12,
+            true,
+            AppDatabase.MIGRATION_10_11,
+            AppDatabase.MIGRATION_11_12
+        )
+        migratedDatabase.query("SELECT COUNT(*) FROM scan_sessions").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+        }
+        migratedDatabase.close()
+    }
+
     private companion object {
         const val TEST_DATABASE_NAME = "migration-test"
     }

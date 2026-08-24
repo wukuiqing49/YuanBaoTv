@@ -38,6 +38,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="mytv" />
+                <data android:host="play" />
+                <data android:host="series" />
+                <data android:host="search" />
+                <data android:host="continue" />
+                <data android:host="downloads" />
+                <data android:host="settings" />
             </intent-filter>
         </activity>
 
@@ -69,7 +75,7 @@
         <!-- USB 移动硬盘/U盘热插拔广播监听 -->
         <receiver
             android:name="com.wkq.bao.core.media.storage.UsbStorageReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_MOUNTED" />
                 <action android:name="android.intent.action.MEDIA_UNMOUNTED" />

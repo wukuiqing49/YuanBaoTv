@@ -69,6 +69,7 @@
     <string name="nas_name">Name</string>
     <string name="nas_host">Host</string>
     <string name="nas_share">Share</string>
+    <string name="nas_field_required">%1$s is required</string>
     <string name="nas_root_path">Scan path</string>
     <string name="nas_username">Username (optional)</string>
     <string name="nas_password">Password (optional)</string>

@@ -5,6 +5,10 @@ import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
 import androidx.activity.OnBackPressedCallback
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
@@ -22,13 +26,15 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
     }
 
     private val tabs by lazy { listOf(binding.tabHome, binding.tabLibrary, binding.tabDownloads, binding.tabNas) }
+    private val isTelevision by lazy { TvFocusHelper.isTelevision(binding.root) }
 
     override fun initView() {
+        configureInsets()
         capTabFontScale()
         binding.vpMainPages.apply {
             adapter = MainPagerAdapter()
             offscreenPageLimit = 3
-            isUserInputEnabled = false
+            isUserInputEnabled = !isTelevision
             registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
                 override fun onPageSelected(position: Int) = renderSelectedTab(position)
             })
@@ -56,6 +62,18 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
     }
 
     override fun initData() = Unit
+
+    private fun configureInsets() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val initialBottomPadding = binding.layoutPageTabs.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { root, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            root.updatePadding(top = bars.top)
+            binding.layoutPageTabs.updatePadding(bottom = initialBottomPadding + bars.bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.root)
+    }
 
     override fun showPage(page: Int) {
         val target = page.coerceIn(0, tabs.lastIndex)
