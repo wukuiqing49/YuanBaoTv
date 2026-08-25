@@ -3,6 +3,7 @@ package com.wkq.bao.core.database
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.wkq.bao.core.database.entity.NasSourceEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -55,5 +56,30 @@ class MediaLocationCleanupTest {
             assertEquals(true, remainingUris.any { it.contains("BBBB%3A") })
             assertEquals(true, remainingUris.any { it.startsWith("content://media/") })
         }
+    }
+
+    @Test
+    fun enabledSmbSourceLookupNormalizesHostAndShareAndExcludesDisabledSources() = runBlocking {
+        database.nasDao().insertSource(
+            NasSourceEntity(
+                name = "Primary NAS",
+                host = "Nas.Local",
+                shareName = "/Media/",
+                enabled = true
+            )
+        )
+        database.nasDao().insertSource(
+            NasSourceEntity(
+                name = "Disabled NAS",
+                host = "nas.local",
+                shareName = "Archive",
+                enabled = false
+            )
+        )
+
+        val source = database.nasDao().getEnabledSmbSourceByAddress("nas.local", "Media")
+
+        assertEquals("Primary NAS", source?.name)
+        assertEquals(null, database.nasDao().getEnabledSmbSourceByAddress("nas.local", "Archive"))
     }
 }

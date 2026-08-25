@@ -15,6 +15,7 @@ import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.database.entity.ScanSessionEntity
 import com.wkq.bao.core.database.entity.ScanSessionKind
 import com.wkq.bao.core.database.entity.ScanSessionStatus
+import com.wkq.bao.core.nas.diagnostics.NasFailureClassifier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -102,7 +103,12 @@ class NasScanWorker(appContext: Context, parameters: WorkerParameters) : Corouti
             },
             onFailure = { error ->
                 val retry = runAttemptCount < MAX_RETRY_ATTEMPTS
-                AppDiagnostics.record(applicationContext, "nas_scan", if (retry) "retry" else "failed")
+                val diagnosticEvent = if (retry) "retry" else "failed"
+                AppDiagnostics.record(
+                    applicationContext,
+                    "nas_scan",
+                    "${diagnosticEvent}_${NasFailureClassifier.code(error)}"
+                )
                 val invalidCheckpoint = error.message == "扫描检查点已失效"
                 sessionDao.upsert(session.copy(
                     status = if (retry) ScanSessionStatus.RETRYING else ScanSessionStatus.FAILED,

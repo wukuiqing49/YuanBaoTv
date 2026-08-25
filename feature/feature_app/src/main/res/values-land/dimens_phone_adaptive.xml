@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 仅手机横屏使用；平板和电视有更高优先级的专用 layout。 -->
+    <dimen name="phone_home_hero_height">232dp</dimen>
+    <dimen name="phone_home_hero_top_margin">16dp</dimen>
+    <dimen name="phone_home_hero_title_size">21sp</dimen>
+    <dimen name="phone_home_continue_row_height">96dp</dimen>
+    <dimen name="phone_home_poster_row_height">144dp</dimen>
+
+    <dimen name="phone_library_filter_height">40dp</dimen>
+    <dimen name="phone_library_filter_button_height">36dp</dimen>
+    <dimen name="phone_library_grid_top_margin">8dp</dimen>
+
+    <dimen name="phone_download_title_size">18sp</dimen>
+    <dimen name="phone_download_storage_height">84dp</dimen>
+    <dimen name="phone_download_storage_button_height">40dp</dimen>
+    <dimen name="phone_download_task_height">84dp</dimen>
+    <dimen name="phone_download_section_margin">12dp</dimen>
+
+    <dimen name="phone_detail_backdrop_height">120dp</dimen>
+    <dimen name="phone_detail_poster_width">92dp</dimen>
+    <dimen name="phone_detail_poster_height">138dp</dimen>
+    <dimen name="phone_detail_title_size">20sp</dimen>
+    <dimen name="phone_detail_action_height">44dp</dimen>
+    <dimen name="phone_detail_season_bar_height">42dp</dimen>
+</resources>

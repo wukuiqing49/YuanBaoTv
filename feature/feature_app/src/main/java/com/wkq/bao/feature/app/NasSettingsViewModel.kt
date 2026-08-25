@@ -34,6 +34,7 @@ sealed interface NasSettingsEvent {
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NasSettingsViewModel(private val repository: NasSettingsRepository) : ViewModel() {
     private val selectedSourceId = MutableStateFlow<Long?>(null)
+    private val editorDraft = MutableStateFlow<NasEditorDraft?>(null)
     private val scanSession = selectedSourceId.flatMapLatest { sourceId ->
         sourceId?.let(repository::observeScan) ?: flowOf(null)
     }
@@ -53,6 +54,17 @@ class NasSettingsViewModel(private val repository: NasSettingsRepository) : View
 
     fun selectSource(sourceId: Long) {
         selectedSourceId.value = sourceId
+    }
+
+    internal fun editorDraftFor(sourceId: Long?): NasEditorDraft? =
+        editorDraft.value?.takeIf { it.sourceId == sourceId }
+
+    internal fun updateEditorDraft(draft: NasEditorDraft) {
+        editorDraft.value = draft
+    }
+
+    internal fun clearEditorDraft(sourceId: Long?) {
+        if (editorDraft.value?.sourceId == sourceId) editorDraft.value = null
     }
 
     fun save(source: NasSourceEntity) = viewModelScope.launch { repository.save(source) }

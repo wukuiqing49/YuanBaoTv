@@ -35,7 +35,7 @@ jobs:
         run: |
           python3 -X utf8 .agents/scripts/validate_android_workflows.py --project-root . --skip-figma
 
-      - name: Compile migration test, test download policy, lint, and build debug APK
+      - name: Compile migration test, test download policy, lint, and build debug/release APKs
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --max-workers=2 :core:database:assembleDebugAndroidTest :core:media:testDebugUnitTest :feature:feature_app:testDebugUnitTest :app:lintDebug :app:assembleDebug --console=plain
+          ./gradlew --no-daemon --max-workers=2 :core:database:assembleDebugAndroidTest :core:media:testDebugUnitTest :feature:feature_app:testDebugUnitTest :app:lintDebug :app:lintVitalRelease :app:assembleDebug :app:assembleRelease --console=plain

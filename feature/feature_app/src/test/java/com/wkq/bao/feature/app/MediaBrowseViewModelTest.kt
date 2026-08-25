@@ -39,7 +39,7 @@ class MediaBrowseViewModelTest {
     }
 
     @Test
-    fun `home state separates cartoons and plays the featured first episode`() = runTest {
+    fun `home state exposes all featured media and prioritizes continue watching`() = runTest {
         val repository = FakeMediaBrowseRepository()
         val viewModel = HomeViewModel(repository)
         val stateCollection = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
@@ -47,7 +47,8 @@ class MediaBrowseViewModelTest {
         }
         advanceUntilIdle()
 
-        assertEquals(listOf(repository.cartoon.id), viewModel.uiState.value.cartoons.map { it.id })
+        assertEquals(listOf(repository.movie.id, repository.cartoon.id), viewModel.uiState.value.cartoons.map { it.id })
+        assertEquals(repository.movie.id, viewModel.uiState.value.featured?.id)
         assertEquals(repository.continueItem.history.episodeId, viewModel.uiState.value.continueWatching.single().history.episodeId)
 
         val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }

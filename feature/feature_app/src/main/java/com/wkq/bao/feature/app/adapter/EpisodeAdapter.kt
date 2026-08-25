@@ -9,6 +9,7 @@ import com.wkq.bao.core.database.entity.EpisodeEntity
 import com.wkq.bao.core.database.entity.EpisodeWithSource
 import com.wkq.bao.core.media.storage.MediaStorageLocation
 import com.wkq.bao.feature.app.databinding.ItemEpisodeCardBinding
+import com.wkq.bao.feature.app.utils.MediaArtwork
 import com.wkq.bao.feature.app.utils.TvFocusHelper
 
 class EpisodeAdapter(
@@ -64,17 +65,12 @@ class EpisodeAdapter(
             binding.tvBadge.setText(labelRes)
             binding.tvBadge.setBackgroundResource(backgroundRes)
 
-            if (item.episode.thumbnailUri.isNotEmpty()) {
-                coil.Coil.imageLoader(binding.root.context).enqueue(
-                    coil.request.ImageRequest.Builder(binding.root.context)
-                        .data(item.episode.thumbnailUri)
-                        .target(binding.ivThumbnail)
-                        .crossfade(true)
-                        .build()
-                )
-            } else {
-                binding.ivThumbnail.setImageResource(com.wkq.bao.feature.res.R.drawable.bg_glass_card)
-            }
+            MediaArtwork.load(
+                binding.ivThumbnail,
+                item.episode.thumbnailUri.ifBlank { item.seriesBackdropUri.orEmpty() },
+                com.wkq.bao.feature.res.R.drawable.bg_media_placeholder_landscape
+            )
+            binding.ivThumbnail.contentDescription = binding.tvEpisodeTitle.text
         }
     }
 

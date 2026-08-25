@@ -65,13 +65,13 @@
             app:layout_constraintStart_toEndOf="@id/iv_series_poster"
             app:layout_constraintTop_toTopOf="@id/iv_series_poster">
 
-            <!-- NAS 在线状态 Badge -->
+            <!-- 媒体类型 Badge -->
             <TextView
                 android:id="@+id/tv_nas_badge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_badge_nas"
-                android:text="@string/badge_nas_online"
+                android:text="@string/detail_badge_series"
                 android:textColor="@color/tv_text_primary"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -82,10 +82,12 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="汪汪队立大功 (Paw Patrol)"
+                android:ellipsize="end"
+                android:maxLines="2"
                 android:textColor="@color/tv_text_primary"
                 android:textSize="30sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                tools:text="汪汪队立大功 (Paw Patrol)" />
 
             <!-- 元数据 (年代 • 分类 • 季数) -->
             <TextView
@@ -93,10 +95,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="2023 • 动画 / 益智 • 7 季"
                 android:textColor="@color/tv_accent_cyan"
                 android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                tools:text="2023 • 动画 / 益智 • 7 季" />
 
             <!-- 简介 -->
             <TextView
@@ -107,9 +109,9 @@
                 android:ellipsize="end"
                 android:lineSpacingExtra="3dp"
                 android:maxLines="3"
-                android:text="精通科技的10岁男孩莱德救了6条小狗，并将它们训练成了高本领的狗狗巡逻队。每个小狗都具备鲜明的性格和特长，无论遇到什么困难，他们总能团结协作化解危机。"
                 android:textColor="@color/tv_text_secondary"
-                android:textSize="13sp" />
+                android:textSize="13sp"
+                tools:text="精通科技的10岁男孩莱德救了6条小狗，并将它们训练成了优秀的救援队员。" />
 
             <!-- 主操作按钮组 -->
             <LinearLayout
@@ -126,7 +128,7 @@
                     android:drawableStart="@drawable/ic_tv_play"
                     android:drawablePadding="6dp"
                     android:text="@string/btn_play_now"
-                    android:textColor="#0A0C10"
+                    android:textColor="@color/tv_hero_btn_text"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -198,6 +200,42 @@
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             tools:listitem="@layout/item_episode_card" />
 
+        <TextView
+            android:id="@+id/tv_episode_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:text="@string/detail_no_episodes"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/group_detail_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:constraint_referenced_ids="layout_top_content,layout_episodes_section" />
+
+    <LinearLayout
+        android:id="@+id/layout_detail_state"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/tv_bg_dark"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="64dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ProgressBar android:id="@+id/progress_detail" android:layout_width="48dp" android:layout_height="48dp" android:indeterminateTint="@color/tv_accent_cyan" />
+        <TextView android:id="@+id/tv_detail_state_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:gravity="center" android:text="@string/detail_loading" android:textColor="@color/tv_text_primary" android:textSize="26sp" android:textStyle="bold" />
+        <TextView android:id="@+id/tv_detail_state_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:gravity="center" android:maxLines="3" android:textColor="@color/tv_text_secondary" android:textSize="16sp" />
+        <Button android:id="@+id/btn_detail_state_action" android:layout_width="wrap_content" android:layout_height="52dp" android:layout_marginTop="22dp" android:background="@drawable/bg_hero_play_btn" android:minWidth="152dp" android:text="@string/btn_retry" android:textColor="@color/tv_hero_btn_text" android:visibility="gone" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

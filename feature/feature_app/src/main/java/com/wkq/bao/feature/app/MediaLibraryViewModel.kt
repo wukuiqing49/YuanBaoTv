@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 data class MediaLibraryUiState(
+    val loading: Boolean = true,
     val selectedType: String? = null,
     val series: List<MediaSeriesEntity> = emptyList()
 )
@@ -30,7 +31,7 @@ class MediaLibraryViewModel(
     val uiState: StateFlow<MediaLibraryUiState> = selectedType
         .flatMapLatest { type ->
             repository.observeSeriesByType(type).map { series ->
-                MediaLibraryUiState(selectedType = type, series = series)
+                MediaLibraryUiState(loading = false, selectedType = type, series = series)
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), MediaLibraryUiState())

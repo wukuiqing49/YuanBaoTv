@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.wkq.bao.core.database.entity.ContinueWatchingItem
 import com.wkq.bao.core.database.entity.EpisodeEntity
 import com.wkq.bao.core.database.entity.MediaSeriesEntity
-import com.wkq.bao.core.database.entity.MediaSeriesType
 import com.wkq.bao.core.media.repository.MediaBrowseRepository
 import com.wkq.bao.core.media.repository.RoomMediaBrowseRepository
 import kotlinx.coroutines.CancellationException
@@ -21,9 +20,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class HomeUiState(
+    val loading: Boolean = true,
     val continueWatching: List<ContinueWatchingItem> = emptyList(),
     val cartoons: List<MediaSeriesEntity> = emptyList(),
-    val featured: MediaSeriesEntity? = null
+    val featured: MediaSeriesEntity? = null,
+    val featuredProgress: ContinueWatchingItem? = null
 )
 
 sealed interface HomeEvent {
@@ -39,10 +40,14 @@ class HomeViewModel(
         repository.continueWatching,
         repository.allSeries
     ) { continueWatching, allSeries ->
+        val featuredProgress = continueWatching.firstOrNull()
         HomeUiState(
+            loading = false,
             continueWatching = continueWatching,
-            cartoons = allSeries.filter { it.type == MediaSeriesType.CARTOON },
-            featured = allSeries.firstOrNull()
+            cartoons = allSeries,
+            featured = allSeries.firstOrNull { it.id == featuredProgress?.history?.seriesId }
+                ?: allSeries.maxByOrNull(MediaSeriesEntity::updatedAt),
+            featuredProgress = featuredProgress
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), HomeUiState())
 

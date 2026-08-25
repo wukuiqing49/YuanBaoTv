@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface WatchHistoryDao {
     @Query("""
-        SELECT watch_histories.*, media_series.title AS seriesTitle, episodes.title AS episodeTitle
+        SELECT watch_histories.*, media_series.title AS seriesTitle,
+            episodes.title AS episodeTitle, media_series.backdropUri AS backdropUri
         FROM watch_histories
         INNER JOIN media_series ON media_series.id = watch_histories.seriesId
         INNER JOIN episodes ON episodes.id = watch_histories.episodeId

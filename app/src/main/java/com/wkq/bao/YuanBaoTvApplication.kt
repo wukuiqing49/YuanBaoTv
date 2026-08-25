@@ -3,6 +3,7 @@ package com.wkq.bao
 import android.app.Application
 import com.wkq.bao.core.base.diagnostics.AppDiagnostics
 import com.wkq.bao.core.database.AppDatabase
+import com.wkq.bao.core.media.artwork.NasArtworkLoader
 import com.wkq.bao.core.media.download.DownloadWorkScheduler
 import com.wkq.bao.core.nas.security.NasCredentialMigration
 import com.wkq.util.CoreUtils
@@ -26,10 +27,13 @@ class YuanBaoTvApplication : Application() {
                 logCaptureCrash = false
             )
         )
+        NasArtworkLoader.install(this)
         AppDiagnostics.record(this, "app", "started")
         DownloadWorkScheduler.enqueue(this)
         applicationScope.launch {
-            NasCredentialMigration.migratePlaintextCredentials(AppDatabase.getInstance(this@YuanBaoTvApplication))
+            val database = AppDatabase.getInstance(this@YuanBaoTvApplication)
+            NasCredentialMigration.migratePlaintextCredentials(database)
+            database.mediaDao().clearLegacyStockArtwork(System.currentTimeMillis())
         }
     }
 }

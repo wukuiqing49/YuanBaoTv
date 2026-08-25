@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.media.smb.SmbCredentialRegistry
+import com.wkq.bao.core.media.webdav.WebDavClientManager
+import com.wkq.bao.core.media.webdav.WebDavCredentialRegistry
 import com.wkq.bao.core.media.storage.MediaStorageLocation
 import com.wkq.bao.core.media.storage.TvStorageManager
 import kotlinx.coroutines.Dispatchers
@@ -61,7 +63,8 @@ class MediaResolver(private val context: Context) {
             if (nasSourceId in excludedNasSourceIds) return@forEach
             val nasSource = nasDao.getSourceById(nasSourceId)
             if (nasSource != null && nasSource.enabled) {
-                SmbCredentialRegistry.register(nasSource)
+                if (WebDavClientManager.isWebDav(nasSource)) WebDavCredentialRegistry.register(nasSource)
+                else SmbCredentialRegistry.register(nasSource)
                 return@withContext PlaybackSource.NasStream(Uri.parse(remoteSource.uri), title, nasSourceId)
             }
         }
@@ -71,7 +74,8 @@ class MediaResolver(private val context: Context) {
         if (nasSourceId != null && nasSourceId !in excludedNasSourceIds && mediaFile.nasUri.isNotEmpty()) {
             val nasSource = nasDao.getSourceById(nasSourceId)
             if (nasSource != null && nasSource.enabled) {
-                SmbCredentialRegistry.register(nasSource)
+                if (WebDavClientManager.isWebDav(nasSource)) WebDavCredentialRegistry.register(nasSource)
+                else SmbCredentialRegistry.register(nasSource)
                 return@withContext PlaybackSource.NasStream(Uri.parse(mediaFile.nasUri), title, nasSourceId)
             }
         }

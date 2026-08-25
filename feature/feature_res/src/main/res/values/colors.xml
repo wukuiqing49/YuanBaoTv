@@ -20,10 +20,17 @@
 
     <!-- Figma 真实按键色彩 -->
     <color name="tv_hero_btn_bg">#FFE1B0</color>
-    <color name="tv_hero_btn_text">#412D00</color>
+    <color name="tv_hero_btn_text">#F8FAFC</color>
 
     <!-- 焦点与光晕边框 -->
     <color name="tv_focus_ring">#84F5E8</color>
     <color name="tv_focus_ring_cyan">#84F5E8</color>
     <color name="tv_focus_ring_gold">#FFE1B0</color>
+
+    <color name="nas_popup_surface">#17212D</color>
+    <color name="nas_popup_surface_muted">#101923</color>
+    <color name="nas_popup_stroke">#405165</color>
+    <color name="nas_popup_action">#84F5E8</color>
+    <color name="nas_popup_action_text">#10211F</color>
+    <color name="nas_popup_error">#FFB4AB</color>
 </resources>

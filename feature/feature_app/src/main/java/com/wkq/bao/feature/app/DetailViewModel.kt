@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 data class DetailUiState(
     val loading: Boolean = true,
     val missing: Boolean = false,
+    val loadFailed: Boolean = false,
     val series: MediaSeriesEntity? = null,
     val isMovie: Boolean = false,
     val isFavorite: Boolean = false,
@@ -54,15 +55,29 @@ class DetailViewModel(
     val events: SharedFlow<DetailEvent> = _events.asSharedFlow()
 
     private var seriesId = 0L
+    private var initializeJob: Job? = null
     private var seasonsJob: Job? = null
     private var episodesJob: Job? = null
 
     fun initialize(targetSeriesId: Long) {
         if (seriesId != 0L || targetSeriesId <= 0L) return
         seriesId = targetSeriesId
-        viewModelScope.launch {
+        loadSeries()
+    }
+
+    fun retry() {
+        if (seriesId <= 0L || _uiState.value.loading) return
+        seasonsJob?.cancel()
+        episodesJob?.cancel()
+        loadSeries()
+    }
+
+    private fun loadSeries() {
+        initializeJob?.cancel()
+        _uiState.value = DetailUiState(loading = true)
+        initializeJob = viewModelScope.launch {
             runCatching {
-                val series = repository.getSeries(targetSeriesId)
+                val series = repository.getSeries(seriesId)
                 if (series == null) {
                     _uiState.update { it.copy(loading = false, missing = true) }
                     return@runCatching
@@ -73,7 +88,7 @@ class DetailViewModel(
                         loading = false,
                         series = series,
                         isMovie = isMovie,
-                        isFavorite = repository.isFavorite(targetSeriesId)
+                        isFavorite = repository.isFavorite(seriesId)
                     )
                 }
                 if (isMovie) {
@@ -83,7 +98,7 @@ class DetailViewModel(
                 }
             }.onFailure {
                 if (it is CancellationException) throw it
-                _uiState.update { it.copy(loading = false, missing = true) }
+                _uiState.update { it.copy(loading = false, loadFailed = true) }
             }
         }
     }

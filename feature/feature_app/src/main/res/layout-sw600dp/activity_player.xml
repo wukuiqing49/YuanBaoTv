@@ -143,7 +143,7 @@
                     android:drawableStart="@drawable/ic_tv_play"
                     android:drawablePadding="4dp"
                     android:text="播放"
-                    android:textColor="#0A0C10"
+                    android:textColor="@color/tv_hero_btn_text"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 

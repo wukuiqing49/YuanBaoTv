@@ -74,6 +74,39 @@ class DetailViewModelTest {
         assertFalse(viewModel.uiState.value.actionInProgress)
     }
 
+    @Test
+    fun `missing series exposes a recoverable page state`() = runTest {
+        val repository = FakeDetailRepository()
+        val viewModel = DetailViewModel(repository)
+
+        viewModel.initialize(999L)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.loading)
+        assertTrue(viewModel.uiState.value.missing)
+        assertFalse(viewModel.uiState.value.loadFailed)
+    }
+
+    @Test
+    fun `failed series load can be retried`() = runTest {
+        val repository = FakeDetailRepository().apply {
+            getSeriesFailure = IllegalStateException("temporary failure")
+        }
+        val viewModel = DetailViewModel(repository)
+
+        viewModel.initialize(repository.series.id)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.loadFailed)
+
+        repository.getSeriesFailure = null
+        viewModel.retry()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.loading)
+        assertFalse(viewModel.uiState.value.loadFailed)
+        assertEquals(repository.series.id, viewModel.uiState.value.series?.id)
+    }
+
     private class FakeDetailRepository : MediaDetailRepository {
         val series = MediaSeriesEntity(id = 1L, title = "Series", type = MediaSeriesType.TV)
         val season = SeasonEntity(id = 2L, seriesId = series.id, seasonNumber = 1)
@@ -81,8 +114,12 @@ class DetailViewModelTest {
         private val seasons = MutableStateFlow(listOf(season))
         private val episodes = MutableStateFlow(listOf(EpisodeWithSource(episode, null, null, "smb://source/episode")))
         private var favorite = false
+        var getSeriesFailure: Throwable? = null
 
-        override suspend fun getSeries(seriesId: Long): MediaSeriesEntity? = series.takeIf { it.id == seriesId }
+        override suspend fun getSeries(seriesId: Long): MediaSeriesEntity? {
+            getSeriesFailure?.let { throw it }
+            return series.takeIf { it.id == seriesId }
+        }
         override fun observeSeasons(seriesId: Long): Flow<List<SeasonEntity>> = seasons
         override fun observeEpisodes(seriesId: Long, seasonId: Long): Flow<List<EpisodeWithSource>> = episodes
         override suspend fun getFirstPlayableEpisode(seriesId: Long, seasonId: Long, isMovie: Boolean): EpisodeEntity = episode

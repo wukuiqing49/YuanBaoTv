@@ -42,6 +42,8 @@ dependencies {
     implementation libs.androidx.lifecycle.livedata.ktx
     implementation libs.androidx.recyclerview
     implementation libs.androidx.viewpager2
+    implementation libs.material
+    implementation libs.xpopup
     implementation libs.coil
     testImplementation libs.junit
     testImplementation libs.kotlinx.coroutines.test

@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -62,6 +63,7 @@ class DownloadsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.cardStorageInfo.isFocusable = true
         binding.cardStorageInfo.isClickable = true
+        binding.btnSelectStorage.backgroundTintList = null
         listOf(binding.cardStorageInfo, binding.cardDownloadTask, binding.btnSelectStorage).forEach(TvFocusHelper::applyFocusScale)
         binding.btnSelectStorage.setText(com.wkq.bao.feature.res.R.string.storage_select_target)
         binding.btnSelectStorage.setOnClickListener {
@@ -96,9 +98,11 @@ class DownloadsFragment : Fragment() {
         downloadAdapter.submitList(state.tasks)
         downloadedAdapter.submitList(state.downloadedSeries)
         // 保留队列区域的高度，避免空态与下方已下载媒体区域发生约束重叠。
-        binding.rvDownloadTasks.visibility = View.VISIBLE
-        binding.cardDownloadTask.visibility = if (state.tasks.isEmpty()) View.VISIBLE else View.GONE
-        renderEmptyTask(state.tasks.isEmpty())
+        val isTaskListEmpty = state.tasks.isEmpty()
+        binding.rvDownloadTasks.visibility = if (isTaskListEmpty) View.GONE else View.VISIBLE
+        binding.cardDownloadTask.visibility = if (isTaskListEmpty) View.VISIBLE else View.GONE
+        updateDownloadedSectionAnchor(isTaskListEmpty)
+        renderEmptyTask(isTaskListEmpty)
         keepScreenRequested = state.keepScreenOn
         renderStorage(state)
         updateKeepScreenOn(isResumed && keepScreenRequested)
@@ -148,11 +152,23 @@ class DownloadsFragment : Fragment() {
 
     private fun renderEmptyTask(isEmpty: Boolean) {
         if (isEmpty) {
-            binding.tvTaskTitle.setText(com.wkq.bao.feature.res.R.string.section_downloaded_gallery)
-            binding.tvTaskSpeed.text = ""
+            binding.tvTaskTitle.setText(com.wkq.bao.feature.res.R.string.downloads_empty_title)
+            binding.tvTaskSpeed.setText(com.wkq.bao.feature.res.R.string.downloads_empty_message)
+            binding.tvTaskSpeed.setTextColor(requireContext().getColor(com.wkq.bao.feature.res.R.color.tv_text_secondary))
             binding.pbTask.progress = 0
+            binding.pbTask.visibility = View.GONE
             binding.btnTaskPause.isEnabled = false
             binding.btnTaskCancel.isEnabled = false
+        }
+    }
+
+    /** 下载任务与空态互斥显示，已下载区始终锚定到当前可见区域。 */
+    private fun updateDownloadedSectionAnchor(isTaskListEmpty: Boolean) {
+        val params = binding.tvLabelDownloaded.layoutParams as ConstraintLayout.LayoutParams
+        val anchorId = if (isTaskListEmpty) binding.cardDownloadTask.id else binding.rvDownloadTasks.id
+        if (params.topToBottom != anchorId) {
+            params.topToBottom = anchorId
+            binding.tvLabelDownloaded.layoutParams = params
         }
     }
 

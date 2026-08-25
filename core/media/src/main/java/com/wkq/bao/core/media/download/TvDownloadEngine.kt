@@ -13,6 +13,7 @@ import com.wkq.bao.core.database.entity.DownloadTaskErrorCode
 import com.wkq.bao.core.database.entity.DownloadTaskStatus
 import com.wkq.bao.core.database.entity.MediaLocationEntity
 import com.wkq.bao.core.media.smb.SmbClientManager
+import com.wkq.bao.core.media.webdav.WebDavClientManager
 import com.wkq.bao.core.media.storage.MediaStorageLocation
 import com.wkq.bao.core.media.storage.TvStorageManager
 import kotlinx.coroutines.CancellationException
@@ -27,6 +28,8 @@ class TvDownloadEngine(
     private val context: Context,
     private val database: AppDatabase
 ) {
+    private data class RemoteInfo(val length: Long, val lastModifiedAt: Long)
+
     suspend fun executeTask(task: DownloadTaskEntity, onProgress: (Int) -> Unit) =
         DownloadSourceLock.withLock(task.sourceNasId) {
             executeTaskLocked(task, onProgress)
@@ -50,7 +53,8 @@ class TvDownloadEngine(
         val nasSource = database.nasDao().getSourceById(sourceNasId)
             ?.takeIf { it.enabled }
             ?: return@withContext fail(claimedTask, "NAS source is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
-        if (sourceUri.scheme != "smb") return@withContext fail(claimedTask, "Only SMB offline download is supported", DownloadTaskErrorCode.UNSUPPORTED_SOURCE)
+        if (sourceUri.scheme !in setOf("smb", "https")) return@withContext fail(claimedTask, "Unsupported NAS download source", DownloadTaskErrorCode.UNSUPPORTED_SOURCE)
+        if (sourceUri.scheme == "https" && !WebDavClientManager.isWebDav(nasSource)) return@withContext fail(claimedTask, "WebDAV source configuration is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
 
         val storageTarget = resolveStorageTarget(claimedTask)
             ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)
@@ -63,7 +67,7 @@ class TvDownloadEngine(
             ?: return@withContext fail(claimedTask, "Cannot create download part directory", DownloadTaskErrorCode.STORAGE_ACCESS)
 
         try {
-            val remoteInfo = SmbClientManager.getRemoteFileInfo(nasSource, sourceUri)
+            val remoteInfo = getRemoteFileInfo(nasSource, sourceUri)
             if (remoteInfo.length <= 0L) throw DownloadFailure(DownloadTaskErrorCode.SOURCE_CHANGED, "NAS source file is empty")
             val assemblingName = "download_${claimedTask.id}.assembling"
             val displayFileName = mediaFile.fileName.ifBlank { "episode_${claimedTask.episodeId}.mp4" }
@@ -168,7 +172,7 @@ class TvDownloadEngine(
             if (finalChunks.any { it.status != DownloadChunkStatus.ASSEMBLED }) {
                 throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Download parts are incomplete")
             }
-            val finalRemoteInfo = SmbClientManager.getRemoteFileInfo(nasSource, sourceUri)
+            val finalRemoteInfo = getRemoteFileInfo(nasSource, sourceUri)
             if (finalRemoteInfo != remoteInfo) {
                 throw DownloadFailure(DownloadTaskErrorCode.SOURCE_CHANGED, "NAS source changed during download")
             }
@@ -227,7 +231,7 @@ class TvDownloadEngine(
         displayFileName: String,
         completedFile: DocumentFile,
         storageType: String,
-        remoteInfo: SmbClientManager.RemoteFileInfo
+        remoteInfo: RemoteInfo
     ) {
         val completedUri = completedFile.uri.toString()
         val assembled = AssembledFile(completedFile.length(), sha256(completedFile))
@@ -268,7 +272,7 @@ class TvDownloadEngine(
     private suspend fun downloadChunkWithRetry(
         source: com.wkq.bao.core.database.entity.NasSourceEntity,
         sourceUri: Uri,
-        remoteInfo: SmbClientManager.RemoteFileInfo,
+        remoteInfo: RemoteInfo,
         partsDirectory: DocumentFile,
         chunk: DownloadChunkEntity,
         currentCompletedBytes: Long,
@@ -283,12 +287,19 @@ class TvDownloadEngine(
             val part = partsDirectory.createFile("application/octet-stream", chunk.partName)
                 ?: throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Cannot create download part")
             try {
-                val handle = readHandle() ?: SmbClientManager.openRemoteFile(source, sourceUri).also(replaceReadHandle)
-                if (SmbClientManager.RemoteFileInfo(handle.length, handle.lastModifiedAt) != remoteInfo) {
-                    throw DownloadFailure(DownloadTaskErrorCode.SOURCE_CHANGED, "NAS source changed during download")
-                }
                 val checksum = context.contentResolver.openOutputStream(part.uri, "wt")?.use { output ->
-                    SmbClientManager.copyRangeTo(handle, output, chunk.startByte, chunk.byteCount) { downloaded, _ ->
+                    if (sourceUri.scheme == "smb") {
+                        val handle = readHandle() ?: SmbClientManager.openRemoteFile(source, sourceUri).also(replaceReadHandle)
+                        if (RemoteInfo(handle.length, handle.lastModifiedAt) != remoteInfo) {
+                            throw DownloadFailure(DownloadTaskErrorCode.SOURCE_CHANGED, "NAS source changed during download")
+                        }
+                        SmbClientManager.copyRangeTo(handle, output, chunk.startByte, chunk.byteCount) { downloaded, _ ->
+                            val totalDownloaded = currentCompletedBytes + downloaded
+                            if (throttle.shouldPersist(totalDownloaded, remoteInfo.length)) {
+                                updateTaskProgress(chunk.taskId, totalDownloaded, remoteInfo, onProgress)
+                            }
+                        }
+                    } else WebDavClientManager.copyRangeTo(source, sourceUri, output, chunk.startByte, chunk.byteCount) { downloaded, _ ->
                         val totalDownloaded = currentCompletedBytes + downloaded
                         if (throttle.shouldPersist(totalDownloaded, remoteInfo.length)) {
                             updateTaskProgress(chunk.taskId, totalDownloaded, remoteInfo, onProgress)
@@ -300,7 +311,8 @@ class TvDownloadEngine(
                 part.delete()
                 replaceReadHandle(null)
                 lastError = error
-                if (!SmbClientManager.isRetryable(error) || attempt == MAX_RANGE_ATTEMPTS - 1) throw error
+                val retryable = if (sourceUri.scheme == "smb") SmbClientManager.isRetryable(error) else WebDavClientManager.isRetryable(error)
+                if (!retryable || attempt == MAX_RANGE_ATTEMPTS - 1) throw error
                 delay(RANGE_RETRY_DELAY_MS * (attempt + 1L))
             }
         }
@@ -442,7 +454,7 @@ class TvDownloadEngine(
     private suspend fun updateTaskProgress(
         taskId: Long,
         downloadedBytes: Long,
-        remoteInfo: SmbClientManager.RemoteFileInfo,
+        remoteInfo: RemoteInfo,
         onProgress: (Int) -> Unit
     ) {
         val current = database.downloadDao().getTaskById(taskId) ?: return
@@ -475,6 +487,15 @@ class TvDownloadEngine(
             }
         } ?: error("Cannot read download part")
         return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private suspend fun getRemoteFileInfo(
+        source: com.wkq.bao.core.database.entity.NasSourceEntity,
+        uri: Uri
+    ): RemoteInfo = if (uri.scheme == "smb") {
+        SmbClientManager.getRemoteFileInfo(source, uri).let { RemoteInfo(it.length, it.lastModifiedAt) }
+    } else {
+        WebDavClientManager.getRemoteFileInfo(source, uri).let { RemoteInfo(it.length, it.lastModifiedAt) }
     }
 
     private suspend fun fail(task: DownloadTaskEntity, message: String, errorCode: String) {

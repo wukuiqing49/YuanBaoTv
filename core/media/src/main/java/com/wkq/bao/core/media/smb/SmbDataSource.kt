@@ -1,5 +1,6 @@
 package com.wkq.bao.core.media.smb
 
+import android.content.Context
 import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.datasource.DataSource
@@ -8,11 +9,12 @@ import androidx.media3.datasource.TransferListener
 import java.io.IOException
 
 /** 让 Media3 能按需随机读取 smb:// URI，支持拖动进度条与重新缓冲。 */
-class SmbDataSource : DataSource {
-    class Factory : DataSource.Factory {
-        override fun createDataSource(): DataSource = SmbDataSource()
+class SmbDataSource(context: Context) : DataSource {
+    class Factory(private val context: Context) : DataSource.Factory {
+        override fun createDataSource(): DataSource = SmbDataSource(context)
     }
 
+    private val appContext = context.applicationContext
     private val listeners = mutableListOf<TransferListener>()
     private var handle: SmbClientManager.RemoteFileHandle? = null
     private var openedUri: Uri? = null
@@ -25,7 +27,7 @@ class SmbDataSource : DataSource {
 
     override fun open(dataSpec: DataSpec): Long {
         close()
-        val source = SmbCredentialRegistry.resolve(dataSpec.uri)
+        val source = SmbCredentialRegistry.resolve(appContext, dataSpec.uri)
             ?: throw IOException("未找到 SMB 媒体源配置，请先在 NAS 设置中完成连接")
         val openedHandle = try {
             SmbClientManager.openRemoteFile(source, dataSpec.uri)

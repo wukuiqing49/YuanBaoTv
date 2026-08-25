@@ -95,9 +95,12 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
             binding.btnRewind,
             binding.btnFastForward,
             binding.btnNextEpisode,
-            binding.btnSpeed,
-            binding.seekProgress
-        ).forEach(TvFocusHelper::applyFocusScale)
+            binding.btnSpeed
+        ).forEach { button ->
+            button.backgroundTintList = null
+            TvFocusHelper.applyFocusScale(button)
+        }
+        TvFocusHelper.applyFocusScale(binding.seekProgress)
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnPlayPause)
 
         val speeds = listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f)

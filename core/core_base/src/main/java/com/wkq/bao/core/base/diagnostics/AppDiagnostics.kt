@@ -3,6 +3,7 @@ package com.wkq.bao.core.base.diagnostics
 import android.content.Context
 import android.content.ClipData
 import android.content.Intent
+import android.util.Log
 import androidx.core.content.FileProvider
 import java.io.File
 import java.text.SimpleDateFormat
@@ -14,13 +15,17 @@ import java.util.Locale
  * 事件调用方不得传入 NAS 地址、用户名、文件名、Uri、凭据或媒体标题。
  */
 object AppDiagnostics {
+    private const val LOG_TAG = "YuanBaoDiagnostics"
     private const val PREFERENCES = "app_diagnostics"
     private const val KEY_EVENTS = "events"
     private const val MAX_EVENTS = 200
     private val lock = Any()
 
     fun record(context: Context, category: String, event: String) {
-        val line = "${timestamp()}|${category.sanitize()}|${event.sanitize()}"
+        val safeCategory = category.sanitize()
+        val safeEvent = event.sanitize()
+        val line = "${timestamp()}|$safeCategory|$safeEvent"
+        Log.i(LOG_TAG, "category=$safeCategory event=$safeEvent")
         synchronized(lock) {
             val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
             val events = preferences.getString(KEY_EVENTS, "").orEmpty()

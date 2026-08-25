@@ -7,5 +7,6 @@ import androidx.room.Embedded
 data class ContinueWatchingItem(
     @Embedded val history: WatchHistoryEntity,
     @ColumnInfo(name = "seriesTitle") val seriesTitle: String,
-    @ColumnInfo(name = "episodeTitle") val episodeTitle: String
+    @ColumnInfo(name = "episodeTitle") val episodeTitle: String,
+    @ColumnInfo(name = "backdropUri") val backdropUri: String = ""
 )

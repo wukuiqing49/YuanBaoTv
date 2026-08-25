@@ -13,17 +13,17 @@
     <HorizontalScrollView
         android:id="@+id/layout_filter_scroll"
         android:layout_width="0dp"
-        android:layout_height="44dp"
+        android:layout_height="@dimen/phone_library_filter_height"
         android:layout_marginTop="4dp"
         android:scrollbars="none"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
         <LinearLayout android:id="@+id/ll_filter_tabs" android:layout_width="wrap_content" android:layout_height="match_parent" android:orientation="horizontal">
-            <Button android:id="@+id/btn_filter_all" android:layout_width="wrap_content" android:layout_height="40dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/nav_all_media" android:textColor="@color/tv_text_primary" android:textSize="12sp" />
-            <Button android:id="@+id/btn_filter_cartoon" android:layout_width="wrap_content" android:layout_height="40dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/nav_cartoon" android:textColor="@color/tv_text_secondary" android:textSize="12sp" />
-            <Button android:id="@+id/btn_filter_tv" android:layout_width="wrap_content" android:layout_height="40dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/nav_tv" android:textColor="@color/tv_text_secondary" android:textSize="12sp" />
-            <Button android:id="@+id/btn_filter_movie" android:layout_width="wrap_content" android:layout_height="40dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/nav_movie" android:textColor="@color/tv_text_secondary" android:textSize="12sp" />
+            <Button android:id="@+id/btn_filter_all" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_all_media" android:textColor="@color/tv_text_primary" android:textSize="12sp" />
+            <Button android:id="@+id/btn_filter_cartoon" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_cartoon" android:textColor="@color/tv_text_secondary" android:textSize="12sp" />
+            <Button android:id="@+id/btn_filter_tv" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_tv" android:textColor="@color/tv_text_secondary" android:textSize="12sp" />
+            <Button android:id="@+id/btn_filter_movie" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_movie" android:textColor="@color/tv_text_secondary" android:textSize="12sp" />
         </LinearLayout>
     </HorizontalScrollView>
 
@@ -31,7 +31,7 @@
         android:id="@+id/rv_media_grid"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="@dimen/phone_library_grid_top_margin"
         android:clipToPadding="false"
         android:paddingBottom="16dp"
         android:scrollbars="none"
@@ -42,19 +42,62 @@
         app:layout_constraintTop_toBottomOf="@id/layout_filter_scroll"
         app:spanCount="3" />
 
-    <TextView
-        android:id="@+id/tv_empty_library"
+    <LinearLayout
+        android:id="@+id/layout_empty_library"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="24dp"
         android:gravity="center"
-        android:maxLines="3"
-        android:text="@string/library_empty_message"
-        android:textColor="@color/tv_text_secondary"
-        android:textSize="15sp"
+        android:orientation="vertical"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_filter_scroll" />
+        app:layout_constraintTop_toBottomOf="@id/layout_filter_scroll">
+
+        <ProgressBar
+            android:id="@+id/progress_library"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:indeterminateTint="@color/tv_accent_cyan" />
+
+        <ImageView
+            android:id="@+id/iv_empty_library"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/bg_media_placeholder_poster" />
+
+        <TextView
+            android:id="@+id/tv_empty_library_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/library_empty_title"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_empty_library"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:maxLines="3"
+            android:text="@string/library_empty_message"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/btn_empty_library_action"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_hero_play_btn"
+            android:backgroundTint="@null"
+            android:minWidth="128dp"
+            android:text="@string/btn_add_nas"
+            android:textColor="@color/tv_hero_btn_text" />
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

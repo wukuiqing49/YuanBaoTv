@@ -31,7 +31,16 @@ class MediaLibraryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        listOf(binding.btnFilterAll, binding.btnFilterCartoon, binding.btnFilterTv, binding.btnFilterMovie).forEach(TvFocusHelper::applyFocusScale)
+        listOf(
+            binding.btnFilterAll,
+            binding.btnFilterCartoon,
+            binding.btnFilterTv,
+            binding.btnFilterMovie,
+            binding.btnEmptyLibraryAction
+        ).forEach { button ->
+            button.backgroundTintList = null
+            TvFocusHelper.applyFocusScale(button)
+        }
         posterAdapter = PosterCardAdapter { series ->
             startActivity(Intent(requireContext(), DetailActivity::class.java).putExtra("seriesId", series.id))
         }
@@ -61,9 +70,38 @@ class MediaLibraryFragment : Fragment() {
 
     private fun renderState(state: MediaLibraryUiState) {
         posterAdapter.submitList(state.series)
-        val isEmpty = state.series.isEmpty()
-        binding.rvMediaGrid.visibility = if (isEmpty) View.GONE else View.VISIBLE
-        binding.tvEmptyLibrary?.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        val isEmpty = !state.loading && state.series.isEmpty()
+        binding.rvMediaGrid.visibility = if (state.loading || isEmpty) View.GONE else View.VISIBLE
+        binding.layoutEmptyLibrary.visibility = if (state.loading || isEmpty) View.VISIBLE else View.GONE
+        binding.progressLibrary.visibility = if (state.loading) View.VISIBLE else View.GONE
+        binding.ivEmptyLibrary.visibility = if (state.loading) View.GONE else View.VISIBLE
+        binding.tvEmptyLibraryTitle.setText(
+            if (state.loading) com.wkq.bao.feature.res.R.string.splash_loading
+            else com.wkq.bao.feature.res.R.string.library_empty_title
+        )
+        binding.tvEmptyLibrary.visibility = if (state.loading) View.GONE else View.VISIBLE
+        binding.btnEmptyLibraryAction.visibility = if (state.loading) View.GONE else View.VISIBLE
+        binding.tvEmptyLibrary.setText(
+            if (state.selectedType == null) {
+                com.wkq.bao.feature.res.R.string.library_empty_message
+            } else {
+                com.wkq.bao.feature.res.R.string.library_filter_empty_message
+            }
+        )
+        binding.btnEmptyLibraryAction.setText(
+            if (state.selectedType == null) {
+                com.wkq.bao.feature.res.R.string.btn_add_nas
+            } else {
+                com.wkq.bao.feature.res.R.string.nav_all_media
+            }
+        )
+        binding.btnEmptyLibraryAction.setOnClickListener {
+            if (state.selectedType == null) {
+                (requireActivity() as MainPageNavigator).showPage(MainPageNavigator.NAS)
+            } else {
+                viewModel.selectType(null)
+            }
+        }
         val selectedType = state.selectedType
         listOf(
             binding.btnFilterAll to null,
@@ -76,7 +114,8 @@ class MediaLibraryFragment : Fragment() {
     }
 
     private fun calculateSpanCount(widthPx: Int): Int {
-        val minimumCardWidth = 116f * resources.displayMetrics.density
+        val minimumCardWidthDp = if (resources.configuration.smallestScreenWidthDp >= 600) 176f else 116f
+        val minimumCardWidth = minimumCardWidthDp * resources.displayMetrics.density
         return (widthPx / minimumCardWidth).toInt().coerceIn(2, 6)
     }
 
@@ -87,6 +126,7 @@ class MediaLibraryFragment : Fragment() {
             if (selected) com.wkq.bao.feature.res.R.drawable.bg_nav_link_active
             else com.wkq.bao.feature.res.R.drawable.bg_tv_button_focus
         )
+        backgroundTintList = null
     }
 
     override fun onDestroyView() {

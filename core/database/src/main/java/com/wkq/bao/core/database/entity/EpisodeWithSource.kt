@@ -7,5 +7,6 @@ data class EpisodeWithSource(
     @Embedded val episode: EpisodeEntity,
     val localUri: String?,
     val localStorageType: String?,
-    val nasUri: String?
+    val nasUri: String?,
+    val seriesBackdropUri: String? = null
 )

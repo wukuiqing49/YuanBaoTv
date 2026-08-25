@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/tv_bg_dark">
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/vp_main_pages"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:overScrollMode="never"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toTopOf="@id/layout_page_tabs"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/layout_page_tabs"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_bottom_navigation_container"
+        android:gravity="center_vertical"
+        android:minHeight="52dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="2dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/tab_home"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:drawableTop="@drawable/ic_tv_play"
+            android:drawablePadding="1dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="48dp"
+            android:text="@string/nav_home"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/tab_library"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:drawableTop="@drawable/ic_tv_search"
+            android:drawablePadding="1dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="48dp"
+            android:text="@string/nav_all_media"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/tab_downloads"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:drawableTop="@drawable/ic_tv_download"
+            android:drawablePadding="1dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="48dp"
+            android:text="@string/nav_downloads"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/tab_nas"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:drawableTop="@drawable/ic_tv_nas"
+            android:drawablePadding="1dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="48dp"
+            android:text="@string/nav_nas"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="10sp" />
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

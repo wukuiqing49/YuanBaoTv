@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/tv_bg_card" />
+            <stroke android:width="1dp" android:color="@color/nas_popup_stroke" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    <item
+        android:width="36dp"
+        android:height="36dp"
+        android:drawable="@drawable/ic_tv_play"
+        android:gravity="center" />
+</layer-list>

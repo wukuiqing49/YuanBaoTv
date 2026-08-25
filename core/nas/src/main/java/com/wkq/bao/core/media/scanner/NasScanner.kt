@@ -13,6 +13,8 @@ import com.wkq.bao.core.media.parser.MediaFileNameParser
 import com.wkq.bao.core.media.scraper.MetadataScraper
 import com.wkq.bao.core.media.smb.SmbClientManager
 import com.wkq.bao.core.media.smb.SmbCredentialRegistry
+import com.wkq.bao.core.media.webdav.WebDavClientManager
+import com.wkq.bao.core.media.webdav.WebDavCredentialRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -35,9 +37,10 @@ class NasScanner(private val database: AppDatabase) {
         persistCompletion: suspend (importedCount: Int) -> Unit = {},
         onProgress: suspend (importedCount: Int, checkpoint: String) -> Unit = { _, _ -> }
     ): Result<Int> = withContext(Dispatchers.IO) {
-        SmbCredentialRegistry.register(nasSource)
+        if (WebDavClientManager.isWebDav(nasSource)) WebDavCredentialRegistry.register(nasSource)
+        else SmbCredentialRegistry.register(nasSource)
         var importedCount = initialImportedCount
-        val pendingFiles = ArrayList<SmbClientManager.RemoteMediaFile>(BATCH_SIZE)
+        val pendingFiles = ArrayList<NasRemoteMediaFile>(BATCH_SIZE)
 
         suspend fun flushPendingFiles() {
             if (pendingFiles.isEmpty()) return
@@ -53,13 +56,22 @@ class NasScanner(private val database: AppDatabase) {
             onProgress(importedCount, batch.last().path)
         }
 
-        val scanResult = SmbClientManager.scanFilesRecursive(
-            source = nasSource,
-            resumeAfterPath = resumeAfterPath.ifBlank { null }
-        ) { remoteFile ->
+        val onRemoteFile: suspend (NasRemoteMediaFile) -> Unit = { remoteFile ->
             if (isVideoFile(remoteFile.path.substringAfterLast("/"))) {
                 pendingFiles += remoteFile
                 if (pendingFiles.size >= BATCH_SIZE) flushPendingFiles()
+            }
+        }
+        val scanResult = if (WebDavClientManager.isWebDav(nasSource)) {
+            WebDavClientManager.scanFilesRecursive(nasSource, resumeAfterPath.ifBlank { null }) { remoteFile ->
+                onRemoteFile(NasRemoteMediaFile(remoteFile.path, remoteFile.length, remoteFile.lastModifiedAt))
+            }
+        } else {
+            SmbClientManager.scanFilesRecursive(nasSource, resumeAfterPath.ifBlank { null }) { remoteFile ->
+                onRemoteFile(NasRemoteMediaFile(
+                    remoteFile.path, remoteFile.length, remoteFile.lastModifiedAt,
+                    remoteFile.posterUri, remoteFile.backdropUri, remoteFile.thumbnailUri
+                ))
             }
         }
         if (scanResult.isFailure) {
@@ -80,7 +92,7 @@ class NasScanner(private val database: AppDatabase) {
         var importedCount = 0
         rawFileList.asSequence()
             .filter { isVideoFile(it.substringAfterLast("/")) }
-            .map { SmbClientManager.RemoteMediaFile(it, 0L, 0L) }
+            .map { NasRemoteMediaFile(it, 0L, 0L) }
             .chunked(BATCH_SIZE)
             .forEach { batch ->
                 coroutineContext.ensureActive()
@@ -97,7 +109,7 @@ class NasScanner(private val database: AppDatabase) {
 
     private suspend fun importFile(
         nasSource: NasSourceEntity,
-        remoteFile: SmbClientManager.RemoteMediaFile,
+        remoteFile: NasRemoteMediaFile,
         scanStartedAt: Long
     ): Int {
         val mediaDao = database.mediaDao()
@@ -105,10 +117,15 @@ class NasScanner(private val database: AppDatabase) {
         val parsed = MediaFileNameParser.parse(fileName)
 
         val existingSeries = mediaDao.getSeriesByTitle(parsed.seriesTitle)
+        val resolvedPosterUri = remoteFile.posterUri.ifBlank {
+            remoteFile.thumbnailUri.takeIf { parsed.mediaType == MediaSeriesType.MOVIE }.orEmpty()
+        }
         val series = existingSeries?.copy(
             type = existingSeries.type.takeUnless { it in setOf(MediaSeriesType.CARTOON, MediaSeriesType.LOCAL) }
                 ?: parsed.mediaType,
             totalSeasons = maxOf(existingSeries.totalSeasons, parsed.seasonNumber),
+            posterUri = existingSeries.posterUri.ifBlank { resolvedPosterUri },
+            backdropUri = existingSeries.backdropUri.ifBlank { remoteFile.backdropUri },
             updatedAt = System.currentTimeMillis()
         )?.also { updated ->
             if (updated != existingSeries) mediaDao.updateSeries(updated)
@@ -122,8 +139,8 @@ class NasScanner(private val database: AppDatabase) {
                     genre = scraped.genre,
                     year = scraped.year,
                     description = scraped.description,
-                    posterUri = scraped.posterUri,
-                    backdropUri = scraped.backdropUri,
+                    posterUri = resolvedPosterUri.ifBlank { scraped.posterUri },
+                    backdropUri = remoteFile.backdropUri.ifBlank { scraped.backdropUri },
                     totalSeasons = parsed.seasonNumber.coerceAtLeast(1)
                 )
             )
@@ -145,12 +162,18 @@ class NasScanner(private val database: AppDatabase) {
         val seasonId = if (existingSeason == null) mediaDao.insertSeason(season) else season.id
 
         val existingEpisode = mediaDao.getEpisodeByNumber(seasonId, parsed.episodeNumber)
-        val episodeId = existingEpisode?.id ?: mediaDao.insertEpisode(
+        val resolvedEpisode = existingEpisode?.copy(
+            thumbnailUri = existingEpisode.thumbnailUri.ifBlank { remoteFile.thumbnailUri }
+        )?.also { updated ->
+            if (updated != existingEpisode) mediaDao.updateEpisode(updated)
+        }
+        val episodeId = resolvedEpisode?.id ?: mediaDao.insertEpisode(
             EpisodeEntity(
                 seriesId = seriesId,
                 seasonId = seasonId,
                 episodeNumber = parsed.episodeNumber,
-                title = parsed.episodeTitle.ifEmpty { "Episode ${parsed.episodeNumber}" }
+                title = parsed.episodeTitle,
+                thumbnailUri = remoteFile.thumbnailUri
             )
         )
 
@@ -174,7 +197,11 @@ class NasScanner(private val database: AppDatabase) {
             mediaDao.getMediaFileById(mediaFileId) ?: error("Cannot create NAS media file")
         }
 
-        val nasUri = SmbClientManager.buildUri(nasSource, remoteFile.path)
+        val nasUri = if (WebDavClientManager.isWebDav(nasSource)) {
+            WebDavClientManager.buildUri(nasSource, remoteFile.path)
+        } else {
+            SmbClientManager.buildUri(nasSource, remoteFile.path)
+        }
         val existingRemote = mediaDao.getMediaRemoteSource(mediaFile.id, nasSource.id, nasUri)
         val remoteSource = MediaRemoteSourceEntity(
             id = existingRemote?.id ?: 0L,

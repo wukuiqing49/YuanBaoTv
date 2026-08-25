@@ -20,7 +20,7 @@
         android:id="@+id/layout_page_tabs"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_nav_pill_container"
+        android:background="@drawable/bg_bottom_navigation_container"
         android:gravity="center_vertical"
         android:minHeight="64dp"
         android:orientation="horizontal"

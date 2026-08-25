@@ -8,6 +8,7 @@ import com.wkq.bao.core.media.download.NasSourceRemovalCoordinator
 import com.wkq.bao.core.media.download.NasSourceRemovalResult
 import com.wkq.bao.core.nas.scanner.NasScanController
 import com.wkq.bao.core.media.smb.SmbClientManager
+import com.wkq.bao.core.media.webdav.WebDavClientManager
 import kotlinx.coroutines.flow.Flow
 
 /** NAS 设置页使用的来源管理命令，集中隔离页面与持久化实现。 */
@@ -40,7 +41,8 @@ class RoomNasSettingsRepository private constructor(
     }
 
     override suspend fun testConnection(source: NasSourceEntity): Result<String> =
-        SmbClientManager.testConnection(source)
+        if (WebDavClientManager.isWebDav(source)) WebDavClientManager.testConnection(source)
+        else SmbClientManager.testConnection(source)
 
     override fun observeScan(sourceId: Long): Flow<ScanSessionEntity?> = scanController.observe(sourceId)
 

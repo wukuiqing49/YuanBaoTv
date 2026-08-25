@@ -1,26 +1,21 @@
 package com.wkq.bao.feature.app
 
 import android.os.Bundle
-import android.text.InputType
-import android.view.inputmethod.EditorInfo
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.lxj.xpopup.XPopup
 import com.wkq.bao.core.base.diagnostics.AppDiagnostics
 import com.wkq.bao.core.database.entity.NasSourceEntity
 import com.wkq.bao.core.media.download.NasSourceRemovalResult
 import com.wkq.bao.core.database.entity.ScanSessionStatus
+import com.wkq.bao.core.nas.diagnostics.NasFailureClassifier
 import com.wkq.bao.core.nas.security.NasCredentialVault
 import com.wkq.bao.feature.app.databinding.ActivityNasSettingsBinding
 import com.wkq.bao.feature.app.utils.TvFocusHelper
@@ -34,6 +29,7 @@ class NasSettingsFragment : Fragment() {
     private val viewModel by viewModels<NasSettingsViewModel> { NasSettingsViewModel.Factory(requireContext()) }
     private var activeSource: NasSourceEntity? = null
     private var sources: List<NasSourceEntity> = emptyList()
+    private var activeEditorPopup: NasEditorPopup? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = ActivityNasSettingsBinding.inflate(inflater, container, false)
@@ -42,6 +38,8 @@ class NasSettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.btnScan.backgroundTintList = null
+        binding.btnTestConn.backgroundTintList = null
         listOf(binding.cardActiveNas, binding.cardAddNas, binding.btnScan, binding.btnTestConn).forEach(TvFocusHelper::applyFocusScale)
         binding.cardActiveNas.setOnClickListener { showActiveSourceActions() }
         binding.cardAddNas.setOnClickListener { showNasEditor(null) }
@@ -88,16 +86,15 @@ class NasSettingsFragment : Fragment() {
     private fun showActiveSourceActions() {
         val source = activeSource
         if (source == null) {
-            AlertDialog.Builder(requireContext())
-                .setItems(
-                    arrayOf(
-                        getString(com.wkq.bao.feature.res.R.string.btn_export_diagnostics),
-                        getString(com.wkq.bao.feature.res.R.string.btn_local_data_info)
-                    )
-                ) { _, which ->
+            showNasListPopup(
+                null,
+                arrayOf(
+                    getString(com.wkq.bao.feature.res.R.string.btn_export_diagnostics),
+                    getString(com.wkq.bao.feature.res.R.string.btn_local_data_info)
+                )
+            ) { which ->
                     if (which == 0) shareDiagnostics() else showLocalDataInfo()
-                }
-                .show()
+            }
             return
         }
         val actions = listOf(
@@ -108,29 +105,29 @@ class NasSettingsFragment : Fragment() {
             getString(com.wkq.bao.feature.res.R.string.btn_local_data_info),
             getString(com.wkq.bao.feature.res.R.string.btn_remove_nas)
         )
-        AlertDialog.Builder(requireContext())
-            .setTitle(source.name)
-            .setItems(actions.toTypedArray()) { _, which ->
-                when (which) {
-                    0 -> showNasEditor(source)
-                    1 -> showSourcePicker()
-                    2 -> toggleSource(source)
-                    3 -> shareDiagnostics()
-                    4 -> showLocalDataInfo()
-                    5 -> confirmRemoveSource(source)
-                }
+        showNasListPopup(source.name, actions.toTypedArray()) { which ->
+            when (which) {
+                0 -> showNasEditor(source)
+                1 -> showSourcePicker()
+                2 -> toggleSource(source)
+                3 -> shareDiagnostics()
+                4 -> showLocalDataInfo()
+                5 -> confirmRemoveSource(source)
             }
-            .show()
+        }
     }
 
     private fun confirmRemoveSource(source: NasSourceEntity) {
-        AlertDialog.Builder(requireContext())
-            .setTitle(com.wkq.bao.feature.res.R.string.title_remove_nas)
-            .setMessage(com.wkq.bao.feature.res.R.string.remove_nas_message)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(com.wkq.bao.feature.res.R.string.btn_remove_nas) { _, _ ->
-                viewModel.remove(source.id)
-            }
+        nasPopupBuilder()
+            .asConfirm(
+                getString(com.wkq.bao.feature.res.R.string.title_remove_nas),
+                getString(com.wkq.bao.feature.res.R.string.remove_nas_message),
+                getString(android.R.string.cancel),
+                getString(com.wkq.bao.feature.res.R.string.btn_remove_nas),
+                { viewModel.remove(source.id) },
+                null,
+                false
+            )
             .show()
     }
 
@@ -153,20 +150,35 @@ class NasSettingsFragment : Fragment() {
                 }
             }
             is NasSettingsEvent.ConnectionTested -> {
-                AppDiagnostics.record(requireContext(), "nas", if (event.result.isSuccess) "connection_test_succeeded" else "connection_test_failed")
-                Toast.makeText(requireContext(), event.result.getOrElse { it.message ?: getString(com.wkq.bao.feature.res.R.string.status_disconnected) }, Toast.LENGTH_LONG).show()
+                val diagnosticEvent = if (event.result.isSuccess) {
+                    "connection_test_succeeded"
+                } else {
+                    "connection_test_failed_${NasFailureClassifier.code(event.result.exceptionOrNull())}"
+                }
+                AppDiagnostics.record(requireContext(), "nas", diagnosticEvent)
+                activeEditorPopup?.let { popup ->
+                    popup.showConnectionTestResult(event.result)
+                    return
+                }
+                Toast.makeText(
+                    requireContext(),
+                    if (event.result.isSuccess) {
+                        com.wkq.bao.feature.res.R.string.nas_editor_test_succeeded
+                    } else {
+                        com.wkq.bao.feature.res.R.string.nas_editor_test_failed
+                    },
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }
 
     private fun showSourcePicker() {
         if (sources.isEmpty()) return showMissingSource()
-        AlertDialog.Builder(requireContext())
-            .setTitle(com.wkq.bao.feature.res.R.string.btn_switch_nas)
-            .setItems(sources.map { it.name }.toTypedArray()) { _, which ->
-                viewModel.selectSource(sources[which].id)
-            }
-            .show()
+        showNasListPopup(
+            getString(com.wkq.bao.feature.res.R.string.btn_switch_nas),
+            sources.map { it.name }.toTypedArray()
+        ) { which -> viewModel.selectSource(sources[which].id) }
     }
 
     private fun toggleSource(source: NasSourceEntity) {
@@ -187,19 +199,25 @@ class NasSettingsFragment : Fragment() {
     }
 
     private fun showLocalDataInfo() {
-        AlertDialog.Builder(requireContext())
-            .setTitle(com.wkq.bao.feature.res.R.string.title_local_data_info)
-            .setMessage(com.wkq.bao.feature.res.R.string.local_data_info_message)
-            .setNegativeButton(com.wkq.bao.feature.res.R.string.btn_clear_diagnostics) { _, _ ->
-                AppDiagnostics.clear(requireContext())
-                Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.diagnostics_cleared, Toast.LENGTH_SHORT).show()
-            }
-            .setPositiveButton(android.R.string.ok, null)
+        nasPopupBuilder()
+            .asConfirm(
+                getString(com.wkq.bao.feature.res.R.string.title_local_data_info),
+                getString(com.wkq.bao.feature.res.R.string.local_data_info_message),
+                getString(com.wkq.bao.feature.res.R.string.btn_clear_diagnostics),
+                getString(android.R.string.ok),
+                { },
+                {
+                    AppDiagnostics.clear(requireContext())
+                    Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.diagnostics_cleared, Toast.LENGTH_SHORT).show()
+                },
+                false
+            )
             .show()
     }
 
     private fun testActiveSource() {
         val source = activeSource ?: return showMissingSource()
+        AppDiagnostics.record(requireContext(), "nas", "connection_test_requested_saved")
         viewModel.testConnection(source)
     }
 
@@ -214,100 +232,90 @@ class NasSettingsFragment : Fragment() {
     }
 
     private fun showNasEditor(source: NasSourceEntity?) {
-        val density = resources.displayMetrics.density
-        val horizontalPadding = (20 * density).roundToInt()
-        val verticalPadding = (12 * density).roundToInt()
-        val container = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        fun field(label: Int, value: String, type: Int, action: Int = EditorInfo.IME_ACTION_NEXT) =
-            EditText(requireContext()).apply {
-                hint = getString(label)
-                setText(value)
-                isSingleLine = true
-                inputType = type
-                imeOptions = action
-                container.addView(
-                    this,
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
-                )
+        AppDiagnostics.record(requireContext(), "nas", if (source == null) "editor_opened_add" else "editor_opened_edit")
+        val display = resources.displayMetrics
+        val margin = (16 * display.density).roundToInt()
+        val maxWidth = minOf((560 * display.density).roundToInt(), display.widthPixels - margin * 2)
+        val maxHeight = minOf((680 * display.density).roundToInt(), (display.heightPixels * 0.82f).roundToInt())
+        val popup = NasEditorPopup(
+            context = requireContext(),
+            source = source,
+            initialDraft = viewModel.editorDraftFor(source?.id),
+            onDraftChanged = viewModel::updateEditorDraft,
+            onDiscardDraft = { viewModel.clearEditorDraft(source?.id) },
+            onTest = { submission -> testNasEditor(source, submission) },
+            onSave = { submission -> saveNasEditor(source, submission) },
+            onDismissed = { dismissedPopup ->
+                if (activeEditorPopup === dismissedPopup) activeEditorPopup = null
             }
-        val name = field(
-            com.wkq.bao.feature.res.R.string.nas_name,
-            source?.name.orEmpty(),
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
         )
-        val host = field(
-            com.wkq.bao.feature.res.R.string.nas_host,
-            source?.host.orEmpty(),
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-        )
-        val share = field(com.wkq.bao.feature.res.R.string.nas_share, source?.shareName.orEmpty(), InputType.TYPE_CLASS_TEXT)
-        val root = field(com.wkq.bao.feature.res.R.string.nas_root_path, source?.rootPath.orEmpty(), InputType.TYPE_CLASS_TEXT)
-        val username = field(com.wkq.bao.feature.res.R.string.nas_username, source?.username.orEmpty(), InputType.TYPE_CLASS_TEXT)
-        val password = field(
-            com.wkq.bao.feature.res.R.string.nas_password,
-            "",
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
-            EditorInfo.IME_ACTION_DONE
-        )
-        val scrollView = ScrollView(requireContext()).apply {
-            isFillViewport = true
-            addView(container)
-        }
-        val dialog = AlertDialog.Builder(requireContext())
-            .setTitle(if (source == null) com.wkq.bao.feature.res.R.string.btn_add_nas else com.wkq.bao.feature.res.R.string.btn_edit_nas)
-            .setView(scrollView)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(com.wkq.bao.feature.res.R.string.btn_save, null)
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val normalizedHost = host.text.toString().trim()
-                val normalizedShare = share.text.toString().trim().trim('/')
-                if (normalizedHost.isEmpty()) {
-                    host.error = getString(com.wkq.bao.feature.res.R.string.nas_field_required, getString(com.wkq.bao.feature.res.R.string.nas_host))
-                    host.requestFocus()
-                    return@setOnClickListener
-                }
-                if (normalizedShare.isEmpty()) {
-                    share.error = getString(com.wkq.bao.feature.res.R.string.nas_field_required, getString(com.wkq.bao.feature.res.R.string.nas_share))
-                    share.requestFocus()
-                    return@setOnClickListener
-                }
-                val encryptedPassword = runCatching {
-                    password.text.toString().takeIf { it.isNotEmpty() }
-                        ?.let(NasCredentialVault::encrypt)
-                        ?: source?.passwordEncrypted.orEmpty()
-                }.getOrElse {
-                    Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.nas_password_protection_failed, Toast.LENGTH_LONG).show()
-                    return@setOnClickListener
-                }
-                viewModel.save(NasSourceEntity(
-                        id = source?.id ?: 0L,
-                        name = name.text.toString().trim().ifEmpty { normalizedHost },
-                        host = normalizedHost,
-                        shareName = normalizedShare,
-                        rootPath = root.text.toString().trim(),
-                        username = username.text.toString().trim(),
-                        passwordEncrypted = encryptedPassword,
-                        enabled = source?.enabled ?: true,
-                        createdAt = source?.createdAt ?: System.currentTimeMillis(),
-                        lastScanAt = source?.lastScanAt ?: 0L
-                    ))
-                AppDiagnostics.record(requireContext(), "nas", if (source == null) "source_added" else "source_updated")
-                dialog.dismiss()
-            }
-        }
-        dialog.show()
+        activeEditorPopup = popup
+        nasPopupBuilder()
+            .dismissOnTouchOutside(false)
+            .autoOpenSoftInput(false)
+            .autoFocusEditText(false)
+            .moveUpToKeyboard(true)
+            .popupWidth(maxWidth)
+            .popupHeight(maxHeight)
+            .maxWidth(maxWidth)
+            .maxHeight(maxHeight)
+            .asCustom(popup)
+            .show()
     }
 
+    private fun testNasEditor(source: NasSourceEntity?, submission: NasEditorSubmission): Boolean {
+        val candidate = buildNasSource(source, submission) ?: return false
+        AppDiagnostics.record(requireContext(), "nas", "connection_test_requested_editor")
+        viewModel.testConnection(candidate)
+        return true
+    }
+
+    private fun saveNasEditor(source: NasSourceEntity?, submission: NasEditorSubmission): Boolean {
+        val nasSource = buildNasSource(source, submission) ?: return false
+        AppDiagnostics.record(requireContext(), "nas", if (source == null) "source_save_requested_add" else "source_save_requested_update")
+        viewModel.clearEditorDraft(source?.id)
+        viewModel.save(nasSource)
+        AppDiagnostics.record(requireContext(), "nas", if (source == null) "source_added" else "source_updated")
+        return true
+    }
+
+    private fun buildNasSource(source: NasSourceEntity?, submission: NasEditorSubmission): NasSourceEntity? {
+        val encryptedPassword = runCatching {
+            submission.password.takeIf { it.isNotEmpty() }
+                ?.let(NasCredentialVault::encrypt)
+                ?: source?.passwordEncrypted.orEmpty()
+        }.getOrElse {
+            Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.nas_password_protection_failed, Toast.LENGTH_LONG).show()
+            return null
+        }
+        return NasSourceEntity(
+            id = source?.id ?: 0L,
+            name = submission.draft.name.ifEmpty { submission.draft.host },
+            type = submission.draft.type,
+            host = submission.draft.host,
+            port = submission.draft.port,
+            shareName = submission.draft.shareName,
+            rootPath = submission.draft.rootPath,
+            username = submission.draft.username,
+            passwordEncrypted = encryptedPassword,
+            enabled = source?.enabled ?: true,
+            createdAt = source?.createdAt ?: System.currentTimeMillis(),
+            lastScanAt = source?.lastScanAt ?: 0L
+        )
+    }
+
+    private fun showNasListPopup(title: String?, actions: Array<String>, onSelected: (Int) -> Unit) {
+        nasPopupBuilder()
+            .asCenterList(title, actions) { position, _ -> onSelected(position) }
+            .show()
+    }
+
+    private fun nasPopupBuilder(): XPopup.Builder = XPopup.Builder(requireContext())
+        .customHostLifecycle(viewLifecycleOwner.lifecycle)
+        .isDarkTheme(true)
+
     override fun onDestroyView() {
+        activeEditorPopup = null
         _binding = null
         super.onDestroyView()
     }

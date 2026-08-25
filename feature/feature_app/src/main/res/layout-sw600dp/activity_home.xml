@@ -18,7 +18,7 @@
         <ImageView
             android:id="@+id/iv_hero_backdrop"
             android:layout_width="0dp"
-            android:layout_height="460dp"
+            android:layout_height="360dp"
             android:scaleType="centerCrop"
             android:src="@drawable/bg_glass_card"
             app:layout_constraintEnd_toEndOf="parent"
@@ -29,7 +29,7 @@
         <View
             android:id="@+id/v_hero_scrim"
             android:layout_width="0dp"
-            android:layout_height="460dp"
+            android:layout_height="360dp"
             android:background="@drawable/bg_hero_gradient"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -123,7 +123,7 @@
                     android:focusable="true"
                     android:gravity="center"
                     android:paddingHorizontal="16dp"
-                    android:text="NAS"
+                    android:text="@string/nav_nas"
                     android:textColor="@color/tv_text_secondary"
                     android:textSize="13sp" />
 
@@ -164,7 +164,7 @@
                     android:focusable="true"
                     android:gravity="center_vertical"
                     android:paddingHorizontal="12dp"
-                    android:text="NAS 在线"
+                    android:text="@string/badge_nas_online"
                     android:textColor="@color/tv_accent_cyan"
                     android:textSize="11sp"
                     android:textStyle="bold" />
@@ -179,7 +179,7 @@
                     android:background="@drawable/bg_nav_pill_container"
                     android:gravity="center_vertical"
                     android:paddingHorizontal="14dp"
-                    android:text="16:08"
+                    tools:text="16:08"
                     android:textColor="@color/tv_text_primary"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -190,11 +190,13 @@
         <!-- 4. Hero 浮动内容区 (直接悬浮在大背景暗部上, Figma Node 1:28) -->
         <LinearLayout
             android:id="@+id/layout_hero_content"
-            android:layout_width="560dp"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="56dp"
+            android:layout_marginEnd="56dp"
             android:layout_marginTop="50dp"
             android:orientation="vertical"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/top_nav_bar">
 
@@ -207,7 +209,7 @@
                 android:shadowDx="0"
                 android:shadowDy="4"
                 android:shadowRadius="8"
-                android:text="汪汪队立大功"
+                tools:text="汪汪队立大功"
                 android:textColor="@color/tv_text_primary"
                 android:textSize="36sp"
                 android:textStyle="bold" />
@@ -227,7 +229,7 @@
                     android:background="@drawable/bg_tag_pill"
                     android:paddingHorizontal="10dp"
                     android:paddingVertical="4dp"
-                    android:text="第 3 季 · 动画"
+                    tools:text="第 3 季 · 动画"
                     android:textColor="@color/tv_accent_gold"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -237,7 +239,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="14dp"
-                    android:text="上次看到：第 5 集"
+                    tools:text="上次看到：第 5 集"
                     android:textColor="@color/tv_text_secondary"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -250,7 +252,7 @@
                 android:ellipsize="end"
                 android:lineSpacingExtra="4dp"
                 android:maxLines="2"
-                android:text="精通科技的10岁男孩莱德救了6条小狗，并将它们训练成了高本领的狗狗巡逻队。无论遇到什么困难，他们总能团结协作化解危机。"
+                tools:text="精通科技的10岁男孩莱德救了6条小狗，并将它们训练成了高本领的狗狗巡逻队。"
                 android:textColor="@color/tv_text_tertiary"
                 android:textSize="13sp" />
 

@@ -40,7 +40,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="38dp"
                 android:background="@drawable/bg_tv_button_focus"
-                android:text="全部"
+                android:text="@string/nav_all_media"
                 android:textColor="@color/tv_text_primary" />
 
             <Button
@@ -88,5 +88,24 @@
         app:layout_constraintTop_toBottomOf="@id/layout_header"
         app:spanCount="5"
         tools:listitem="@layout/item_poster_card" />
+
+    <LinearLayout
+        android:id="@+id/layout_empty_library"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_header">
+
+        <ProgressBar android:id="@+id/progress_library" android:layout_width="48dp" android:layout_height="48dp" android:indeterminateTint="@color/tv_accent_cyan" />
+        <ImageView android:id="@+id/iv_empty_library" android:layout_width="96dp" android:layout_height="96dp" android:importantForAccessibility="no" android:src="@drawable/bg_media_placeholder_poster" />
+        <TextView android:id="@+id/tv_empty_library_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="@string/library_empty_title" android:textColor="@color/tv_text_primary" android:textSize="24sp" android:textStyle="bold" />
+        <TextView android:id="@+id/tv_empty_library" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:gravity="center" android:maxLines="3" android:text="@string/library_empty_message" android:textColor="@color/tv_text_secondary" android:textSize="16sp" />
+        <Button android:id="@+id/btn_empty_library_action" android:layout_width="wrap_content" android:layout_height="52dp" android:layout_marginTop="20dp" android:background="@drawable/bg_hero_play_btn" android:minWidth="152dp" android:text="@string/btn_add_nas" android:textColor="@color/tv_hero_btn_text" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

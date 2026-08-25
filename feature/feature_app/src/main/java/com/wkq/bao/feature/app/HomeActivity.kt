@@ -65,10 +65,18 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
 
     private fun configureInsets() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, binding.root).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
         val initialBottomPadding = binding.layoutPageTabs.paddingBottom
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { root, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            root.updatePadding(top = bars.top)
+            root.updatePadding(
+                left = bars.left,
+                top = bars.top,
+                right = bars.right
+            )
             binding.layoutPageTabs.updatePadding(bottom = initialBottomPadding + bars.bottom)
             insets
         }

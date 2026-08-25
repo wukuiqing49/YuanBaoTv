@@ -12,6 +12,15 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MediaDao {
+    /** 清理早期版本写入的通用图库图片，避免把无关图片误展示为真实影视海报。 */
+    @Query("""
+        UPDATE media_series
+        SET posterUri = '', backdropUri = '', updatedAt = :updatedAt
+        WHERE posterUri LIKE 'https://images.unsplash.com/%'
+           OR backdropUri LIKE 'https://images.unsplash.com/%'
+    """)
+    suspend fun clearLegacyStockArtwork(updatedAt: Long)
+
     @Query("SELECT * FROM media_series ORDER BY updatedAt DESC")
     fun getAllSeries(): Flow<List<MediaSeriesEntity>>
 
@@ -60,9 +69,10 @@ interface MediaDao {
     fun getEpisodes(seriesId: Long, seasonId: Long): Flow<List<EpisodeEntity>>
 
     @Query("""
-        SELECT episodes.*, COALESCE((SELECT uri FROM media_locations WHERE mediaFileId = media_files.id ORDER BY updatedAt DESC LIMIT 1), media_files.localUri) AS localUri, COALESCE((SELECT storageType FROM media_locations WHERE mediaFileId = media_files.id ORDER BY updatedAt DESC LIMIT 1), media_files.localStorageType) AS localStorageType, COALESCE((SELECT uri FROM media_remote_sources WHERE mediaFileId = media_files.id ORDER BY updatedAt DESC LIMIT 1), media_files.nasUri) AS nasUri
+        SELECT episodes.*, COALESCE((SELECT uri FROM media_locations WHERE mediaFileId = media_files.id ORDER BY updatedAt DESC LIMIT 1), media_files.localUri) AS localUri, COALESCE((SELECT storageType FROM media_locations WHERE mediaFileId = media_files.id ORDER BY updatedAt DESC LIMIT 1), media_files.localStorageType) AS localStorageType, COALESCE((SELECT uri FROM media_remote_sources WHERE mediaFileId = media_files.id ORDER BY updatedAt DESC LIMIT 1), media_files.nasUri) AS nasUri, media_series.backdropUri AS seriesBackdropUri
         FROM episodes
         LEFT JOIN media_files ON media_files.episodeId = episodes.id
+        INNER JOIN media_series ON media_series.id = episodes.seriesId
         WHERE episodes.seriesId = :seriesId AND episodes.seasonId = :seasonId
         ORDER BY episodes.episodeNumber ASC
     """)
@@ -85,6 +95,9 @@ interface MediaDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEpisode(episode: EpisodeEntity): Long
+
+    @Update
+    suspend fun updateEpisode(episode: EpisodeEntity)
 
     // === MediaFile ===
     @Query("SELECT * FROM media_files WHERE episodeId = :episodeId")

@@ -13,6 +13,7 @@ import com.hierynomus.smbj.session.Session
 import com.hierynomus.smbj.share.DiskShare
 import com.hierynomus.smbj.share.File
 import com.wkq.bao.core.database.entity.NasSourceEntity
+import com.wkq.bao.core.media.artwork.SidecarArtworkResolver
 import com.wkq.bao.core.nas.security.NasCredentialVault
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +32,19 @@ object SmbClientManager {
 
     data class Location(val host: String, val shareName: String, val path: String)
     data class RemoteFileInfo(val length: Long, val lastModifiedAt: Long)
-    data class RemoteMediaFile(val path: String, val length: Long, val lastModifiedAt: Long)
+    data class RemoteMediaFile(
+        val path: String,
+        val length: Long,
+        val lastModifiedAt: Long,
+        val posterUri: String = "",
+        val backdropUri: String = "",
+        val thumbnailUri: String = ""
+    )
+
+    private data class ScanDirectory(
+        val path: String,
+        val inheritedArtwork: SidecarArtworkResolver.DirectoryArtwork
+    )
 
     class RemoteFileHandle internal constructor(
         val file: File,
@@ -72,7 +85,7 @@ object SmbClientManager {
         return Location(host, shareName, segments.drop(1).joinToString("/"))
     }
 
-    fun buildUri(source: NasSourceEntity, path: String): String {
+    fun buildUri(source: NasSourceEntity, path: String, cacheVersion: Long = 0L): String {
         return Uri.Builder()
             .scheme("smb")
             .authority(source.host)
@@ -81,6 +94,9 @@ object SmbClientManager {
                     .map(String::trim)
                     .filter(String::isNotEmpty)
                     .forEach(::appendPath)
+            }
+            .apply {
+                if (cacheVersion > 0L) appendQueryParameter("v", cacheVersion.toString())
             }
             .build()
             .toString()
@@ -164,30 +180,55 @@ object SmbClientManager {
                 session = connection.authenticate(authentication(source))
                 share = session.connectShare(source.shareName.trim('/')) as? DiskShare
                     ?: error("无法挂载共享目录: ${source.shareName}")
-                val directories = ArrayDeque<String>()
-                directories.add(source.rootPath.trim('/'))
+                val directories = ArrayDeque<ScanDirectory>()
+                directories.add(
+                    ScanDirectory(
+                        path = source.rootPath.trim('/'),
+                        inheritedArtwork = SidecarArtworkResolver.DirectoryArtwork()
+                    )
+                )
                 var visitedFileCount = 0
                 var checkpointReached = resumeAfterPath.isNullOrBlank()
                 while (directories.isNotEmpty()) {
                     coroutineContext.ensureActive()
-                    val path = directories.removeFirst()
-                    share.list(path).sortedBy { it.fileName.lowercase() }.forEach { item ->
+                    val directory = directories.removeFirst()
+                    val path = directory.path
+                    val children = share.list(path).sortedBy { it.fileName.lowercase() }
+                    val files = children.filter { item ->
+                        item.fileName != "." && item.fileName != ".." &&
+                            (item.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value) == 0L
+                    }
+                    val artwork = SidecarArtworkResolver.resolveDirectory(
+                        candidates = files.map { item ->
+                            val childPath = joinRemotePath(path, item.fileName)
+                            SidecarArtworkResolver.Candidate(
+                                fileName = item.fileName,
+                                uri = buildUri(source, childPath, item.lastWriteTime.toEpochMillis())
+                            )
+                        },
+                        inherited = directory.inheritedArtwork
+                    )
+                    children.forEach { item ->
                         coroutineContext.ensureActive()
                         if (item.fileName == "." || item.fileName == "..") return@forEach
-                        val childPath = listOf(path.trim('/'), item.fileName).filter { it.isNotEmpty() }.joinToString("/")
+                        val childPath = joinRemotePath(path, item.fileName)
                         val isDirectory = (item.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value) != 0L
                         if (isDirectory) {
-                            directories.addLast(childPath)
+                            directories.addLast(ScanDirectory(childPath, artwork))
                         } else {
                             if (!checkpointReached) {
                                 checkpointReached = childPath == resumeAfterPath
                                 return@forEach
                             }
+                            val mediaArtwork = SidecarArtworkResolver.resolveMedia(item.fileName, artwork)
                             onFile(
                                 RemoteMediaFile(
                                     path = childPath,
                                     length = item.endOfFile,
-                                    lastModifiedAt = item.lastWriteTime.toEpochMillis()
+                                    lastModifiedAt = item.lastWriteTime.toEpochMillis(),
+                                    posterUri = mediaArtwork.posterUri,
+                                    backdropUri = mediaArtwork.backdropUri,
+                                    thumbnailUri = mediaArtwork.thumbnailUri
                                 )
                             )
                             visitedFileCount++
@@ -279,6 +320,9 @@ object SmbClientManager {
     /** 仅重试传输层 I/O 异常，避免把存储权限和参数错误误判为网络波动。 */
     fun isRetryable(error: Throwable): Boolean =
         generateSequence(error) { it.cause }.any { it is java.io.IOException }
+
+    private fun joinRemotePath(directory: String, fileName: String): String =
+        listOf(directory.trim('/'), fileName).filter(String::isNotEmpty).joinToString("/")
 
     private const val COPY_BUFFER_SIZE = 256 * 1024
 }
