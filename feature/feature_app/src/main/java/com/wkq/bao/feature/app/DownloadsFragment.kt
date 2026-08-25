@@ -45,12 +45,9 @@ class DownloadsFragment : Fragment() {
             }
             storageManager.saveStorageRoot(uri, storageManager.resolveLocalLocation(uri))
             renderStorage()
-            uri
         }.onFailure { Toast.makeText(requireContext(), it.message ?: getString(com.wkq.bao.feature.res.R.string.storage_permission_failed), Toast.LENGTH_LONG).show() }
-            .onSuccess { selectedUri ->
+            .onSuccess {
                 Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.storage_authorized, Toast.LENGTH_SHORT).show()
-                viewModel.startLocalScan(selectedUri)
-                Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.local_scan_queued, Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -66,16 +63,13 @@ class DownloadsFragment : Fragment() {
         binding.btnSelectStorage.backgroundTintList = null
         listOf(binding.cardStorageInfo, binding.cardDownloadTask, binding.btnSelectStorage).forEach(TvFocusHelper::applyFocusScale)
         binding.btnSelectStorage.setText(com.wkq.bao.feature.res.R.string.storage_select_target)
-        binding.btnSelectStorage.setOnClickListener {
-            if (viewModel.uiState.value.scanSession?.let { ScanSessionStatus.isActive(it.status) || it.status in setOf(ScanSessionStatus.FAILED, ScanSessionStatus.CANCELLED) } == true) {
-                viewModel.handleLocalScanAction()
-            } else {
-                selectStorageLocation()
-            }
-        }
+        binding.btnSelectStorage.setOnClickListener { selectStorageLocation() }
         binding.cardStorageInfo.setOnClickListener {
-            if (!ScanSessionStatus.isActive(viewModel.uiState.value.scanSession?.status.orEmpty())) {
+            val target = storageManager.getAvailableStorageTarget()
+            if (target == null) {
                 selectStorageLocation()
+            } else {
+                viewModel.handleLocalScanAction()
             }
         }
         downloadAdapter = DownloadTaskAdapter(
@@ -135,13 +129,7 @@ class DownloadsFragment : Fragment() {
             ScanSessionStatus.CANCELLED -> "$capacity · ${getString(com.wkq.bao.feature.res.R.string.scan_cancelled)}"
             else -> capacity
         }
-        binding.btnSelectStorage.text = when {
-            ScanSessionStatus.isActive(state.scanSession?.status.orEmpty()) ->
-                getString(com.wkq.bao.feature.res.R.string.scan_action_cancel, state.scanSession?.importedCount ?: 0)
-            state.scanSession?.status in setOf(ScanSessionStatus.FAILED, ScanSessionStatus.CANCELLED) ->
-                getString(com.wkq.bao.feature.res.R.string.scan_action_retry)
-            else -> getString(com.wkq.bao.feature.res.R.string.storage_select_target)
-        }
+        binding.btnSelectStorage.setText(com.wkq.bao.feature.res.R.string.storage_select_target)
         binding.pbStorage.progress = if (stat.totalBytes > 0L) (((stat.totalBytes - stat.freeBytes) * 100L) / stat.totalBytes).toInt() else 0
         viewModel.observeStorage(target?.uri)
     }

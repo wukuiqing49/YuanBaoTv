@@ -10,6 +10,7 @@ import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import com.wkq.bao.core.database.entity.MediaSeriesType
 import com.wkq.bao.core.database.entity.SeasonEntity
 import com.wkq.bao.core.media.repository.EnqueueDownloadsResult
+import com.wkq.bao.core.media.repository.DownloadTarget
 import com.wkq.bao.core.media.repository.MediaDetailRepository
 import com.wkq.bao.core.media.repository.RoomMediaDetailRepository
 import kotlinx.coroutines.CancellationException
@@ -143,12 +144,29 @@ class DetailViewModel(
         }
     }
 
-    fun enqueueCurrentSelection() {
+    fun enqueueCurrentSelection(downloadTarget: DownloadTarget) {
         val state = _uiState.value
         if (state.series == null || state.actionInProgress || (!state.isMovie && state.selectedSeasonId <= 0L)) return
         _uiState.update { it.copy(actionInProgress = true) }
         viewModelScope.launch {
-            runCatching { repository.enqueueDownloads(seriesId, state.selectedSeasonId, state.isMovie) }
+            runCatching {
+                repository.enqueueDownloads(seriesId, state.selectedSeasonId, state.isMovie, downloadTarget)
+            }
+                .onSuccess { _events.emit(DetailEvent.DownloadsQueued(it)) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    _events.emit(DetailEvent.ActionFailed)
+                }
+            _uiState.update { it.copy(actionInProgress = false) }
+        }
+    }
+
+    fun enqueueEpisode(episodeId: Long, downloadTarget: DownloadTarget) {
+        val state = _uiState.value
+        if (state.series == null || state.actionInProgress || state.episodes.none { it.episode.id == episodeId }) return
+        _uiState.update { it.copy(actionInProgress = true) }
+        viewModelScope.launch {
+            runCatching { repository.enqueueEpisode(seriesId, episodeId, downloadTarget) }
                 .onSuccess { _events.emit(DetailEvent.DownloadsQueued(it)) }
                 .onFailure {
                     if (it is CancellationException) throw it

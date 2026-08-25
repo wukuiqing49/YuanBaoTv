@@ -1,6 +1,7 @@
 package com.wkq.bao.core.media.repository
 
 import android.content.Context
+import android.net.Uri
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.database.entity.DownloadTaskEntity
 import com.wkq.bao.core.database.entity.DownloadTaskStatus
@@ -11,6 +12,7 @@ import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import com.wkq.bao.core.database.entity.SeasonEntity
 import com.wkq.bao.core.media.download.DownloadWorkScheduler
 import com.wkq.bao.core.media.storage.TvStorageManager
+import com.wkq.bao.core.media.storage.MediaStorageLocation
 import kotlinx.coroutines.flow.Flow
 
 interface MediaDetailRepository {
@@ -20,13 +22,25 @@ interface MediaDetailRepository {
     suspend fun getFirstPlayableEpisode(seriesId: Long, seasonId: Long, isMovie: Boolean): EpisodeEntity?
     suspend fun isFavorite(seriesId: Long): Boolean
     suspend fun toggleFavorite(seriesId: Long): Boolean
-    suspend fun enqueueDownloads(seriesId: Long, seasonId: Long, isMovie: Boolean): EnqueueDownloadsResult
+    suspend fun enqueueDownloads(
+        seriesId: Long,
+        seasonId: Long,
+        isMovie: Boolean,
+        downloadTarget: DownloadTarget
+    ): EnqueueDownloadsResult
+    suspend fun enqueueEpisode(seriesId: Long, episodeId: Long, downloadTarget: DownloadTarget): EnqueueDownloadsResult
 }
+
+data class DownloadTarget(
+    val uri: String,
+    val location: MediaStorageLocation
+)
 
 sealed interface EnqueueDownloadsResult {
     data object StorageTargetRequired : EnqueueDownloadsResult
     data object NoItemsQueued : EnqueueDownloadsResult
     data object MovieQueued : EnqueueDownloadsResult
+    data object EpisodeQueued : EnqueueDownloadsResult
     data class SeasonQueued(val count: Int) : EnqueueDownloadsResult
 }
 
@@ -70,15 +84,45 @@ class RoomMediaDetailRepository private constructor(
     override suspend fun enqueueDownloads(
         seriesId: Long,
         seasonId: Long,
-        isMovie: Boolean
+        isMovie: Boolean,
+        downloadTarget: DownloadTarget
     ): EnqueueDownloadsResult {
-        val storageTarget = TvStorageManager(appContext).getAvailableStorageTarget()
-            ?: return EnqueueDownloadsResult.StorageTargetRequired
         val episodes = if (isMovie) {
             database.mediaDao().getEpisodesForSeriesSync(seriesId)
         } else {
             database.mediaDao().getEpisodesSync(seriesId, seasonId)
         }
+        val queuedCount = enqueueEpisodeList(seriesId, episodes, downloadTarget)
+            ?: return EnqueueDownloadsResult.StorageTargetRequired
+        if (queuedCount == 0) return EnqueueDownloadsResult.NoItemsQueued
+        DownloadWorkScheduler.enqueue(appContext, expedited = true)
+        return if (isMovie) EnqueueDownloadsResult.MovieQueued
+        else EnqueueDownloadsResult.SeasonQueued(queuedCount)
+    }
+
+    override suspend fun enqueueEpisode(
+        seriesId: Long,
+        episodeId: Long,
+        downloadTarget: DownloadTarget
+    ): EnqueueDownloadsResult {
+        val episode = database.mediaDao().getEpisodeById(episodeId)
+            ?.takeIf { it.seriesId == seriesId }
+            ?: return EnqueueDownloadsResult.NoItemsQueued
+        val queuedCount = enqueueEpisodeList(seriesId, listOf(episode), downloadTarget)
+            ?: return EnqueueDownloadsResult.StorageTargetRequired
+        if (queuedCount == 0) return EnqueueDownloadsResult.NoItemsQueued
+        DownloadWorkScheduler.enqueue(appContext, expedited = true)
+        return EnqueueDownloadsResult.EpisodeQueued
+    }
+
+    /** 返回 null 表示目标存储已失效，否则返回实际新入队数量。 */
+    private suspend fun enqueueEpisodeList(
+        seriesId: Long,
+        episodes: List<EpisodeEntity>,
+        downloadTarget: DownloadTarget
+    ): Int? {
+        val targetUri = Uri.parse(downloadTarget.uri)
+        if (!TvStorageManager(appContext).isStorageTargetAvailable(targetUri)) return null
         val enabledNasIds = database.nasDao().getEnabledSources().mapTo(mutableSetOf()) { it.id }
         var queuedCount = 0
         episodes.forEach { episode ->
@@ -86,8 +130,8 @@ class RoomMediaDetailRepository private constructor(
             val remoteSource = database.mediaDao().getMediaRemoteSources(mediaFile.id)
                 .firstOrNull { it.nasSourceId in enabledNasIds }
             if (remoteSource == null) return@forEach
-            val targetUri = storageTarget.uri.toString()
-            val existing = database.downloadDao().getTaskByEpisodeIdAndTargetUri(episode.id, targetUri)
+            val targetUriValue = targetUri.toString()
+            val existing = database.downloadDao().getTaskByEpisodeIdAndTargetUri(episode.id, targetUriValue)
             if (existing == null || existing.status in setOf(DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)) {
                 database.downloadDao().insertTask(
                     DownloadTaskEntity(
@@ -97,18 +141,15 @@ class RoomMediaDetailRepository private constructor(
                         episodeId = episode.id,
                         sourceUri = remoteSource.uri,
                         sourceNasId = remoteSource.nasSourceId ?: 0L,
-                        targetUri = targetUri,
-                        targetStorageType = storageTarget.location.name,
+                        targetUri = targetUriValue,
+                        targetStorageType = downloadTarget.location.name,
                         status = DownloadTaskStatus.WAITING
                     )
                 )
                 queuedCount++
             }
         }
-        if (queuedCount == 0) return EnqueueDownloadsResult.NoItemsQueued
-        DownloadWorkScheduler.enqueue(appContext, expedited = true)
-        return if (isMovie) EnqueueDownloadsResult.MovieQueued
-        else EnqueueDownloadsResult.SeasonQueued(queuedCount)
+        return queuedCount
     }
 
     companion object {

@@ -11,6 +11,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
+import androidx.media3.common.C
+import androidx.media3.common.Tracks
 import com.wkq.base.activity.BaseActivity
 import com.wkq.bao.core.media.controller.TvPlayerController
 import com.wkq.bao.feature.app.databinding.ActivityPlayerBinding
@@ -53,10 +55,17 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
     private var progressTrackerJob: Job? = null
     private var activePlayer: Player? = null
     private var initialEpisodeLoaded = false
+    private var subtitlesEnabled = true
 
     private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
+            binding.progressBuffering.visibility = if (playbackState == Player.STATE_BUFFERING) View.VISIBLE else View.GONE
+            if (playbackState == Player.STATE_READY) hidePlaybackError()
             if (playbackState == Player.STATE_ENDED) playNextEpisode()
+        }
+
+        override fun onTracksChanged(tracks: Tracks) {
+            renderSubtitleButton(tracks.containsType(C.TRACK_TYPE_TEXT))
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -90,12 +99,16 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
         binding.btnRewind.setOnClickListener { playerController.seekRewind(); resetOsdTimer() }
         binding.btnFastForward.setOnClickListener { playerController.seekForward(); resetOsdTimer() }
         binding.btnNextEpisode.setOnClickListener { playNextEpisode() }
+        binding.btnSubtitles.setOnClickListener { toggleSubtitles() }
+        binding.btnPlayerRetry.setOnClickListener { loadEpisode(episodeId) }
         listOf(
             binding.btnPlayPause,
             binding.btnRewind,
             binding.btnFastForward,
             binding.btnNextEpisode,
-            binding.btnSpeed
+            binding.btnSpeed,
+            binding.btnSubtitles,
+            binding.btnPlayerRetry
         ).forEach { button ->
             button.backgroundTintList = null
             TvFocusHelper.applyFocusScale(button)
@@ -165,11 +178,44 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
 
     private fun loadEpisode(targetEpisodeId: Long) {
         episodeId = targetEpisodeId
+        hidePlaybackError()
+        binding.progressBuffering.visibility = View.VISIBLE
         playerController.playEpisode(seriesId, seasonId, targetEpisodeId) { success, message ->
-            if (success) renderSourceBadge(message)
-            else Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            if (success) renderSourceBadge(message) else showPlaybackError()
         }
         showOsd()
+    }
+
+    private fun toggleSubtitles() {
+        val player = activePlayer ?: return
+        subtitlesEnabled = !subtitlesEnabled
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitlesEnabled)
+            .build()
+        renderSubtitleButton(player.currentTracks.containsType(C.TRACK_TYPE_TEXT))
+        resetOsdTimer()
+    }
+
+    private fun renderSubtitleButton(hasSubtitleTrack: Boolean) {
+        binding.btnSubtitles.isEnabled = hasSubtitleTrack
+        binding.btnSubtitles.setText(
+            when {
+                !hasSubtitleTrack -> com.wkq.bao.feature.res.R.string.player_subtitles_none
+                subtitlesEnabled -> com.wkq.bao.feature.res.R.string.player_subtitles_on
+                else -> com.wkq.bao.feature.res.R.string.player_subtitles_off
+            }
+        )
+    }
+
+    private fun showPlaybackError() {
+        binding.progressBuffering.visibility = View.GONE
+        binding.layoutPlayerError.visibility = View.VISIBLE
+        binding.btnPlayerRetry.requestFocus()
+        osdHideJob?.cancel()
+    }
+
+    private fun hidePlaybackError() {
+        binding.layoutPlayerError.visibility = View.GONE
     }
 
     private fun renderSourceBadge(source: String) {
@@ -270,6 +316,11 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
             hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
+    }
+
+    override fun onStop() {
+        activePlayer?.pause()
+        super.onStop()
     }
 
     override fun onDestroy() {

@@ -34,7 +34,6 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
         seriesId = intent.getLongExtra("seriesId", 0L)
         listOf(
             binding.btnPlay,
-            binding.btnDownloadSeason,
             binding.btnFavorite,
             binding.btnDetailStateAction
         ).forEach { button ->
@@ -44,7 +43,7 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
         episodeAdapter = EpisodeAdapter(onItemClick = ::playEpisode)
         binding.rvEpisodes.adapter = episodeAdapter
         binding.btnPlay.setOnClickListener { viewModel.playFirstEpisode() }
-        binding.btnDownloadSeason.setOnClickListener { viewModel.enqueueCurrentSelection() }
+        binding.btnDownloadSeason.visibility = View.GONE
         binding.btnFavorite.setOnClickListener { viewModel.toggleFavorite() }
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnPlay)
     }
@@ -75,15 +74,6 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
             if (state.isFavorite) com.wkq.bao.feature.res.R.string.btn_unfavorite
             else com.wkq.bao.feature.res.R.string.btn_favorite
         )
-        binding.btnDownloadSeason.setText(
-            when {
-                state.actionInProgress -> com.wkq.bao.feature.res.R.string.tip_downloading
-                state.isMovie -> com.wkq.bao.feature.res.R.string.btn_download_movie
-                else -> com.wkq.bao.feature.res.R.string.btn_download_season
-            }
-        )
-        binding.btnDownloadSeason.isEnabled = !state.actionInProgress &&
-            (state.isMovie || state.selectedSeasonId > 0L)
         if (state.isMovie) {
             renderMoviePresentation()
         } else {
@@ -236,6 +226,7 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
             EnqueueDownloadsResult.StorageTargetRequired -> getString(com.wkq.bao.feature.res.R.string.storage_target_required)
             EnqueueDownloadsResult.NoItemsQueued -> getString(com.wkq.bao.feature.res.R.string.download_no_items_queued)
             EnqueueDownloadsResult.MovieQueued -> getString(com.wkq.bao.feature.res.R.string.download_movie_queued)
+            EnqueueDownloadsResult.EpisodeQueued -> getString(com.wkq.bao.feature.res.R.string.download_episode_queued)
             is EnqueueDownloadsResult.SeasonQueued -> getString(
                 com.wkq.bao.feature.res.R.string.download_season_queued,
                 result.count

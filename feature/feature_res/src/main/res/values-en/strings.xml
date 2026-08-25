@@ -42,7 +42,7 @@
     <string name="status_enabled">Enabled</string>
     <string name="status_disabled">Disabled</string>
     <string name="title_downloads">Downloads</string>
-    <string name="section_downloading">Downloading</string>
+    <string name="section_downloading">Download tasks</string>
     <string name="downloads_empty_title">No active downloads</string>
     <string name="downloads_empty_message">Download progress will appear here after you add media.</string>
     <string name="section_downloaded_gallery">Downloaded Media</string>
@@ -112,6 +112,7 @@
     <string name="download_status_downloading">Downloading</string>
     <string name="download_status_paused">Paused</string>
     <string name="download_status_failed">Failed</string>
+    <string name="download_status_success">Completed</string>
     <string name="download_progress_with_target">%1$s · %2$s</string>
     <string name="download_failure_with_target">%1$s · %2$s</string>
     <string name="btn_retry">Retry</string>
@@ -127,6 +128,8 @@
     <string name="download_error_unknown">Download failed. Retry or export diagnostics</string>
     <string name="tv_remote_hint">Use OK to select an action and Back to return to the main menu</string>
     <string name="download_season_queued">Added %1$d episode(s) to downloads</string>
+    <string name="btn_download_episode">Download</string>
+    <string name="download_episode_queued">Episode added to downloads</string>
     <string name="library_empty_title">No media found</string>
     <string name="library_empty_message">Add a NAS source and scan its media directory first</string>
     <string name="library_filter_empty_message">No media in this category. Return to all media to keep browsing.</string>
@@ -173,4 +176,27 @@
     <string name="download_movie_queued">Movie added to downloads</string>
     <string name="download_no_items_queued">No media can be added to downloads</string>
     <string name="continue_watching_item">%1$s · %2$s · %3$d min left</string>
+    <string name="player_rewind">-10 sec</string>
+    <string name="player_fast_forward">+10 sec</string>
+    <string name="player_speed_default">1.0x</string>
+    <string name="player_next_episode">Next</string>
+    <string name="player_subtitles_on">Subtitles: On</string>
+    <string name="player_subtitles_off">Subtitles: Off</string>
+    <string name="player_subtitles_none">No subtitles</string>
+    <string name="player_playback_failed">Playback failed. Check the NAS or storage device and retry.</string>
+    <string name="title_nas_files">NAS Files</string>
+    <string name="nas_file_refresh">Refresh</string>
+    <string name="nas_file_up">Up</string>
+    <string name="nas_file_select_all">Select all</string>
+    <string name="nas_file_clear_selection">Clear all</string>
+    <string name="nas_file_empty">This folder is empty</string>
+    <string name="nas_file_load_failed">Unable to read this folder. Check the NAS connection.</string>
+    <string name="nas_file_type_folder">Folder · Use Open to browse</string>
+    <string name="nas_file_size">File · %1$s</string>
+    <string name="nas_file_open">Open</string>
+    <string name="nas_file_download_selected">Download selected</string>
+    <string name="nas_file_action_failed">Unable to read or queue files. Check the NAS and target device.</string>
+    <string name="download_task_number">Download #%1$d</string>
+    <plurals name="nas_file_selected_count"><item quantity="one">%1$d item selected</item><item quantity="other">%1$d items selected</item></plurals>
+    <plurals name="nas_file_queued"><item quantity="one">Added %1$d file to downloads</item><item quantity="other">Added %1$d files to downloads</item></plurals>
 </resources>

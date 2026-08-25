@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
+    <item
+        android:width="160dp"
+        android:height="90dp">
         <shape android:shape="rectangle">
             <solid android:color="@color/nas_popup_surface_muted" />
             <stroke android:width="1dp" android:color="@color/nas_popup_stroke" />
@@ -8,8 +10,8 @@
         </shape>
     </item>
     <item
-        android:width="42dp"
-        android:height="42dp"
+        android:width="32dp"
+        android:height="32dp"
         android:drawable="@drawable/ic_tv_play"
         android:gravity="center" />
 </layer-list>

@@ -14,7 +14,7 @@
     <dimen name="phone_download_title_size">20sp</dimen>
     <dimen name="phone_download_storage_height">96dp</dimen>
     <dimen name="phone_download_storage_button_height">44dp</dimen>
-    <dimen name="phone_download_task_height">96dp</dimen>
+    <dimen name="phone_download_task_height">120dp</dimen>
     <dimen name="phone_download_section_margin">18dp</dimen>
 
     <dimen name="phone_detail_backdrop_height">156dp</dimen>

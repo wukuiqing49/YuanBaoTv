@@ -14,6 +14,7 @@ import com.hierynomus.smbj.share.DiskShare
 import com.hierynomus.smbj.share.File
 import com.wkq.bao.core.database.entity.NasSourceEntity
 import com.wkq.bao.core.media.artwork.SidecarArtworkResolver
+import com.wkq.bao.core.nas.browser.NasFileEntry
 import com.wkq.bao.core.nas.security.NasCredentialVault
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -161,6 +162,42 @@ object SmbClientManager {
             }
         }
     }
+
+    /** 只读取当前层级，供文件浏览器按需进入目录，避免一次性扫描整台 NAS。 */
+    suspend fun listDirectory(source: NasSourceEntity, path: String): Result<List<NasFileEntry>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val client = newClient()
+                var connection: Connection? = null
+                var session: Session? = null
+                var share: DiskShare? = null
+                try {
+                    connection = client.connect(source.host, source.port)
+                    session = connection.authenticate(authentication(source))
+                    share = session.connectShare(source.shareName.trim('/')) as? DiskShare
+                        ?: error("无法挂载共享目录")
+                    share.list(path.trim('/'))
+                        .asSequence()
+                        .filter { it.fileName != "." && it.fileName != ".." }
+                        .map { item ->
+                            NasFileEntry(
+                                name = item.fileName,
+                                path = joinRemotePath(path, item.fileName),
+                                isDirectory = (item.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value) != 0L,
+                                size = item.endOfFile,
+                                lastModifiedAt = item.lastWriteTime.toEpochMillis()
+                            )
+                        }
+                        .sortedWith(compareBy<NasFileEntry> { !it.isDirectory }.thenBy { it.name.lowercase() })
+                        .toList()
+                } finally {
+                    runCatching { share?.close() }
+                    runCatching { session?.close() }
+                    runCatching { connection?.close() }
+                    runCatching { client.close() }
+                }
+            }
+        }
 
     /**
      * 以显式目录队列流式遍历 NAS，内存只保留未访问目录，不会随媒体库文件总数线性增长。

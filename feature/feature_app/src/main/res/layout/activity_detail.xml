@@ -39,7 +39,7 @@
                 android:layout_height="@dimen/phone_detail_poster_height"
                 android:background="@drawable/bg_tv_focus_ring"
                 android:focusable="true"
-                android:scaleType="centerCrop"
+                android:scaleType="fitCenter"
                 android:src="@drawable/bg_glass_card" />
 
             <LinearLayout

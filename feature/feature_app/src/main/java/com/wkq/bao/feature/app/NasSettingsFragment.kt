@@ -1,5 +1,6 @@
 package com.wkq.bao.feature.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -7,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -18,7 +20,9 @@ import com.wkq.bao.core.database.entity.ScanSessionStatus
 import com.wkq.bao.core.nas.diagnostics.NasFailureClassifier
 import com.wkq.bao.core.nas.security.NasCredentialVault
 import com.wkq.bao.feature.app.databinding.ActivityNasSettingsBinding
+import com.wkq.bao.feature.app.adapter.NasFileAdapter
 import com.wkq.bao.feature.app.utils.TvFocusHelper
+import com.wkq.bao.core.media.storage.TvStorageManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -30,6 +34,33 @@ class NasSettingsFragment : Fragment() {
     private var activeSource: NasSourceEntity? = null
     private var sources: List<NasSourceEntity> = emptyList()
     private var activeEditorPopup: NasEditorPopup? = null
+    private lateinit var fileAdapter: NasFileAdapter
+    private val storageManager by lazy { TvStorageManager(requireContext()) }
+    private var waitingForDownloadTarget = false
+
+    private val openDownloadTargetLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        waitingForDownloadTarget = false
+        if (uri == null) return@registerForActivityResult
+        runCatching {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            requireContext().contentResolver.takePersistableUriPermission(uri, flags)
+            if (!storageManager.isStorageTargetAvailable(uri)) error(
+                getString(com.wkq.bao.feature.res.R.string.storage_location_invalid)
+            )
+            storageManager.saveStorageRoot(uri, storageManager.resolveLocalLocation(uri))
+            checkNotNull(storageManager.getAvailableStorageTarget())
+        }.onSuccess { target ->
+            activeSource?.let { viewModel.enqueueSelected(it, target) }
+        }.onFailure { error ->
+            Toast.makeText(
+                requireContext(),
+                error.message ?: getString(com.wkq.bao.feature.res.R.string.storage_permission_failed),
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = ActivityNasSettingsBinding.inflate(inflater, container, false)
@@ -40,11 +71,22 @@ class NasSettingsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.btnScan.backgroundTintList = null
         binding.btnTestConn.backgroundTintList = null
-        listOf(binding.cardActiveNas, binding.cardAddNas, binding.btnScan, binding.btnTestConn).forEach(TvFocusHelper::applyFocusScale)
+        listOf(
+            binding.cardActiveNas, binding.cardAddNas, binding.btnScan, binding.btnTestConn,
+            binding.btnRefreshFiles, binding.btnFileUp, binding.btnSelectAll, binding.btnDownloadSelected
+        ).forEach(TvFocusHelper::applyFocusScale)
+        fileAdapter = NasFileAdapter(viewModel::toggleSelection) { entry ->
+            activeSource?.let { viewModel.openDirectory(it, entry) }
+        }
+        binding.rvNasFiles.adapter = fileAdapter
         binding.cardActiveNas.setOnClickListener { showActiveSourceActions() }
         binding.cardAddNas.setOnClickListener { showNasEditor(null) }
         binding.btnScan.setOnClickListener { scanActiveSource() }
         binding.btnTestConn.setOnClickListener { testActiveSource() }
+        binding.btnRefreshFiles.setOnClickListener { activeSource?.let(viewModel::refreshFiles) ?: showMissingSource() }
+        binding.btnFileUp.setOnClickListener { activeSource?.let(viewModel::goUp) }
+        binding.btnSelectAll.setOnClickListener { viewModel.toggleSelectAll() }
+        binding.btnDownloadSelected.setOnClickListener { selectDownloadTarget() }
         TvFocusHelper.requestInitialFocus(binding.root, binding.cardActiveNas)
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -53,13 +95,60 @@ class NasSettingsFragment : Fragment() {
                         sources = state.sources
                         activeSource = state.activeSource
                         renderActiveSource(state)
+                        state.activeSource?.let(viewModel::openRoot)
                     }
                 }
+                launch { viewModel.browserState.collectLatest(::renderBrowserState) }
                 launch {
                     viewModel.events.collectLatest(::handleEvent)
                 }
             }
         }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val source = activeSource
+                val browser = viewModel.browserState.value
+                if (source != null && browser.currentPath != browser.rootPath) {
+                    viewModel.goUp(source)
+                } else {
+                    isEnabled = false
+                    requireActivity().onBackPressedDispatcher.onBackPressed()
+                    binding.root.post { if (_binding != null) isEnabled = true }
+                }
+            }
+        })
+    }
+
+    private fun renderBrowserState(state: NasBrowserUiState) {
+        fileAdapter.render(state.entries, state.selectedPaths)
+        binding.progressNasFiles.visibility = if (state.loading || state.downloadInProgress) View.VISIBLE else View.GONE
+        binding.rvNasFiles.visibility = if (!state.loading && state.entries.isNotEmpty()) View.VISIBLE else View.GONE
+        binding.tvNasFilesEmpty.visibility = if (!state.loading && state.entries.isEmpty()) View.VISIBLE else View.GONE
+        binding.tvNasFilesEmpty.setText(
+            if (state.loadFailed) com.wkq.bao.feature.res.R.string.nas_file_load_failed
+            else com.wkq.bao.feature.res.R.string.nas_file_empty
+        )
+        binding.tvFilePath.text = "/${state.currentPath.trim('/')}"
+        binding.btnFileUp.isEnabled = state.currentPath != state.rootPath && !state.loading
+        binding.btnSelectAll.isEnabled = state.entries.isNotEmpty() && !state.loading
+        binding.btnSelectAll.setText(
+            if (state.entries.isNotEmpty() && state.selectedPaths.containsAll(state.entries.map { it.path })) {
+                com.wkq.bao.feature.res.R.string.nas_file_clear_selection
+            } else com.wkq.bao.feature.res.R.string.nas_file_select_all
+        )
+        binding.tvSelectedCount.text = resources.getQuantityString(
+            com.wkq.bao.feature.res.R.plurals.nas_file_selected_count,
+            state.selectedPaths.size,
+            state.selectedPaths.size
+        )
+        binding.btnDownloadSelected.isEnabled = state.selectedPaths.isNotEmpty() && !state.downloadInProgress
+    }
+
+    private fun selectDownloadTarget() {
+        if (activeSource == null) return showMissingSource()
+        if (viewModel.browserState.value.selectedPaths.isEmpty() || waitingForDownloadTarget) return
+        waitingForDownloadTarget = true
+        openDownloadTargetLauncher.launch(storageManager.getStorageTarget()?.uri)
     }
 
     private fun renderActiveSource(state: NasSettingsUiState = viewModel.uiState.value) {
@@ -170,6 +259,21 @@ class NasSettingsFragment : Fragment() {
                     Toast.LENGTH_LONG
                 ).show()
             }
+            is NasSettingsEvent.FilesQueued -> Toast.makeText(
+                requireContext(),
+                if (event.count > 0) resources.getQuantityString(
+                    com.wkq.bao.feature.res.R.plurals.nas_file_queued,
+                    event.count,
+                    event.count
+                )
+                else getString(com.wkq.bao.feature.res.R.string.download_no_items_queued),
+                Toast.LENGTH_SHORT
+            ).show()
+            NasSettingsEvent.FileActionFailed -> Toast.makeText(
+                requireContext(),
+                com.wkq.bao.feature.res.R.string.nas_file_action_failed,
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 

@@ -10,6 +10,9 @@ import com.wkq.bao.core.database.entity.ScanSessionStatus
 import com.wkq.bao.core.media.download.NasSourceRemovalResult
 import com.wkq.bao.core.media.repository.NasSettingsRepository
 import com.wkq.bao.core.media.repository.RoomNasSettingsRepository
+import com.wkq.bao.core.media.repository.NasFileBrowserRepository
+import com.wkq.bao.core.media.storage.TvStorageManager
+import com.wkq.bao.core.nas.browser.NasFileEntry
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,19 +29,37 @@ data class NasSettingsUiState(
     val scanSession: ScanSessionEntity? = null
 )
 
+data class NasBrowserUiState(
+    val sourceId: Long = 0L,
+    val rootPath: String = "",
+    val currentPath: String = "",
+    val entries: List<NasFileEntry> = emptyList(),
+    val selectedPaths: Set<String> = emptySet(),
+    val loading: Boolean = false,
+    val downloadInProgress: Boolean = false,
+    val loadFailed: Boolean = false
+)
+
 sealed interface NasSettingsEvent {
     data class ConnectionTested(val result: Result<String>) : NasSettingsEvent
     data class SourceRemoved(val result: NasSourceRemovalResult) : NasSettingsEvent
+    data class FilesQueued(val count: Int) : NasSettingsEvent
+    data object FileActionFailed : NasSettingsEvent
 }
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class NasSettingsViewModel(private val repository: NasSettingsRepository) : ViewModel() {
+class NasSettingsViewModel(
+    private val repository: NasSettingsRepository,
+    private val browserRepository: NasFileBrowserRepository
+) : ViewModel() {
     private val selectedSourceId = MutableStateFlow<Long?>(null)
     private val editorDraft = MutableStateFlow<NasEditorDraft?>(null)
     private val scanSession = selectedSourceId.flatMapLatest { sourceId ->
         sourceId?.let(repository::observeScan) ?: flowOf(null)
     }
     val events = MutableSharedFlow<NasSettingsEvent>(extraBufferCapacity = 1)
+    private val _browserState = MutableStateFlow(NasBrowserUiState())
+    val browserState: StateFlow<NasBrowserUiState> = _browserState
 
     val uiState: StateFlow<NasSettingsUiState> = combine(
         repository.sources,
@@ -55,6 +76,91 @@ class NasSettingsViewModel(private val repository: NasSettingsRepository) : View
     fun selectSource(sourceId: Long) {
         selectedSourceId.value = sourceId
     }
+
+    fun openRoot(source: NasSourceEntity, force: Boolean = false) {
+        if (!force && _browserState.value.sourceId == source.id) return
+        val rootPath = browserRootPath(source)
+        loadDirectory(source, rootPath, rootPath)
+    }
+
+    fun openDirectory(source: NasSourceEntity, entry: NasFileEntry) {
+        if (!entry.isDirectory || _browserState.value.loading) return
+        loadDirectory(source, _browserState.value.rootPath, entry.path)
+    }
+
+    fun goUp(source: NasSourceEntity) {
+        val state = _browserState.value
+        if (state.loading || state.currentPath == state.rootPath) return
+        val parent = state.currentPath.substringBeforeLast('/', state.rootPath)
+            .takeIf { it.length >= state.rootPath.length }
+            ?: state.rootPath
+        loadDirectory(source, state.rootPath, parent)
+    }
+
+    fun refreshFiles(source: NasSourceEntity) {
+        val state = _browserState.value
+        val rootPath = if (state.sourceId == source.id) state.rootPath else browserRootPath(source)
+        val currentPath = if (state.sourceId == source.id) state.currentPath else rootPath
+        loadDirectory(source, rootPath, currentPath)
+    }
+
+    fun toggleSelection(entry: NasFileEntry) {
+        _browserState.value = _browserState.value.let { state ->
+            val selected = state.selectedPaths.toMutableSet()
+            if (!selected.add(entry.path)) selected.remove(entry.path)
+            state.copy(selectedPaths = selected)
+        }
+    }
+
+    fun toggleSelectAll() {
+        _browserState.value = _browserState.value.let { state ->
+            val allPaths = state.entries.mapTo(mutableSetOf(), NasFileEntry::path)
+            state.copy(selectedPaths = if (state.selectedPaths.containsAll(allPaths)) emptySet() else allPaths)
+        }
+    }
+
+    fun enqueueSelected(source: NasSourceEntity, target: TvStorageManager.StorageTarget) {
+        val state = _browserState.value
+        val selected = state.entries.filter { it.path in state.selectedPaths }
+        if (selected.isEmpty() || state.downloadInProgress) return
+        _browserState.value = state.copy(downloadInProgress = true)
+        viewModelScope.launch {
+            browserRepository.enqueueSelected(source, selected, target)
+                .onSuccess { count ->
+                    _browserState.value = _browserState.value.copy(
+                        selectedPaths = emptySet(),
+                        downloadInProgress = false
+                    )
+                    events.emit(NasSettingsEvent.FilesQueued(count))
+                }
+                .onFailure {
+                    _browserState.value = _browserState.value.copy(downloadInProgress = false)
+                    events.emit(NasSettingsEvent.FileActionFailed)
+                }
+        }
+    }
+
+    private fun loadDirectory(source: NasSourceEntity, rootPath: String, path: String) {
+        _browserState.value = NasBrowserUiState(
+            sourceId = source.id,
+            rootPath = rootPath,
+            currentPath = path,
+            loading = true
+        )
+        viewModelScope.launch {
+            browserRepository.listDirectory(source, path)
+                .onSuccess { entries ->
+                    _browserState.value = _browserState.value.copy(entries = entries, loading = false)
+                }
+                .onFailure {
+                    _browserState.value = _browserState.value.copy(loading = false, loadFailed = true)
+                }
+        }
+    }
+
+    /** WebDAV 客户端的路径相对已配置根目录，SMB 路径相对共享目录。 */
+    private fun browserRootPath(source: NasSourceEntity): String =
+        if (source.type.equals("WEBDAV", ignoreCase = true)) "" else source.rootPath.trim('/')
 
     internal fun editorDraftFor(sourceId: Long?): NasEditorDraft? =
         editorDraft.value?.takeIf { it.sourceId == sourceId }
@@ -96,11 +202,12 @@ class NasSettingsViewModel(private val repository: NasSettingsRepository) : View
 
     class Factory(context: Context) : ViewModelProvider.Factory {
         private val repository = RoomNasSettingsRepository.create(context)
+        private val browserRepository = NasFileBrowserRepository.create(context)
 
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(NasSettingsViewModel::class.java))
-            return NasSettingsViewModel(repository) as T
+            return NasSettingsViewModel(repository, browserRepository) as T
         }
     }
 }

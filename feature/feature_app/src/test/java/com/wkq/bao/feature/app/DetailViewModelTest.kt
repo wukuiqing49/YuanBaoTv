@@ -6,7 +6,9 @@ import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import com.wkq.bao.core.database.entity.MediaSeriesType
 import com.wkq.bao.core.database.entity.SeasonEntity
 import com.wkq.bao.core.media.repository.EnqueueDownloadsResult
+import com.wkq.bao.core.media.repository.DownloadTarget
 import com.wkq.bao.core.media.repository.MediaDetailRepository
+import com.wkq.bao.core.media.storage.MediaStorageLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -66,7 +68,7 @@ class DetailViewModelTest {
         assertEquals(DetailEvent.Play(repository.episode), playEvent.await())
 
         val downloadEvent = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }
-        viewModel.enqueueCurrentSelection()
+        viewModel.enqueueCurrentSelection(DownloadTarget("content://test/target", MediaStorageLocation.INTERNAL_STORAGE))
         assertEquals(
             DetailEvent.DownloadsQueued(EnqueueDownloadsResult.SeasonQueued(1)),
             downloadEvent.await()
@@ -132,7 +134,14 @@ class DetailViewModelTest {
         override suspend fun enqueueDownloads(
             seriesId: Long,
             seasonId: Long,
-            isMovie: Boolean
+            isMovie: Boolean,
+            downloadTarget: DownloadTarget
         ): EnqueueDownloadsResult = EnqueueDownloadsResult.SeasonQueued(1)
+
+        override suspend fun enqueueEpisode(
+            seriesId: Long,
+            episodeId: Long,
+            downloadTarget: DownloadTarget
+        ): EnqueueDownloadsResult = EnqueueDownloadsResult.EpisodeQueued
     }
 }

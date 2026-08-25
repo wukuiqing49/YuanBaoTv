@@ -52,7 +52,7 @@ class DownloadsViewModel(
                     DownloadTaskStatus.WAITING,
                     DownloadTaskStatus.PAUSED,
                     DownloadTaskStatus.FAILED
-                )
+                ) || (it.status == DownloadTaskStatus.SUCCESS && it.seriesId == 0L)
             },
             downloadedSeries = downloadedSeries,
             scanSession = session

@@ -41,13 +41,23 @@ class TvDownloadEngine(
         if (downloadDao.claimWaitingTask(latestTask.id) == 0) return@withContext
         val claimedTask = latestTask.copy(status = DownloadTaskStatus.DOWNLOADING, errorMessage = "")
 
-        val mediaFile = database.mediaDao().getMediaFileByEpisodeId(claimedTask.episodeId)
-            ?: return@withContext fail(claimedTask, "Media file is missing", DownloadTaskErrorCode.DATA_MISSING)
-        val selectedSource = DownloadSourceSelector.select(
-            claimedTask,
-            mediaFile,
-            database.mediaDao().getMediaRemoteSources(mediaFile.id)
-        ) ?: return@withContext fail(claimedTask, "NAS source is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
+        val isRawFileTask = claimedTask.episodeId < 0L
+        val mediaFile = if (isRawFileTask) {
+            null
+        } else {
+            database.mediaDao().getMediaFileByEpisodeId(claimedTask.episodeId)
+                ?: return@withContext fail(claimedTask, "Media file is missing", DownloadTaskErrorCode.DATA_MISSING)
+        }
+        val selectedSource = if (isRawFileTask) {
+            DownloadSourceSelector.Source(claimedTask.sourceUri, claimedTask.sourceNasId)
+                .takeIf { it.uri.isNotBlank() && it.nasSourceId > 0L }
+        } else {
+            DownloadSourceSelector.select(
+                claimedTask,
+                checkNotNull(mediaFile),
+                database.mediaDao().getMediaRemoteSources(mediaFile.id)
+            )
+        } ?: return@withContext fail(claimedTask, "NAS source is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
         val sourceUri = Uri.parse(selectedSource.uri)
         val sourceNasId = selectedSource.nasSourceId
         val nasSource = database.nasDao().getSourceById(sourceNasId)
@@ -60,30 +70,33 @@ class TvDownloadEngine(
             ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)
         val root = DocumentFile.fromTreeUri(context, storageTarget.uri)
             ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)
-        val downloadDirectory = root.findFile(DOWNLOAD_DIRECTORY) ?: root.createDirectory(DOWNLOAD_DIRECTORY)
+        val downloadRoot = root.findFile(DOWNLOAD_DIRECTORY) ?: root.createDirectory(DOWNLOAD_DIRECTORY)
             ?: return@withContext fail(claimedTask, "Cannot create download directory", DownloadTaskErrorCode.STORAGE_ACCESS)
-        val partsDirectory = downloadDirectory.findFile(PARTS_DIRECTORY)
-            ?: downloadDirectory.createDirectory(PARTS_DIRECTORY)
+        val downloadDirectory = if (isRawFileTask) {
+            ensureRelativeDirectory(downloadRoot, nasSource, sourceUri)
+                ?: return@withContext fail(claimedTask, "Cannot create source directory", DownloadTaskErrorCode.STORAGE_ACCESS)
+        } else downloadRoot
+        val partsDirectory = downloadRoot.findFile(PARTS_DIRECTORY)
+            ?: downloadRoot.createDirectory(PARTS_DIRECTORY)
             ?: return@withContext fail(claimedTask, "Cannot create download part directory", DownloadTaskErrorCode.STORAGE_ACCESS)
 
         try {
             val remoteInfo = getRemoteFileInfo(nasSource, sourceUri)
             if (remoteInfo.length <= 0L) throw DownloadFailure(DownloadTaskErrorCode.SOURCE_CHANGED, "NAS source file is empty")
             val assemblingName = "download_${claimedTask.id}.assembling"
-            val displayFileName = mediaFile.fileName.ifBlank { "episode_${claimedTask.episodeId}.mp4" }
-            val finalName = "media_${mediaFile.id}_${claimedTask.id}_${safeFileName(displayFileName)}"
+            val displayFileName = mediaFile?.fileName?.ifBlank { "episode_${claimedTask.episodeId}.mp4" }
+                ?: sourceUri.lastPathSegment.orEmpty().ifBlank { "nas_file_${claimedTask.id}" }
+            val finalName = if (mediaFile == null) safeFileName(displayFileName)
+            else "media_${mediaFile.id}_${claimedTask.id}_${safeFileName(displayFileName)}"
             val existingFinalFile = downloadDirectory.findFile(finalName)
             if (existingFinalFile != null) {
                 if (existingFinalFile.length() != remoteInfo.length) {
                     throw DownloadFailure(DownloadTaskErrorCode.TARGET_EXISTS, "Completed file name is occupied by a different file")
                 }
-                completeDownload(
-                    taskId = claimedTask.id,
-                    mediaFile = mediaFile,
-                    displayFileName = displayFileName,
-                    completedFile = existingFinalFile,
-                    storageType = storageTarget.location.name,
-                    remoteInfo = remoteInfo
+                if (mediaFile == null) completeRawDownload(claimedTask.id, existingFinalFile, remoteInfo)
+                else completeDownload(
+                    claimedTask.id, mediaFile, displayFileName, existingFinalFile,
+                    storageTarget.location.name, remoteInfo
                 )
                 deletePartFiles(partsDirectory, downloadDao.getChunks(claimedTask.id))
                 downloadDao.deleteChunks(claimedTask.id)
@@ -183,13 +196,10 @@ class TvDownloadEngine(
             if (!assemblingFile.renameTo(finalName)) throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Cannot rename completed download")
             val completedFile = downloadDirectory.findFile(finalName)
                 ?: throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Cannot locate completed download")
-            completeDownload(
-                taskId = claimedTask.id,
-                mediaFile = mediaFile,
-                displayFileName = displayFileName,
-                completedFile = completedFile,
-                storageType = storageTarget.location.name,
-                remoteInfo = remoteInfo
+            if (mediaFile == null) completeRawDownload(claimedTask.id, completedFile, remoteInfo)
+            else completeDownload(
+                claimedTask.id, mediaFile, displayFileName, completedFile,
+                storageTarget.location.name, remoteInfo
             )
             deletePartFiles(partsDirectory, finalChunks)
             downloadDao.deleteChunks(claimedTask.id)
@@ -267,6 +277,55 @@ class TvDownloadEngine(
                 errorCode = DownloadTaskErrorCode.NONE
             ))
         }
+    }
+
+    private suspend fun completeRawDownload(
+        taskId: Long,
+        completedFile: DocumentFile,
+        remoteInfo: RemoteInfo
+    ) {
+        val completedLength = completedFile.length()
+        val completedTask = database.downloadDao().getTaskById(taskId) ?: return
+        database.downloadDao().updateTask(
+            completedTask.copy(
+                downloadedBytes = completedLength,
+                assembledBytes = completedLength,
+                totalBytes = remoteInfo.length,
+                sourceLastModifiedAt = remoteInfo.lastModifiedAt,
+                status = DownloadTaskStatus.SUCCESS,
+                finishedAt = System.currentTimeMillis(),
+                errorMessage = "",
+                errorCode = DownloadTaskErrorCode.NONE
+            )
+        )
+    }
+
+    /** 原始 NAS 文件保留配置根目录以下的文件夹结构。 */
+    private fun ensureRelativeDirectory(
+        downloadRoot: DocumentFile,
+        source: com.wkq.bao.core.database.entity.NasSourceEntity,
+        uri: Uri
+    ): DocumentFile? {
+        val uriSegments = uri.pathSegments
+        val pathSegments = if (uri.scheme == "smb") uriSegments.drop(1) else uriSegments
+        val configuredRoot = if (uri.scheme == "smb") {
+            source.rootPath.trim('/').split('/').filter(String::isNotBlank)
+        } else {
+            listOf(source.shareName, source.rootPath)
+                .flatMap { it.trim('/').split('/') }
+                .filter(String::isNotBlank)
+        }
+        val relative = if (
+            pathSegments.size >= configuredRoot.size &&
+            pathSegments.take(configuredRoot.size).map(String::lowercase) == configuredRoot.map(String::lowercase)
+        ) pathSegments.drop(configuredRoot.size) else pathSegments
+        var directory = downloadRoot
+        relative.dropLast(1).forEach { segment ->
+            val safeName = safeFileName(segment)
+            directory = directory.findFile(safeName) ?: directory.createDirectory(safeName) ?: return null
+            if (!directory.isDirectory) return null
+        }
+        return directory
     }
 
     private suspend fun downloadChunkWithRetry(

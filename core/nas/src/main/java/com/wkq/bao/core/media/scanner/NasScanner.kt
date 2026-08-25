@@ -1,5 +1,6 @@
 package com.wkq.bao.core.media.scanner
 
+import android.net.Uri
 import androidx.room.withTransaction
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.database.entity.EpisodeEntity
@@ -64,7 +65,16 @@ class NasScanner(private val database: AppDatabase) {
         }
         val scanResult = if (WebDavClientManager.isWebDav(nasSource)) {
             WebDavClientManager.scanFilesRecursive(nasSource, resumeAfterPath.ifBlank { null }) { remoteFile ->
-                onRemoteFile(NasRemoteMediaFile(remoteFile.path, remoteFile.length, remoteFile.lastModifiedAt))
+                onRemoteFile(
+                    NasRemoteMediaFile(
+                        remoteFile.path,
+                        remoteFile.length,
+                        remoteFile.lastModifiedAt,
+                        remoteFile.posterUri,
+                        remoteFile.backdropUri,
+                        remoteFile.thumbnailUri
+                    )
+                )
             }
         } else {
             SmbClientManager.scanFilesRecursive(nasSource, resumeAfterPath.ifBlank { null }) { remoteFile ->
@@ -115,17 +125,28 @@ class NasScanner(private val database: AppDatabase) {
         val mediaDao = database.mediaDao()
         val fileName = remoteFile.path.substringAfterLast("/")
         val parsed = MediaFileNameParser.parse(fileName)
+        val nasUri = if (WebDavClientManager.isWebDav(nasSource)) {
+            WebDavClientManager.buildUri(nasSource, remoteFile.path)
+        } else {
+            SmbClientManager.buildUri(nasSource, remoteFile.path)
+        }
+        // 没有 poster.jpg 等侧车图时，由 Coil 按需从视频提取一帧并写入磁盘缓存。
+        val videoFrameUri = Uri.parse(nasUri).buildUpon()
+            .appendQueryParameter("artworkFrame", "1")
+            .appendQueryParameter("artworkVersion", remoteFile.lastModifiedAt.toString())
+            .build()
+            .toString()
 
         val existingSeries = mediaDao.getSeriesByTitle(parsed.seriesTitle)
         val resolvedPosterUri = remoteFile.posterUri.ifBlank {
             remoteFile.thumbnailUri.takeIf { parsed.mediaType == MediaSeriesType.MOVIE }.orEmpty()
-        }
+        }.ifBlank { videoFrameUri }
         val series = existingSeries?.copy(
             type = existingSeries.type.takeUnless { it in setOf(MediaSeriesType.CARTOON, MediaSeriesType.LOCAL) }
                 ?: parsed.mediaType,
             totalSeasons = maxOf(existingSeries.totalSeasons, parsed.seasonNumber),
             posterUri = existingSeries.posterUri.ifBlank { resolvedPosterUri },
-            backdropUri = existingSeries.backdropUri.ifBlank { remoteFile.backdropUri },
+            backdropUri = existingSeries.backdropUri.ifBlank { remoteFile.backdropUri.ifBlank { videoFrameUri } },
             updatedAt = System.currentTimeMillis()
         )?.also { updated ->
             if (updated != existingSeries) mediaDao.updateSeries(updated)
@@ -140,7 +161,7 @@ class NasScanner(private val database: AppDatabase) {
                     year = scraped.year,
                     description = scraped.description,
                     posterUri = resolvedPosterUri.ifBlank { scraped.posterUri },
-                    backdropUri = remoteFile.backdropUri.ifBlank { scraped.backdropUri },
+                    backdropUri = remoteFile.backdropUri.ifBlank { scraped.backdropUri }.ifBlank { videoFrameUri },
                     totalSeasons = parsed.seasonNumber.coerceAtLeast(1)
                 )
             )
@@ -163,7 +184,7 @@ class NasScanner(private val database: AppDatabase) {
 
         val existingEpisode = mediaDao.getEpisodeByNumber(seasonId, parsed.episodeNumber)
         val resolvedEpisode = existingEpisode?.copy(
-            thumbnailUri = existingEpisode.thumbnailUri.ifBlank { remoteFile.thumbnailUri }
+            thumbnailUri = existingEpisode.thumbnailUri.ifBlank { remoteFile.thumbnailUri.ifBlank { videoFrameUri } }
         )?.also { updated ->
             if (updated != existingEpisode) mediaDao.updateEpisode(updated)
         }
@@ -173,7 +194,7 @@ class NasScanner(private val database: AppDatabase) {
                 seasonId = seasonId,
                 episodeNumber = parsed.episodeNumber,
                 title = parsed.episodeTitle,
-                thumbnailUri = remoteFile.thumbnailUri
+                thumbnailUri = remoteFile.thumbnailUri.ifBlank { videoFrameUri }
             )
         )
 
@@ -197,11 +218,6 @@ class NasScanner(private val database: AppDatabase) {
             mediaDao.getMediaFileById(mediaFileId) ?: error("Cannot create NAS media file")
         }
 
-        val nasUri = if (WebDavClientManager.isWebDav(nasSource)) {
-            WebDavClientManager.buildUri(nasSource, remoteFile.path)
-        } else {
-            SmbClientManager.buildUri(nasSource, remoteFile.path)
-        }
         val existingRemote = mediaDao.getMediaRemoteSource(mediaFile.id, nasSource.id, nasUri)
         val remoteSource = MediaRemoteSourceEntity(
             id = existingRemote?.id ?: 0L,

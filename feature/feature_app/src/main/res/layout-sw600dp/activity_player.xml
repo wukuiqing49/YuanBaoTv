@@ -20,6 +20,31 @@
         app:resize_mode="fit"
         app:use_controller="false" />
 
+    <ProgressBar
+        android:id="@+id/progress_buffering"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/layout_player_error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/player_playback_failed" android:textColor="@color/tv_text_primary" android:textSize="20sp" />
+        <Button android:id="@+id/btn_player_retry" android:layout_width="120dp" android:layout_height="44dp" android:layout_marginTop="14dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/btn_retry" android:textColor="@color/tv_text_primary" />
+    </LinearLayout>
+
     <!-- 2. OSD 沉浸式交互控制层 (5 秒无操作自动淡出) -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_osd"
@@ -130,7 +155,7 @@
                     android:layout_width="88dp"
                     android:layout_height="40dp"
                     android:background="@drawable/bg_tv_button_focus"
-                    android:text="-10s"
+                    android:text="@string/player_rewind"
                     android:textColor="@color/tv_text_primary"
                     android:textSize="13sp" />
 
@@ -153,7 +178,7 @@
                     android:layout_height="40dp"
                     android:layout_marginStart="14dp"
                     android:background="@drawable/bg_tv_button_focus"
-                    android:text="+10s"
+                    android:text="@string/player_fast_forward"
                     android:textColor="@color/tv_text_primary"
                     android:textSize="13sp" />
 
@@ -163,7 +188,17 @@
                     android:layout_height="40dp"
                     android:layout_marginStart="14dp"
                     android:background="@drawable/bg_tv_button_focus"
-                    android:text="1.0x"
+                    android:text="@string/player_speed_default"
+                    android:textColor="@color/tv_text_primary"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/btn_subtitles"
+                    android:layout_width="100dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="14dp"
+                    android:background="@drawable/bg_tv_button_focus"
+                    android:text="@string/player_subtitles_none"
                     android:textColor="@color/tv_text_primary"
                     android:textSize="13sp" />
 
@@ -173,7 +208,7 @@
                     android:layout_height="40dp"
                     android:layout_marginStart="14dp"
                     android:background="@drawable/bg_tv_button_focus"
-                    android:text="下一集"
+                    android:text="@string/player_next_episode"
                     android:textColor="@color/tv_text_primary"
                     android:textSize="13sp" />
             </LinearLayout>

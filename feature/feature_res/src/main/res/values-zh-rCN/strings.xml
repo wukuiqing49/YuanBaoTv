@@ -42,7 +42,7 @@
     <string name="status_enabled">已启用</string>
     <string name="status_disabled">已停用</string>
     <string name="title_downloads">下载管理</string>
-    <string name="section_downloading">正在下载</string>
+    <string name="section_downloading">下载任务</string>
     <string name="downloads_empty_title">暂无下载任务</string>
     <string name="downloads_empty_message">从媒体详情加入下载后，进度会显示在这里</string>
     <string name="section_downloaded_gallery">已下载媒体</string>
@@ -112,6 +112,7 @@
     <string name="download_status_downloading">下载中</string>
     <string name="download_status_paused">已暂停</string>
     <string name="download_status_failed">失败</string>
+    <string name="download_status_success">已完成</string>
     <string name="download_progress_with_target">%1$s · %2$s</string>
     <string name="download_failure_with_target">%1$s · %2$s</string>
     <string name="btn_retry">重试</string>
@@ -127,6 +128,8 @@
     <string name="download_error_unknown">下载失败，请重试或导出诊断信息</string>
     <string name="tv_remote_hint">提示：使用遥控器 OK 键选择操作，按返回键返回主菜单</string>
     <string name="download_season_queued">已将 %1$d 集加入下载队列</string>
+    <string name="btn_download_episode">下载</string>
+    <string name="download_episode_queued">该集已加入下载队列</string>
     <string name="library_empty_title">尚未发现媒体</string>
     <string name="library_empty_message">先添加 NAS 并扫描媒体目录</string>
     <string name="library_filter_empty_message">当前分类暂无媒体，可返回全部媒体查看</string>
@@ -173,4 +176,27 @@
     <string name="download_movie_queued">影片已加入下载队列</string>
     <string name="download_no_items_queued">没有可加入下载的内容</string>
     <string name="continue_watching_item">%1$s · %2$s · 剩余 %3$d 分钟</string>
+    <string name="player_rewind">-10 秒</string>
+    <string name="player_fast_forward">+10 秒</string>
+    <string name="player_speed_default">1.0x</string>
+    <string name="player_next_episode">下一集</string>
+    <string name="player_subtitles_on">字幕：开</string>
+    <string name="player_subtitles_off">字幕：关</string>
+    <string name="player_subtitles_none">无字幕</string>
+    <string name="player_playback_failed">播放失败，请检查 NAS 或存储设备后重试</string>
+    <string name="title_nas_files">NAS 文件</string>
+    <string name="nas_file_refresh">刷新</string>
+    <string name="nas_file_up">上一级</string>
+    <string name="nas_file_select_all">全选</string>
+    <string name="nas_file_clear_selection">取消全选</string>
+    <string name="nas_file_empty">当前文件夹为空</string>
+    <string name="nas_file_load_failed">无法读取文件夹，请检查 NAS 连接</string>
+    <string name="nas_file_type_folder">文件夹 · 点击右侧进入</string>
+    <string name="nas_file_size">文件 · %1$s</string>
+    <string name="nas_file_open">打开</string>
+    <string name="nas_file_download_selected">下载选中项</string>
+    <string name="nas_file_action_failed">文件读取或下载入队失败，请检查 NAS 和目标设备</string>
+    <string name="download_task_number">下载任务 #%1$d</string>
+    <plurals name="nas_file_selected_count"><item quantity="one">已选择 %1$d 项</item><item quantity="other">已选择 %1$d 项</item></plurals>
+    <plurals name="nas_file_queued"><item quantity="one">已将 %1$d 个文件加入下载队列</item><item quantity="other">已将 %1$d 个文件加入下载队列</item></plurals>
 </resources>

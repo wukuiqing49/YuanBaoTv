@@ -1,6 +1,8 @@
 package com.wkq.bao.feature.app.adapter
 
+import android.net.Uri
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -37,7 +39,9 @@ class DownloadTaskAdapter(
 
         fun bind(task: DownloadTaskEntity) = with(binding) {
             val context = root.context
-            tvTaskTitle.text = context.getString(com.wkq.bao.feature.res.R.string.download_task_format, task.episodeId)
+            tvTaskTitle.text = Uri.parse(task.sourceUri).lastPathSegment
+                ?.takeIf(String::isNotBlank)
+                ?: context.getString(com.wkq.bao.feature.res.R.string.download_task_number, task.id)
             tvTaskStatus.setText(statusLabel(task.status))
             val target = when (MediaStorageLocation.fromStored(task.targetStorageType)) {
                 MediaStorageLocation.INTERNAL_STORAGE -> com.wkq.bao.feature.res.R.string.storage_internal
@@ -63,6 +67,9 @@ class DownloadTaskAdapter(
                 )
             }
             pbTask.progress = if (task.totalBytes > 0L) ((task.downloadedBytes * 100L) / task.totalBytes).toInt() else 0
+            val isCompleted = task.status == DownloadTaskStatus.SUCCESS
+            btnTaskPause.visibility = if (isCompleted) View.GONE else View.VISIBLE
+            btnTaskCancel.visibility = if (isCompleted) View.GONE else View.VISIBLE
             btnTaskPause.setText(
                 if (task.status == DownloadTaskStatus.FAILED) {
                     com.wkq.bao.feature.res.R.string.btn_retry
@@ -79,6 +86,7 @@ class DownloadTaskAdapter(
         DownloadTaskStatus.DOWNLOADING -> com.wkq.bao.feature.res.R.string.download_status_downloading
         DownloadTaskStatus.WAITING -> com.wkq.bao.feature.res.R.string.download_status_waiting
         DownloadTaskStatus.PAUSED -> com.wkq.bao.feature.res.R.string.download_status_paused
+        DownloadTaskStatus.SUCCESS -> com.wkq.bao.feature.res.R.string.download_status_success
         else -> com.wkq.bao.feature.res.R.string.download_status_failed
     }
 

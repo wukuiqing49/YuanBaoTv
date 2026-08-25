@@ -16,11 +16,15 @@ import coil.fetch.SourceResult
 import coil.request.Options
 import com.wkq.bao.core.media.smb.SmbClientManager
 import com.wkq.bao.core.media.smb.SmbCredentialRegistry
+import com.wkq.bao.core.media.webdav.WebDavClientManager
+import com.wkq.bao.core.media.webdav.WebDavCredentialRegistry
 import java.io.IOException
 import okio.Buffer
 import okio.Source
 import okio.Timeout
 import okio.buffer
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 /** 为全局 Coil 注册 SMB 图片读取能力，页面层无需感知 NAS 凭据和连接细节。 */
 object NasArtworkLoader {
@@ -35,12 +39,106 @@ object NasArtworkLoader {
             Coil.setImageLoader(
                 ImageLoaderFactory {
                     ImageLoader.Builder(appContext)
-                        .components { add(SmbArtworkFetcher.Factory(appContext)) }
+                        .components {
+                            add(SmbArtworkFetcher.Factory(appContext))
+                            add(HttpsArtworkFetcher.Factory(appContext))
+                        }
                         .build()
                 }
             )
             installed = true
         }
+    }
+}
+
+/** WebDAV 封面必须复用加密保存的鉴权信息；普通 HTTPS 图片则保持匿名读取。 */
+@OptIn(ExperimentalCoilApi::class)
+private class HttpsArtworkFetcher(
+    private val appContext: Context,
+    private val data: Uri,
+    private val options: Options,
+    private val diskCache: DiskCache?
+) : Fetcher {
+
+    override suspend fun fetch(): FetchResult {
+        if (options.diskCachePolicy.readEnabled) readFromDiskCache()?.let { return it }
+        if (!options.networkCachePolicy.readEnabled) throw IOException("HTTPS 图片未命中缓存且禁止网络读取")
+        val source = WebDavCredentialRegistry.resolve(appContext, data)
+        if (data.getQueryParameter(ARTWORK_FRAME_PARAMETER) == "1") {
+            val webDavSource = source ?: throw IOException("未找到 WebDAV 视频封面源配置")
+            return cacheGeneratedFrame(
+                bytes = NasVideoFrameExtractor.extract(webDavSource, data),
+                appContext = appContext,
+                diskCache = diskCache,
+                cacheKey = cacheKey,
+                writeToCache = options.diskCachePolicy.writeEnabled
+            )
+        }
+        val response = if (source != null) {
+            WebDavClientManager.openRemoteFile(source, data)
+        } else {
+            HTTP_CLIENT.newCall(Request.Builder().url(data.toString()).get().build()).execute()
+        }
+        if (!response.isSuccessful) {
+            response.close()
+            throw IOException("无法读取远程封面: HTTP ${response.code}")
+        }
+        val body = response.body ?: run {
+            response.close()
+            throw IOException("远程封面内容为空")
+        }
+        val cache = diskCache
+        return if (cache != null && options.diskCachePolicy.writeEnabled) {
+            val editor = cache.openEditor(cacheKey)
+            if (editor == null) {
+                SourceResult(ImageSource(body.source(), appContext), mimeType, DataSource.NETWORK)
+            } else {
+                try {
+                    cache.fileSystem.write(editor.metadata) {}
+                    response.use { cache.fileSystem.write(editor.data) { writeAll(body.source()) } }
+                    val snapshot = editor.commitAndOpenSnapshot() ?: throw IOException("无法提交封面缓存")
+                    SourceResult(
+                        ImageSource(snapshot.data, cache.fileSystem, cacheKey, snapshot),
+                        mimeType,
+                        DataSource.NETWORK
+                    )
+                } catch (error: Throwable) {
+                    runCatching { editor.abort() }
+                    response.close()
+                    if (error is IOException) throw error
+                    throw IOException("缓存远程封面失败", error)
+                }
+            }
+        } else {
+            SourceResult(ImageSource(body.source(), appContext), mimeType, DataSource.NETWORK)
+        }
+    }
+
+    private fun readFromDiskCache(): SourceResult? {
+        val cache = diskCache ?: return null
+        val snapshot = cache.openSnapshot(cacheKey) ?: return null
+        return SourceResult(
+            ImageSource(snapshot.data, cache.fileSystem, cacheKey, snapshot),
+            mimeType,
+            DataSource.DISK
+        )
+    }
+
+    private val cacheKey: String get() = options.diskCacheKey ?: data.toString()
+    private val mimeType: String?
+        get() = MimeTypeMap.getSingleton().getMimeTypeFromExtension(
+            data.lastPathSegment.orEmpty().substringAfterLast('.', "").lowercase()
+        )
+
+    class Factory(private val appContext: Context) : Fetcher.Factory<Uri> {
+        override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? {
+            if (!data.scheme.equals("https", true)) return null
+            return HttpsArtworkFetcher(appContext, data, options, imageLoader.diskCache)
+        }
+    }
+
+    private companion object {
+        val HTTP_CLIENT = OkHttpClient()
     }
 }
 
@@ -61,6 +159,15 @@ private class SmbArtworkFetcher(
         }
         val source = SmbCredentialRegistry.resolve(appContext, data)
             ?: throw IOException("未找到 SMB 图片源配置")
+        if (data.getQueryParameter(ARTWORK_FRAME_PARAMETER) == "1") {
+            return cacheGeneratedFrame(
+                bytes = NasVideoFrameExtractor.extract(source, data),
+                appContext = appContext,
+                diskCache = diskCache,
+                cacheKey = cacheKey,
+                writeToCache = options.diskCachePolicy.writeEnabled
+            )
+        }
         val handle = try {
             SmbClientManager.openRemoteFile(source, data)
         } catch (error: Throwable) {
@@ -130,6 +237,43 @@ private class SmbArtworkFetcher(
         }
     }
 }
+
+@OptIn(ExperimentalCoilApi::class)
+private fun cacheGeneratedFrame(
+    bytes: ByteArray,
+    appContext: Context,
+    diskCache: DiskCache?,
+    cacheKey: String,
+    writeToCache: Boolean
+): SourceResult {
+    val cache = diskCache
+    if (cache != null && writeToCache) {
+        val editor = cache.openEditor(cacheKey)
+        if (editor != null) {
+            try {
+                cache.fileSystem.write(editor.metadata) {}
+                cache.fileSystem.write(editor.data) { write(bytes) }
+                val snapshot = editor.commitAndOpenSnapshot() ?: throw IOException("无法提交视频封面缓存")
+                return SourceResult(
+                    ImageSource(snapshot.data, cache.fileSystem, cacheKey, snapshot),
+                    "image/jpeg",
+                    DataSource.NETWORK
+                )
+            } catch (error: Throwable) {
+                runCatching { editor.abort() }
+                if (error is IOException) throw error
+                throw IOException("缓存视频封面失败", error)
+            }
+        }
+    }
+    return SourceResult(
+        ImageSource(Buffer().write(bytes), appContext),
+        "image/jpeg",
+        DataSource.NETWORK
+    )
+}
+
+private const val ARTWORK_FRAME_PARAMETER = "artworkFrame"
 
 private class SmbRemoteSource(
     private val handle: SmbClientManager.RemoteFileHandle

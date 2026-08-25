@@ -12,7 +12,8 @@ import java.util.concurrent.TimeUnit
 
 /** 以唯一 Work 持久化调度下载队列，应用或前台服务被回收后仍可恢复。 */
 object DownloadWorkScheduler {
-    private const val UNIQUE_WORK_NAME = "yuanbao_download_queue"
+    // v1 使用追加链，异常链可能让 Room 中的 WAITING 任务失去执行者；更名可安全脱离旧链。
+    private const val UNIQUE_WORK_NAME = "yuanbao_download_queue_v2"
 
     fun enqueue(context: Context, expedited: Boolean = false) {
         val requestBuilder = OneTimeWorkRequestBuilder<DownloadQueueWorker>()
@@ -29,6 +30,7 @@ object DownloadWorkScheduler {
             requestBuilder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
         }
         WorkManager.getInstance(context.applicationContext)
-            .enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, requestBuilder.build())
+            // 队列内容已持久化在 Room，运行中的 Worker 会继续读取新增任务；无需中断当前分块。
+            .enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.KEEP, requestBuilder.build())
     }
 }

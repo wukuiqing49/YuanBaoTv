@@ -3,6 +3,8 @@ package com.wkq.bao.core.media.webdav
 import android.net.Uri
 import android.util.Base64
 import com.wkq.bao.core.database.entity.NasSourceEntity
+import com.wkq.bao.core.media.artwork.SidecarArtworkResolver
+import com.wkq.bao.core.nas.browser.NasFileEntry
 import com.wkq.bao.core.nas.security.NasCredentialVault
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +34,15 @@ object WebDavClientManager {
     data class RemoteMediaFile(
         val path: String,
         val length: Long,
-        val lastModifiedAt: Long
+        val lastModifiedAt: Long,
+        val posterUri: String = "",
+        val backdropUri: String = "",
+        val thumbnailUri: String = ""
+    )
+
+    private data class ScanDirectory(
+        val path: String,
+        val inheritedArtwork: SidecarArtworkResolver.DirectoryArtwork
     )
 
     private data class DavEntry(
@@ -72,31 +82,71 @@ object WebDavClientManager {
         }
     }
 
+    suspend fun listDirectoryEntries(source: NasSourceEntity, path: String): Result<List<NasFileEntry>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                listDirectory(source, path)
+                    .map { entry ->
+                        NasFileEntry(
+                            name = entry.relativePath.substringAfterLast('/'),
+                            path = entry.relativePath,
+                            isDirectory = entry.isDirectory,
+                            size = entry.length,
+                            lastModifiedAt = entry.lastModifiedAt
+                        )
+                    }
+                    .sortedWith(compareBy<NasFileEntry> { !it.isDirectory }.thenBy { it.name.lowercase() })
+            }
+        }
+
     suspend fun scanFilesRecursive(
         source: NasSourceEntity,
         resumeAfterPath: String? = null,
         onFile: suspend (RemoteMediaFile) -> Unit
     ): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
-            val directories = ArrayDeque<String>()
-            directories += ""
+            val directories = ArrayDeque<ScanDirectory>()
+            directories += ScanDirectory("", SidecarArtworkResolver.DirectoryArtwork())
             var visited = 0
             var checkpointReached = resumeAfterPath.isNullOrBlank()
             while (directories.isNotEmpty()) {
                 coroutineContext.ensureActive()
                 val directory = directories.removeFirst()
-                listDirectory(source, directory)
+                val entries = listDirectory(source, directory.path)
                     .sortedBy { it.relativePath.lowercase(Locale.ROOT) }
-                    .forEach { entry ->
+                val files = entries.filterNot(DavEntry::isDirectory)
+                val artwork = SidecarArtworkResolver.resolveDirectory(
+                    candidates = files.map { entry ->
+                        SidecarArtworkResolver.Candidate(
+                            fileName = entry.relativePath.substringAfterLast('/'),
+                            uri = buildUri(source, entry.relativePath, entry.lastModifiedAt)
+                        )
+                    },
+                    inherited = directory.inheritedArtwork
+                )
+                entries.forEach { entry ->
                         coroutineContext.ensureActive()
                         if (entry.isDirectory) {
-                            directories += entry.relativePath
+                            directories += ScanDirectory(entry.relativePath, artwork)
                         } else {
                             if (!checkpointReached) {
                                 checkpointReached = entry.relativePath == resumeAfterPath
                                 return@forEach
                             }
-                            onFile(RemoteMediaFile(entry.relativePath, entry.length, entry.lastModifiedAt))
+                            val mediaArtwork = SidecarArtworkResolver.resolveMedia(
+                                entry.relativePath.substringAfterLast('/'),
+                                artwork
+                            )
+                            onFile(
+                                RemoteMediaFile(
+                                    entry.relativePath,
+                                    entry.length,
+                                    entry.lastModifiedAt,
+                                    mediaArtwork.posterUri,
+                                    mediaArtwork.backdropUri,
+                                    mediaArtwork.thumbnailUri
+                                )
+                            )
                             visited++
                         }
                     }
@@ -155,8 +205,36 @@ object WebDavClientManager {
         }
     }
 
+    /** MediaMetadataRetriever 的随机读取入口，仅读取请求区间，避免为生成封面下载整段视频。 */
+    fun readAt(
+        source: NasSourceEntity,
+        uri: Uri,
+        position: Long,
+        buffer: ByteArray,
+        offset: Int,
+        size: Int
+    ): Int {
+        if (size == 0) return 0
+        rangeResponse(source, uri.toString(), position, size.toLong()).use { response ->
+            check(response.code == 206) { "WebDAV 服务不支持封面随机读取: HTTP ${response.code}" }
+            val input = checkNotNull(response.body).byteStream()
+            var copied = 0
+            while (copied < size) {
+                val read = input.read(buffer, offset + copied, size - copied)
+                if (read < 0) break
+                copied += read
+            }
+            return if (copied == 0) -1 else copied
+        }
+    }
+
     fun isRetryable(error: Throwable): Boolean =
         generateSequence(error) { it.cause }.any { it is IOException }
+
+    /** 给封面加载器提供带鉴权的只读响应，调用方负责关闭响应体。 */
+    fun openRemoteFile(source: NasSourceEntity, uri: Uri) = client.newCall(
+        request(source, uri.toString()).get().build()
+    ).execute()
 
     private fun listDirectory(source: NasSourceEntity, directory: String): List<DavEntry> {
         executePropFind(source, directory, depth = 1).use { response ->
