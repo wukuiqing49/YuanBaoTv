@@ -120,9 +120,7 @@ class TvPlayerController(
                     onResult?.invoke(true, source.location.name)
                 }
                 is PlaybackSource.NasStream -> {
-                    activeSource = source
-                    startPlay(source.uri.toString(), source.title)
-                    onResult?.invoke(true, "NAS")
+                    onResult?.invoke(false, "NAS streaming is disabled")
                 }
                 is PlaybackSource.Unavailable -> {
                     onResult?.invoke(false, source.reason)
@@ -133,6 +131,11 @@ class TvPlayerController(
 
     /** 本地盘或当前 NAS 播放失败时，使用未失败的 NAS 来源继续播放。 */
     private fun fallbackFromPlaybackError() {
+        if (activeSource is PlaybackSource.Local) {
+            activeSource = null
+            activeResultCallback?.invoke(false, "Local media file cannot be played")
+            return
+        }
         val failedSource = activeSource ?: return
         val failedEpisodeId = currentEpisodeId
         val resumePosition = player?.currentPosition?.coerceAtLeast(0L) ?: 0L

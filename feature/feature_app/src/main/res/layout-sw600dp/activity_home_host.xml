@@ -74,7 +74,8 @@
             android:maxLines="1"
             android:text="@string/nav_nas"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="13sp" />
+            android:textSize="13sp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <androidx.viewpager2.widget.ViewPager2

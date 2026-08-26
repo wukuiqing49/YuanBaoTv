@@ -96,6 +96,7 @@
             android:minHeight="48dp"
             android:text="@string/nav_nas"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="10sp" />
+            android:textSize="10sp"
+            android:visibility="gone" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

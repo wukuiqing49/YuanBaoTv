@@ -31,6 +31,10 @@ object DownloadWorkScheduler {
         }
         WorkManager.getInstance(context.applicationContext)
             // 队列内容已持久化在 Room，运行中的 Worker 会继续读取新增任务；无需中断当前分块。
-            .enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.KEEP, requestBuilder.build())
+            .enqueueUniqueWork(
+                UNIQUE_WORK_NAME,
+                ExistingWorkPolicy.APPEND_OR_REPLACE,
+                requestBuilder.build()
+            )
     }
 }

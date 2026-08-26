@@ -64,6 +64,11 @@
         <!-- 全屏流媒体播放器 (强制横屏) -->
         <activity
             android:name="com.wkq.bao.feature.app.PlayerActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
+            android:name="com.wkq.bao.feature.app.NasBrowserActivity"
             android:exported="false" />
 
         <activity

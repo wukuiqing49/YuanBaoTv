@@ -53,7 +53,7 @@ class RoomMediaDetailRepository private constructor(
         database.mediaDao().getSeriesById(seriesId)
 
     override fun observeSeasons(seriesId: Long): Flow<List<SeasonEntity>> =
-        database.mediaDao().getSeasonsBySeriesId(seriesId)
+        database.mediaDao().getDownloadedSeasonsBySeriesId(seriesId)
 
     override fun observeEpisodes(seriesId: Long, seasonId: Long): Flow<List<EpisodeWithSource>> =
         database.mediaDao().getEpisodesWithSource(seriesId, seasonId)
@@ -63,9 +63,9 @@ class RoomMediaDetailRepository private constructor(
         seasonId: Long,
         isMovie: Boolean
     ): EpisodeEntity? = if (isMovie) {
-        database.mediaDao().getFirstEpisode(seriesId)
+        database.mediaDao().getFirstDownloadedEpisode(seriesId)
     } else {
-        database.mediaDao().getEpisodesSync(seriesId, seasonId).firstOrNull()
+        database.mediaDao().getDownloadedEpisodesSync(seriesId, seasonId).firstOrNull()
     }
 
     override suspend fun isFavorite(seriesId: Long): Boolean =

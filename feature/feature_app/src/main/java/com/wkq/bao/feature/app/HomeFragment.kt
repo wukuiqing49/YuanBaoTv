@@ -91,17 +91,13 @@ class HomeFragment : Fragment() {
         binding.rvCartoons.visibility = if (hasCartoons) View.VISIBLE else View.GONE
         val featured = state.featured
         if (featured == null) {
-            binding.ivHeroBackdrop.scaleType = ImageView.ScaleType.FIT_XY
+            binding.ivHeroBackdrop.visibility = View.GONE
+            binding.vHeroScrim.visibility = View.GONE
             binding.tvHeroTitle.setText(com.wkq.bao.feature.res.R.string.library_empty_title)
             binding.tvHeroSeasonTag.text = ""
             binding.tvHeroSeasonTag.visibility = View.GONE
             binding.tvHeroLastWatch?.visibility = View.GONE
             binding.tvHeroDesc.setText(com.wkq.bao.feature.res.R.string.library_empty_message)
-            MediaArtwork.load(
-                binding.ivHeroBackdrop,
-                null,
-                com.wkq.bao.feature.res.R.drawable.bg_media_placeholder_landscape
-            )
             binding.btnHeroPlay.setText(com.wkq.bao.feature.res.R.string.btn_add_nas)
             binding.btnHeroPlay.isEnabled = true
             binding.btnHeroPlay.visibility = View.VISIBLE
@@ -109,6 +105,8 @@ class HomeFragment : Fragment() {
             binding.btnHeroPlay.setOnClickListener { navigator().showPage(MainPageNavigator.NAS) }
             return
         }
+        binding.ivHeroBackdrop.visibility = View.VISIBLE
+        binding.vHeroScrim.visibility = View.VISIBLE
         binding.btnHeroPlay.setText(com.wkq.bao.feature.res.R.string.btn_continue_play)
         binding.btnHeroPlay.isEnabled = true
         binding.btnHeroPlay.visibility = View.VISIBLE
@@ -157,6 +155,8 @@ class HomeFragment : Fragment() {
         binding.tvHeroDesc.text = ""
         binding.btnHeroPlay.visibility = View.GONE
         binding.btnHeroDetail.visibility = View.GONE
+        binding.ivHeroBackdrop.visibility = View.VISIBLE
+        binding.vHeroScrim.visibility = View.VISIBLE
         binding.ivHeroBackdrop.scaleType = ImageView.ScaleType.FIT_XY
         MediaArtwork.load(
             binding.ivHeroBackdrop,

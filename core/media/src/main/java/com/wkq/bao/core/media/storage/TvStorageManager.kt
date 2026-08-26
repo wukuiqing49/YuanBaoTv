@@ -43,6 +43,16 @@ class TvStorageManager(private val context: Context) {
 
     fun getAvailableStorageTarget(): StorageTarget? = getStorageTarget()?.takeIf { it.isAvailable }
 
+    /** NAS 下载只允许写入可移除介质，避免占用设备内部存储。 */
+    fun getAvailableExternalStorageTarget(): StorageTarget? =
+        getAvailableStorageTarget()?.takeIf(::isExternalStorageTarget)
+
+    fun isExternalStorageTarget(target: StorageTarget): Boolean =
+        target.location != MediaStorageLocation.INTERNAL_STORAGE
+
+    fun isExternalStorageTarget(uri: Uri): Boolean =
+        volumeId(uri)?.equals("primary", ignoreCase = true) == false
+
     fun getStorageInfo(target: StorageTarget? = getStorageTarget()): StorageInfo {
         if (target == null || !target.isAvailable) return StorageInfo(0L, 0L, "--", "--")
         return storageInfoFor(target.uri)

@@ -42,6 +42,14 @@ class NasFileAdapter(
             TvFocusHelper.applyFocusScale(binding.btnOpenFolder)
             binding.root.setOnClickListener {
                 bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }
+                    ?.let { position ->
+                        getItem(position).let { entry ->
+                            if (entry.isDirectory) onOpenDirectory(entry) else onToggleSelection(entry)
+                        }
+                    }
+            }
+            binding.cbSelected.setOnClickListener {
+                bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }
                     ?.let { position -> onToggleSelection(getItem(position)) }
             }
             binding.btnOpenFolder.setOnClickListener {

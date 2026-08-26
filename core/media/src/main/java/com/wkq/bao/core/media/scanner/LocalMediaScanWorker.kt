@@ -129,7 +129,11 @@ object LocalMediaScanScheduler {
             .addTag(workName)
             .build()
         WorkManager.getInstance(context.applicationContext)
-            .enqueueUniqueWork(workName, if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, request)
+            .enqueueUniqueWork(
+                workName,
+                if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.APPEND_OR_REPLACE,
+                request
+            )
     }
 
     fun cancel(context: Context, treeUri: Uri) {

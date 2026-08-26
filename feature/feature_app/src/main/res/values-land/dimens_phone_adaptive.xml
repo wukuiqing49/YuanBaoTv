@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- 仅手机横屏使用；平板和电视有更高优先级的专用 layout。 -->
-    <dimen name="phone_home_hero_height">232dp</dimen>
-    <dimen name="phone_home_hero_top_margin">16dp</dimen>
-    <dimen name="phone_home_hero_title_size">21sp</dimen>
-    <dimen name="phone_home_continue_row_height">96dp</dimen>
-    <dimen name="phone_home_poster_row_height">144dp</dimen>
+    <dimen name="phone_home_hero_height">144dp</dimen>
+    <dimen name="phone_home_hero_top_margin">12dp</dimen>
+    <dimen name="phone_home_hero_title_size">18sp</dimen>
+    <dimen name="phone_home_continue_row_height">84dp</dimen>
+    <dimen name="phone_home_poster_row_height">128dp</dimen>
 
     <dimen name="phone_library_filter_height">40dp</dimen>
     <dimen name="phone_library_filter_button_height">36dp</dimen>

@@ -8,6 +8,7 @@ interface MainPageNavigator {
         const val HOME = 0
         const val LIBRARY = 1
         const val DOWNLOADS = 2
+        /** NAS 是导入流程，不属于主内容导航页。 */
         const val NAS = 3
     }
 }

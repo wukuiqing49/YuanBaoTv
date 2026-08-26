@@ -101,7 +101,7 @@ class NasSettingsViewModel(
         val state = _browserState.value
         val rootPath = if (state.sourceId == source.id) state.rootPath else browserRootPath(source)
         val currentPath = if (state.sourceId == source.id) state.currentPath else rootPath
-        loadDirectory(source, rootPath, currentPath)
+        loadDirectory(source, rootPath, currentPath, refresh = true)
     }
 
     fun toggleSelection(entry: NasFileEntry) {
@@ -125,13 +125,13 @@ class NasSettingsViewModel(
         if (selected.isEmpty() || state.downloadInProgress) return
         _browserState.value = state.copy(downloadInProgress = true)
         viewModelScope.launch {
-            browserRepository.enqueueSelected(source, selected, target)
-                .onSuccess { count ->
+            browserRepository.enqueueMediaSelected(source, selected, target)
+                .onSuccess { result ->
                     _browserState.value = _browserState.value.copy(
                         selectedPaths = emptySet(),
                         downloadInProgress = false
                     )
-                    events.emit(NasSettingsEvent.FilesQueued(count))
+                    events.emit(NasSettingsEvent.FilesQueued(result.totalCount))
                 }
                 .onFailure {
                     _browserState.value = _browserState.value.copy(downloadInProgress = false)
@@ -140,7 +140,12 @@ class NasSettingsViewModel(
         }
     }
 
-    private fun loadDirectory(source: NasSourceEntity, rootPath: String, path: String) {
+    private fun loadDirectory(
+        source: NasSourceEntity,
+        rootPath: String,
+        path: String,
+        refresh: Boolean = false
+    ) {
         _browserState.value = NasBrowserUiState(
             sourceId = source.id,
             rootPath = rootPath,
@@ -148,7 +153,12 @@ class NasSettingsViewModel(
             loading = true
         )
         viewModelScope.launch {
-            browserRepository.listDirectory(source, path)
+            val request = if (refresh) {
+                browserRepository.refreshMediaDirectory(source, path)
+            } else {
+                browserRepository.listMediaDirectory(source, path)
+            }
+            request
                 .onSuccess { entries ->
                     _browserState.value = _browserState.value.copy(entries = entries, loading = false)
                 }

@@ -49,8 +49,11 @@ class NasSettingsFragment : Fragment() {
             if (!storageManager.isStorageTargetAvailable(uri)) error(
                 getString(com.wkq.bao.feature.res.R.string.storage_location_invalid)
             )
+            require(storageManager.isExternalStorageTarget(uri)) {
+                getString(com.wkq.bao.feature.res.R.string.storage_external_target_required)
+            }
             storageManager.saveStorageRoot(uri, storageManager.resolveLocalLocation(uri))
-            checkNotNull(storageManager.getAvailableStorageTarget())
+            checkNotNull(storageManager.getAvailableExternalStorageTarget())
         }.onSuccess { target ->
             activeSource?.let { viewModel.enqueueSelected(it, target) }
         }.onFailure { error ->
@@ -145,10 +148,16 @@ class NasSettingsFragment : Fragment() {
     }
 
     private fun selectDownloadTarget() {
-        if (activeSource == null) return showMissingSource()
+        val source = activeSource ?: return showMissingSource()
         if (viewModel.browserState.value.selectedPaths.isEmpty() || waitingForDownloadTarget) return
+        storageManager.getAvailableExternalStorageTarget()?.let { target ->
+            viewModel.enqueueSelected(source, target)
+            return
+        }
         waitingForDownloadTarget = true
-        openDownloadTargetLauncher.launch(storageManager.getStorageTarget()?.uri)
+        openDownloadTargetLauncher.launch(
+            storageManager.getStorageTarget()?.takeIf(storageManager::isExternalStorageTarget)?.uri
+        )
     }
 
     private fun renderActiveSource(state: NasSettingsUiState = viewModel.uiState.value) {

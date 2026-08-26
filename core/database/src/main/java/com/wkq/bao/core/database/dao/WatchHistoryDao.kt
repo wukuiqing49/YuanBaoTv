@@ -13,7 +13,13 @@ interface WatchHistoryDao {
         FROM watch_histories
         INNER JOIN media_series ON media_series.id = watch_histories.seriesId
         INNER JOIN episodes ON episodes.id = watch_histories.episodeId
-        WHERE watch_histories.completed = 0 AND watch_histories.positionMs > 120000
+        WHERE watch_histories.completed = 0
+          AND watch_histories.positionMs > 120000
+          AND EXISTS (
+              SELECT 1 FROM media_files
+              INNER JOIN media_locations ON media_locations.mediaFileId = media_files.id
+              WHERE media_files.episodeId = watch_histories.episodeId
+          )
         ORDER BY watch_histories.lastPlayedAt DESC
         LIMIT 20
     """)

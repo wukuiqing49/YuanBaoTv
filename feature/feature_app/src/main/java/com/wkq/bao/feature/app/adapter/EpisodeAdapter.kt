@@ -58,8 +58,6 @@ class EpisodeAdapter(
                     com.wkq.bao.feature.res.R.string.badge_usb_drive to com.wkq.bao.feature.res.R.drawable.bg_badge_local
                 !item.localUri.isNullOrBlank() ->
                     com.wkq.bao.feature.res.R.string.badge_downloaded to com.wkq.bao.feature.res.R.drawable.bg_badge_local
-                !item.nasUri.isNullOrBlank() ->
-                    com.wkq.bao.feature.res.R.string.badge_nas_stream to com.wkq.bao.feature.res.R.drawable.bg_badge_nas
                 else -> com.wkq.bao.feature.res.R.string.badge_offline to com.wkq.bao.feature.res.R.drawable.bg_badge_local
             }
             binding.tvBadge.setText(labelRes)

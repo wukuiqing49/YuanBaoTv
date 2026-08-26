@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- 手机竖屏基准尺寸；横屏由 values-land 覆盖。 -->
-    <dimen name="phone_home_hero_height">218dp</dimen>
-    <dimen name="phone_home_hero_top_margin">22dp</dimen>
-    <dimen name="phone_home_hero_title_size">24sp</dimen>
-    <dimen name="phone_home_continue_row_height">116dp</dimen>
-    <dimen name="phone_home_poster_row_height">174dp</dimen>
+    <dimen name="phone_home_hero_height">184dp</dimen>
+    <dimen name="phone_home_hero_top_margin">18dp</dimen>
+    <dimen name="phone_home_hero_title_size">21sp</dimen>
+    <dimen name="phone_home_continue_row_height">104dp</dimen>
+    <dimen name="phone_home_poster_row_height">156dp</dimen>
 
     <dimen name="phone_library_filter_height">44dp</dimen>
     <dimen name="phone_library_filter_button_height">40dp</dimen>
     <dimen name="phone_library_grid_top_margin">10dp</dimen>
 
-    <dimen name="phone_download_title_size">20sp</dimen>
-    <dimen name="phone_download_storage_height">96dp</dimen>
-    <dimen name="phone_download_storage_button_height">44dp</dimen>
-    <dimen name="phone_download_task_height">120dp</dimen>
-    <dimen name="phone_download_section_margin">18dp</dimen>
+    <dimen name="phone_download_title_size">18sp</dimen>
+    <dimen name="phone_download_storage_height">76dp</dimen>
+    <dimen name="phone_download_storage_button_height">36dp</dimen>
+    <dimen name="phone_download_task_height">84dp</dimen>
+    <dimen name="phone_download_section_margin">14dp</dimen>
 
     <dimen name="phone_detail_backdrop_height">156dp</dimen>
     <dimen name="phone_detail_poster_width">108dp</dimen>

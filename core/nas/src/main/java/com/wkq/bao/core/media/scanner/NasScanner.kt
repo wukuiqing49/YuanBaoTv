@@ -137,21 +137,26 @@ class NasScanner(private val database: AppDatabase) {
             .build()
             .toString()
 
-        val existingSeries = mediaDao.getSeriesByTitle(parsed.seriesTitle)
+        val scraped = MetadataScraper.scrape(parsed.seriesTitle)
         val resolvedPosterUri = remoteFile.posterUri.ifBlank {
             remoteFile.thumbnailUri.takeIf { parsed.mediaType == MediaSeriesType.MOVIE }.orEmpty()
-        }.ifBlank { videoFrameUri }
+        }.ifBlank { scraped.posterUri }
+            .ifBlank { videoFrameUri }
+        val resolvedBackdropUri = remoteFile.backdropUri.ifBlank { scraped.backdropUri }
+            .ifBlank { videoFrameUri }
+        val resolvedEpisodeThumbnailUri = remoteFile.thumbnailUri.ifBlank { videoFrameUri }
+
+        val existingSeries = mediaDao.getSeriesByTitle(parsed.seriesTitle)
         val series = existingSeries?.copy(
             type = existingSeries.type.takeUnless { it in setOf(MediaSeriesType.CARTOON, MediaSeriesType.LOCAL) }
                 ?: parsed.mediaType,
             totalSeasons = maxOf(existingSeries.totalSeasons, parsed.seasonNumber),
-            posterUri = existingSeries.posterUri.ifBlank { resolvedPosterUri },
-            backdropUri = existingSeries.backdropUri.ifBlank { remoteFile.backdropUri.ifBlank { videoFrameUri } },
+            posterUri = NasArtworkPriority.prefer(existingSeries.posterUri, resolvedPosterUri),
+            backdropUri = NasArtworkPriority.prefer(existingSeries.backdropUri, resolvedBackdropUri),
             updatedAt = System.currentTimeMillis()
         )?.also { updated ->
             if (updated != existingSeries) mediaDao.updateSeries(updated)
         } ?: run {
-            val scraped = MetadataScraper.scrape(parsed.seriesTitle)
             val seriesId = mediaDao.insertSeries(
                 MediaSeriesEntity(
                     title = parsed.seriesTitle,
@@ -160,8 +165,8 @@ class NasScanner(private val database: AppDatabase) {
                     genre = scraped.genre,
                     year = scraped.year,
                     description = scraped.description,
-                    posterUri = resolvedPosterUri.ifBlank { scraped.posterUri },
-                    backdropUri = remoteFile.backdropUri.ifBlank { scraped.backdropUri }.ifBlank { videoFrameUri },
+                    posterUri = resolvedPosterUri,
+                    backdropUri = resolvedBackdropUri,
                     totalSeasons = parsed.seasonNumber.coerceAtLeast(1)
                 )
             )
@@ -184,7 +189,10 @@ class NasScanner(private val database: AppDatabase) {
 
         val existingEpisode = mediaDao.getEpisodeByNumber(seasonId, parsed.episodeNumber)
         val resolvedEpisode = existingEpisode?.copy(
-            thumbnailUri = existingEpisode.thumbnailUri.ifBlank { remoteFile.thumbnailUri.ifBlank { videoFrameUri } }
+            thumbnailUri = NasArtworkPriority.prefer(
+                existingEpisode.thumbnailUri,
+                resolvedEpisodeThumbnailUri
+            )
         )?.also { updated ->
             if (updated != existingEpisode) mediaDao.updateEpisode(updated)
         }
@@ -194,7 +202,7 @@ class NasScanner(private val database: AppDatabase) {
                 seasonId = seasonId,
                 episodeNumber = parsed.episodeNumber,
                 title = parsed.episodeTitle,
-                thumbnailUri = remoteFile.thumbnailUri.ifBlank { videoFrameUri }
+                thumbnailUri = resolvedEpisodeThumbnailUri
             )
         )
 
@@ -236,4 +244,19 @@ class NasScanner(private val database: AppDatabase) {
     private companion object {
         const val BATCH_SIZE = 64
     }
+}
+
+/** 真实海报到达后可以替换此前生成的抽帧，避免占位封面长期滞留。 */
+internal object NasArtworkPriority {
+    fun prefer(current: String, candidate: String): String = when {
+        candidate.isBlank() -> current
+        current.isBlank() -> candidate
+        isGeneratedFrame(current) && !isGeneratedFrame(candidate) -> candidate
+        else -> current
+    }
+
+    private fun isGeneratedFrame(uri: String): Boolean = uri
+        .substringAfter('?', missingDelimiterValue = "")
+        .split('&')
+        .any { it == "artworkFrame=1" }
 }

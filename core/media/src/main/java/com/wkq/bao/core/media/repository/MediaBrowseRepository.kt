@@ -22,13 +22,14 @@ class RoomMediaBrowseRepository private constructor(
 
     override val continueWatching: Flow<List<ContinueWatchingItem>> =
         database.watchHistoryDao().getContinueWatchingList()
-    override val allSeries: Flow<List<MediaSeriesEntity>> = database.mediaDao().getAllSeries()
+    // 首页与媒体库只展示拥有可播放本地副本的内容，NAS 远程索引仅服务下载来源选择。
+    override val allSeries: Flow<List<MediaSeriesEntity>> = database.mediaDao().getDownloadedSeries()
 
     override fun observeSeriesByType(type: String?): Flow<List<MediaSeriesEntity>> =
-        type?.let(database.mediaDao()::getSeriesByType) ?: database.mediaDao().getAllSeries()
+        type?.let(database.mediaDao()::getDownloadedSeriesByType) ?: database.mediaDao().getDownloadedSeries()
 
     override suspend fun getFirstEpisode(seriesId: Long): EpisodeEntity? =
-        database.mediaDao().getFirstEpisode(seriesId)
+        database.mediaDao().getFirstDownloadedEpisode(seriesId)
 
     companion object {
         fun create(context: Context): RoomMediaBrowseRepository =

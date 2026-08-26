@@ -22,7 +22,7 @@ class RoomPlaybackNavigationRepository private constructor(
         val current = mediaDao.getEpisodeById(episodeId)
             ?.takeIf { it.seriesId == seriesId }
             ?: return null
-        mediaDao.getEpisodeByNumber(current.seasonId, current.episodeNumber + 1)
+        mediaDao.getDownloadedEpisodeByNumber(current.seasonId, current.episodeNumber + 1)
             ?.takeIf { it.seriesId == seriesId }
             ?.let { return it }
 
@@ -30,7 +30,7 @@ class RoomPlaybackNavigationRepository private constructor(
         val currentSeasonIndex = seasons.indexOfFirst { it.id == current.seasonId }
         if (currentSeasonIndex < 0) return null
         for (season in seasons.drop(currentSeasonIndex + 1)) {
-            mediaDao.getEpisodesSync(seriesId, season.id).firstOrNull()?.let { return it }
+            mediaDao.getDownloadedEpisodesSync(seriesId, season.id).firstOrNull()?.let { return it }
         }
         return null
     }

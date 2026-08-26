@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Toast
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -17,7 +16,6 @@ import com.wkq.bao.core.database.entity.ScanSessionStatus
 import com.wkq.bao.core.media.storage.MediaStorageLocation
 import com.wkq.bao.core.media.storage.TvStorageManager
 import com.wkq.bao.feature.app.adapter.DownloadTaskAdapter
-import com.wkq.bao.feature.app.adapter.PosterCardAdapter
 import com.wkq.bao.feature.app.databinding.ActivityDownloadsBinding
 import com.wkq.bao.feature.app.utils.TvFocusHelper
 import kotlinx.coroutines.flow.collectLatest
@@ -28,27 +26,27 @@ class DownloadsFragment : Fragment() {
     private val binding get() = checkNotNull(_binding)
     private val viewModel by viewModels<DownloadsViewModel> { DownloadsViewModel.Factory(requireContext()) }
     private val storageManager by lazy { TvStorageManager(requireContext()) }
-    private lateinit var downloadedAdapter: PosterCardAdapter
     private lateinit var downloadAdapter: DownloadTaskAdapter
     private var keepScreenRequested = false
 
     private val openStorageLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
-        if (uri == null) return@registerForActivityResult
+        val selectedUri = uri ?: return@registerForActivityResult
         runCatching {
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            requireContext().contentResolver.takePersistableUriPermission(uri, flags)
-            if (!storageManager.isStorageTargetAvailable(uri)) {
-                requireContext().contentResolver.releasePersistableUriPermission(uri, flags)
+            requireContext().contentResolver.takePersistableUriPermission(selectedUri, flags)
+            if (!storageManager.isStorageTargetAvailable(selectedUri)) {
+                requireContext().contentResolver.releasePersistableUriPermission(selectedUri, flags)
                 throw IllegalArgumentException(getString(com.wkq.bao.feature.res.R.string.storage_location_invalid))
             }
-            storageManager.saveStorageRoot(uri, storageManager.resolveLocalLocation(uri))
+            storageManager.saveStorageRoot(selectedUri, storageManager.resolveLocalLocation(selectedUri))
             renderStorage()
         }.onFailure { Toast.makeText(requireContext(), it.message ?: getString(com.wkq.bao.feature.res.R.string.storage_permission_failed), Toast.LENGTH_LONG).show() }
             .onSuccess {
-                Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.storage_authorized, Toast.LENGTH_SHORT).show()
-            }
+            Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.storage_authorized, Toast.LENGTH_SHORT).show()
+            viewModel.startLocalScan(selectedUri)
+        }
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -61,7 +59,15 @@ class DownloadsFragment : Fragment() {
         binding.cardStorageInfo.isFocusable = true
         binding.cardStorageInfo.isClickable = true
         binding.btnSelectStorage.backgroundTintList = null
-        listOf(binding.cardStorageInfo, binding.cardDownloadTask, binding.btnSelectStorage).forEach(TvFocusHelper::applyFocusScale)
+        binding.btnImportNas?.apply {
+            backgroundTintList = null
+            setOnClickListener {
+                (requireActivity() as MainPageNavigator).showPage(MainPageNavigator.NAS)
+            }
+        }
+        listOf(binding.cardStorageInfo, binding.btnSelectStorage)
+            .forEach(TvFocusHelper::applyFocusScale)
+        binding.btnImportNas?.let(TvFocusHelper::applyFocusScale)
         binding.btnSelectStorage.setText(com.wkq.bao.feature.res.R.string.storage_select_target)
         binding.btnSelectStorage.setOnClickListener { selectStorageLocation() }
         binding.cardStorageInfo.setOnClickListener {
@@ -77,8 +83,6 @@ class DownloadsFragment : Fragment() {
             onCancel = { viewModel.cancel(it.id) }
         )
         binding.rvDownloadTasks.adapter = downloadAdapter
-        downloadedAdapter = PosterCardAdapter { series -> startActivity(Intent(requireContext(), DetailActivity::class.java).putExtra("seriesId", series.id)) }
-        binding.rvDownloaded.adapter = downloadedAdapter
         renderStorage()
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnSelectStorage)
         viewLifecycleOwner.lifecycleScope.launch {
@@ -90,13 +94,9 @@ class DownloadsFragment : Fragment() {
 
     private fun renderState(state: DownloadsUiState) {
         downloadAdapter.submitList(state.tasks)
-        downloadedAdapter.submitList(state.downloadedSeries)
-        // 保留队列区域的高度，避免空态与下方已下载媒体区域发生约束重叠。
         val isTaskListEmpty = state.tasks.isEmpty()
         binding.rvDownloadTasks.visibility = if (isTaskListEmpty) View.GONE else View.VISIBLE
-        binding.cardDownloadTask.visibility = if (isTaskListEmpty) View.VISIBLE else View.GONE
-        updateDownloadedSectionAnchor(isTaskListEmpty)
-        renderEmptyTask(isTaskListEmpty)
+        binding.layoutDownloadTasksEmpty?.visibility = if (isTaskListEmpty) View.VISIBLE else View.GONE
         keepScreenRequested = state.keepScreenOn
         renderStorage(state)
         updateKeepScreenOn(isResumed && keepScreenRequested)
@@ -136,28 +136,6 @@ class DownloadsFragment : Fragment() {
 
     private fun selectStorageLocation() {
         openStorageLauncher.launch(null)
-    }
-
-    private fun renderEmptyTask(isEmpty: Boolean) {
-        if (isEmpty) {
-            binding.tvTaskTitle.setText(com.wkq.bao.feature.res.R.string.downloads_empty_title)
-            binding.tvTaskSpeed.setText(com.wkq.bao.feature.res.R.string.downloads_empty_message)
-            binding.tvTaskSpeed.setTextColor(requireContext().getColor(com.wkq.bao.feature.res.R.color.tv_text_secondary))
-            binding.pbTask.progress = 0
-            binding.pbTask.visibility = View.GONE
-            binding.btnTaskPause.isEnabled = false
-            binding.btnTaskCancel.isEnabled = false
-        }
-    }
-
-    /** 下载任务与空态互斥显示，已下载区始终锚定到当前可见区域。 */
-    private fun updateDownloadedSectionAnchor(isTaskListEmpty: Boolean) {
-        val params = binding.tvLabelDownloaded.layoutParams as ConstraintLayout.LayoutParams
-        val anchorId = if (isTaskListEmpty) binding.cardDownloadTask.id else binding.rvDownloadTasks.id
-        if (params.topToBottom != anchorId) {
-            params.topToBottom = anchorId
-            binding.tvLabelDownloaded.layoutParams = params
-        }
     }
 
     override fun onResume() {

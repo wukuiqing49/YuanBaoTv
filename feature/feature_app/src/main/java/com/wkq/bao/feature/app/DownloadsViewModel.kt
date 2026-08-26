@@ -7,7 +7,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.wkq.bao.core.database.entity.DownloadTaskEntity
 import com.wkq.bao.core.database.entity.DownloadTaskStatus
-import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import com.wkq.bao.core.database.entity.ScanSessionEntity
 import com.wkq.bao.core.database.entity.ScanSessionStatus
 import com.wkq.bao.core.media.scanner.LocalMediaScanController
@@ -24,7 +23,6 @@ import kotlinx.coroutines.launch
 
 data class DownloadsUiState(
     val tasks: List<DownloadTaskEntity> = emptyList(),
-    val downloadedSeries: List<MediaSeriesEntity> = emptyList(),
     val scanSession: ScanSessionEntity? = null
 ) {
     val keepScreenOn: Boolean = tasks.any { it.status == DownloadTaskStatus.DOWNLOADING }
@@ -42,9 +40,8 @@ class DownloadsViewModel(
 
     val uiState: StateFlow<DownloadsUiState> = combine(
         repository.tasks,
-        repository.downloadedSeries,
         scanSession
-    ) { tasks, downloadedSeries, session ->
+    ) { tasks, session ->
         DownloadsUiState(
             tasks = tasks.filter {
                 it.status in setOf(
@@ -52,9 +49,8 @@ class DownloadsViewModel(
                     DownloadTaskStatus.WAITING,
                     DownloadTaskStatus.PAUSED,
                     DownloadTaskStatus.FAILED
-                ) || (it.status == DownloadTaskStatus.SUCCESS && it.seriesId == 0L)
+                )
             },
-            downloadedSeries = downloadedSeries,
             scanSession = session
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), DownloadsUiState())

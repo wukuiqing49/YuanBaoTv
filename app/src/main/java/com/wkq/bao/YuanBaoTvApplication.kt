@@ -5,6 +5,8 @@ import com.wkq.bao.core.base.diagnostics.AppDiagnostics
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.media.artwork.NasArtworkLoader
 import com.wkq.bao.core.media.download.DownloadWorkScheduler
+import com.wkq.bao.core.media.scanner.LocalMediaScanScheduler
+import com.wkq.bao.core.media.storage.TvStorageManager
 import com.wkq.bao.core.nas.security.NasCredentialMigration
 import com.wkq.util.CoreUtils
 import com.wkq.util.CoreUtilsConfig
@@ -30,6 +32,9 @@ class YuanBaoTvApplication : Application() {
         NasArtworkLoader.install(this)
         AppDiagnostics.record(this, "app", "started")
         DownloadWorkScheduler.enqueue(this)
+        TvStorageManager(this).getAvailableStorageTarget()?.let { target ->
+            LocalMediaScanScheduler.enqueue(this, target.uri)
+        }
         applicationScope.launch {
             val database = AppDatabase.getInstance(this@YuanBaoTvApplication)
             NasCredentialMigration.migratePlaintextCredentials(database)

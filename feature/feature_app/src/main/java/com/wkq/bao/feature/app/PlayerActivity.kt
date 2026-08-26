@@ -223,7 +223,6 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
             "INTERNAL_STORAGE" -> com.wkq.bao.feature.res.R.string.storage_internal to com.wkq.bao.feature.res.R.drawable.bg_badge_local
             "TF_CARD" -> com.wkq.bao.feature.res.R.string.badge_tf_card to com.wkq.bao.feature.res.R.drawable.bg_badge_local
             "USB_DRIVE" -> com.wkq.bao.feature.res.R.string.badge_usb_drive to com.wkq.bao.feature.res.R.drawable.bg_badge_local
-            "NAS" -> com.wkq.bao.feature.res.R.string.badge_nas_stream to com.wkq.bao.feature.res.R.drawable.bg_badge_nas
             else -> com.wkq.bao.feature.res.R.string.badge_downloaded to com.wkq.bao.feature.res.R.drawable.bg_badge_local
         }
         binding.tvSourceBadge.setText(labelRes)

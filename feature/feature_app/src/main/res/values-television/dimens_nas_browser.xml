@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="nas_browser_page_padding">20dp</dimen>
+    <dimen name="nas_browser_header_height">40dp</dimen>
+    <dimen name="nas_browser_action_height">40dp</dimen>
+    <dimen name="nas_browser_action_button_height">38dp</dimen>
+    <dimen name="nas_browser_bottom_height">52dp</dimen>
+    <dimen name="nas_browser_short_action_width">72dp</dimen>
+    <dimen name="nas_browser_progress_size">44dp</dimen>
+    <dimen name="nas_browser_title_text_size">20sp</dimen>
+    <dimen name="nas_browser_source_text_size">15sp</dimen>
+    <dimen name="nas_browser_action_text_size">11sp</dimen>
+    <dimen name="nas_browser_path_text_size">12sp</dimen>
+    <dimen name="nas_browser_selected_text_size">13sp</dimen>
+    <dimen name="nas_browser_row_height">64dp</dimen>
+    <dimen name="nas_browser_row_horizontal_padding">14dp</dimen>
+    <dimen name="nas_browser_row_icon_size">30dp</dimen>
+    <dimen name="nas_browser_row_title_text_size">15sp</dimen>
+    <dimen name="nas_browser_row_info_text_size">12sp</dimen>
+    <dimen name="nas_browser_open_button_width">76dp</dimen>
+    <dimen name="nas_browser_row_action_height">38dp</dimen>
+    <dimen name="nas_browser_icon_padding">9dp</dimen>
+    <dimen name="nas_browser_address_text_size">11sp</dimen>
+    <dimen name="nas_browser_list_bottom_padding">16dp</dimen>
+    <dimen name="nas_browser_bottom_horizontal_padding">14dp</dimen>
+</resources>

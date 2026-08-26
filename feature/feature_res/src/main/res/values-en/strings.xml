@@ -34,6 +34,7 @@
     <string name="tip_downloading">Downloading...</string>
     <string name="title_nas_settings">NAS Settings</string>
     <string name="btn_add_nas">Add NAS</string>
+    <string name="btn_import_nas">Import from NAS</string>
     <string name="btn_test_conn">Test Connection</string>
     <string name="btn_scan_now">Scan Now</string>
     <string name="btn_edit">Edit</string>
@@ -131,14 +132,15 @@
     <string name="btn_download_episode">Download</string>
     <string name="download_episode_queued">Episode added to downloads</string>
     <string name="library_empty_title">No media found</string>
-    <string name="library_empty_message">Add a NAS source and scan its media directory first</string>
+    <string name="library_empty_message">Connect a NAS source, then download media to external storage</string>
     <string name="library_filter_empty_message">No media in this category. Return to all media to keep browsing.</string>
     <string name="nav_nas">NAS</string>
-    <string name="storage_select_target">Choose download location</string>
+    <string name="storage_select_target">Choose location</string>
     <string name="storage_choose_type">Download to</string>
     <string name="storage_tf_card">TF card</string>
     <string name="storage_usb_drive">USB drive</string>
     <string name="storage_target_required">Choose internal storage, a TF card, USB drive, or external hard drive first</string>
+    <string name="storage_external_target_required">Choose a connected TF card, USB drive, or external hard drive folder</string>
     <string name="storage_permission_failed">Storage authorization failed</string>
     <string name="badge_tf_card">TF card</string>
     <string name="badge_usb_drive">USB drive</string>
@@ -191,10 +193,11 @@
     <string name="nas_file_clear_selection">Clear all</string>
     <string name="nas_file_empty">This folder is empty</string>
     <string name="nas_file_load_failed">Unable to read this folder. Check the NAS connection.</string>
-    <string name="nas_file_type_folder">Folder · Use Open to browse</string>
+    <string name="nas_file_load_failed_retry">Unable to read this folder. Tap to retry.</string>
+    <string name="nas_file_type_folder">Folder · Tap to open; check to download</string>
     <string name="nas_file_size">File · %1$s</string>
     <string name="nas_file_open">Open</string>
-    <string name="nas_file_download_selected">Download selected</string>
+    <string name="nas_file_download_selected">Download video and danmaku</string>
     <string name="nas_file_action_failed">Unable to read or queue files. Check the NAS and target device.</string>
     <string name="download_task_number">Download #%1$d</string>
     <plurals name="nas_file_selected_count"><item quantity="one">%1$d item selected</item><item quantity="other">%1$d items selected</item></plurals>

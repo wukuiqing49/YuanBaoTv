@@ -42,6 +42,7 @@
     <!-- NAS 设置 -->
     <string name="title_nas_settings">NAS 源设置</string>
     <string name="btn_add_nas">添加 NAS</string>
+    <string name="btn_import_nas">从 NAS 导入</string>
     <string name="btn_test_conn">测试连接</string>
     <string name="btn_scan_now">立即扫描</string>
     <string name="btn_edit">编辑</string>
@@ -141,14 +142,15 @@
     <string name="btn_download_episode">下载</string>
     <string name="download_episode_queued">该集已加入下载队列</string>
     <string name="library_empty_title">尚未发现媒体</string>
-    <string name="library_empty_message">先添加 NAS 并扫描媒体目录</string>
+    <string name="library_empty_message">连接 NAS 后选择资源下载到外置存储</string>
     <string name="library_filter_empty_message">当前分类暂无媒体，可返回全部媒体查看</string>
     <string name="nav_nas">NAS</string>
-    <string name="storage_select_target">选择下载位置</string>
+    <string name="storage_select_target">选择位置</string>
     <string name="storage_choose_type">下载到</string>
     <string name="storage_tf_card">TF 内存卡</string>
     <string name="storage_usb_drive">USB 硬盘</string>
     <string name="storage_target_required">请先选择本机、TF 卡、USB 或移动硬盘位置</string>
+    <string name="storage_external_target_required">请选择已连接的 TF 卡、USB 或移动硬盘目录</string>
     <string name="storage_permission_failed">存储授权失败</string>
     <string name="badge_tf_card">TF 卡</string>
     <string name="badge_usb_drive">USB 硬盘</string>
@@ -201,10 +203,11 @@
     <string name="nas_file_clear_selection">取消全选</string>
     <string name="nas_file_empty">当前文件夹为空</string>
     <string name="nas_file_load_failed">无法读取文件夹，请检查 NAS 连接</string>
-    <string name="nas_file_type_folder">文件夹 · 点击右侧进入</string>
+    <string name="nas_file_load_failed_retry">无法读取文件夹，点击重试</string>
+    <string name="nas_file_type_folder">文件夹 · 点击进入，勾选下载整目录</string>
     <string name="nas_file_size">文件 · %1$s</string>
     <string name="nas_file_open">打开</string>
-    <string name="nas_file_download_selected">下载选中项</string>
+    <string name="nas_file_download_selected">下载视频与弹幕</string>
     <string name="nas_file_action_failed">文件读取或下载入队失败，请检查 NAS 和目标设备</string>
     <string name="download_task_number">下载任务 #%1$d</string>
     <plurals name="nas_file_selected_count"><item quantity="one">已选择 %1$d 项</item><item quantity="other">已选择 %1$d 项</item></plurals>
