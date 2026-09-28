@@ -33,7 +33,9 @@ object TvFocusHelper {
     fun requestInitialFocus(root: View, preferred: View) {
         if (!isTelevision(root)) return
         root.post {
-            if (!root.hasFocus() && preferred.isShown && preferred.isEnabled) preferred.requestFocus()
+            if (root.rootView.findFocus() == null && preferred.isShown && preferred.isEnabled) {
+                preferred.requestFocus()
+            }
         }
     }
 

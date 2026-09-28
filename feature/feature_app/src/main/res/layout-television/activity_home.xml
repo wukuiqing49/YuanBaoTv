@@ -263,7 +263,8 @@
 
                 <Button
                     android:id="@+id/btn_hero_play"
-                    android:layout_width="144dp"
+                    android:layout_width="wrap_content"
+                    android:minWidth="144dp"
                     android:layout_height="46dp"
                     android:background="@drawable/bg_hero_gold_btn"
                     android:drawableStart="@drawable/ic_tv_play"
@@ -308,6 +309,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:clipToPadding="false"
+            android:clipChildren="false"
             android:orientation="horizontal"
             android:paddingStart="56dp"
             android:paddingEnd="56dp"
@@ -338,6 +340,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:clipToPadding="false"
+            android:clipChildren="false"
             android:orientation="horizontal"
             android:paddingStart="56dp"
             android:paddingEnd="56dp"

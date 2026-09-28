@@ -65,7 +65,7 @@
             android:orientation="horizontal">
             <Button android:id="@+id/btn_play" android:layout_width="0dp" android:layout_height="@dimen/phone_detail_action_height" android:layout_weight="1" android:background="@drawable/bg_hero_play_btn" android:maxLines="2" android:text="@string/btn_play_now" android:textColor="@color/tv_hero_btn_text" android:textSize="12sp" />
             <Button android:id="@+id/btn_download_season" android:layout_width="0dp" android:layout_height="@dimen/phone_detail_action_height" android:layout_marginStart="8dp" android:layout_weight="1" android:background="@drawable/bg_tv_button_focus" android:maxLines="2" android:text="@string/btn_download_season" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
-            <Button android:id="@+id/btn_favorite" android:layout_width="84dp" android:layout_height="@dimen/phone_detail_action_height" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:maxLines="2" android:text="@string/btn_favorite" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
+            <Button android:id="@+id/btn_favorite" android:layout_width="wrap_content" android:layout_height="@dimen/phone_detail_action_height" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:maxLines="1" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/btn_favorite" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout

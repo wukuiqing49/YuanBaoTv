@@ -14,6 +14,7 @@ import com.wkq.bao.core.database.entity.SeasonEntity
 import com.wkq.bao.core.media.artwork.SidecarArtworkResolver
 import com.wkq.bao.core.media.parser.MediaFileNameParser
 import com.wkq.bao.core.media.scraper.MetadataScraper
+import com.wkq.bao.core.media.scraper.MovieNfoParser
 import com.wkq.bao.core.media.storage.TvStorageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -110,15 +111,25 @@ class LocalMediaScanner(
         val fileName = name ?: return null
         val uri = uri
         val mediaArtwork = SidecarArtworkResolver.resolveMedia(fileName, artwork)
+        val isMovie = MediaFileNameParser.parse(fileName).mediaType == MediaSeriesType.MOVIE
+        val frameUri = if (isMovie) uri.buildUpon()
+            .appendQueryParameter("artworkFrame", "1")
+            .appendQueryParameter("artworkVersion", lastModified().toString())
+            .build().toString() else ""
+        val nfo = mediaArtwork.nfoUri.takeIf { it.isNotBlank() && MediaFileNameParser.parse(fileName).mediaType == MediaSeriesType.MOVIE }
+            ?.let { uri -> runCatching {
+                context.contentResolver.openInputStream(Uri.parse(uri))?.use(MovieNfoParser::parse)
+            }.getOrNull() }
         return LocalMediaFile(
             uri = uri,
             fileName = fileName,
             fileSize = length(),
             mimeType = type ?: "video/*",
             storageType = TvStorageManager(context).resolveLocalLocation(uri).name,
-            posterUri = mediaArtwork.posterUri,
-            backdropUri = mediaArtwork.backdropUri,
-            thumbnailUri = mediaArtwork.thumbnailUri
+            posterUri = mediaArtwork.posterUri.ifBlank { mediaArtwork.thumbnailUri.takeIf { isMovie }.orEmpty() }.ifBlank { frameUri },
+            backdropUri = mediaArtwork.backdropUri.ifBlank { frameUri },
+            thumbnailUri = mediaArtwork.thumbnailUri,
+            nfo = nfo
         )
     }
 
@@ -127,7 +138,10 @@ class LocalMediaScanner(
         val parsed = MediaFileNameParser.parse(fileName)
         val mediaDao = database.mediaDao()
 
+        val nfo = document.nfo
+        val displayTitle = nfo?.title?.takeIf(String::isNotBlank) ?: parsed.seriesTitle
         val existingSeries = mediaDao.getSeriesByTitle(parsed.seriesTitle)
+            ?: displayTitle.takeIf { it != parsed.seriesTitle }?.let { mediaDao.getSeriesByTitle(it) }
         val resolvedPosterUri = document.posterUri.ifBlank {
             document.thumbnailUri.takeIf { parsed.mediaType == MediaSeriesType.MOVIE }.orEmpty()
         }
@@ -135,20 +149,26 @@ class LocalMediaScanner(
             type = existingSeries.type.takeUnless { it in setOf(MediaSeriesType.CARTOON, MediaSeriesType.LOCAL) }
                 ?: parsed.mediaType,
             totalSeasons = maxOf(existingSeries.totalSeasons, parsed.seasonNumber),
-            posterUri = existingSeries.posterUri.ifBlank { resolvedPosterUri },
-            backdropUri = existingSeries.backdropUri.ifBlank { document.backdropUri }
+            originalTitle = if (existingSeries.originalTitle.isBlank() || existingSeries.originalTitle == existingSeries.title) {
+                nfo?.originalTitle?.ifBlank { existingSeries.originalTitle } ?: existingSeries.originalTitle
+            } else existingSeries.originalTitle,
+            year = existingSeries.year.ifBlank { nfo?.year.orEmpty() },
+            genre = existingSeries.genre.ifBlank { nfo?.genre.orEmpty() },
+            description = existingSeries.description.ifBlank { nfo?.description.orEmpty() },
+            posterUri = preferArtwork(existingSeries.posterUri, resolvedPosterUri),
+            backdropUri = preferArtwork(existingSeries.backdropUri, document.backdropUri)
         )?.also { updated ->
             if (updated != existingSeries) mediaDao.updateSeries(updated)
         } ?: run {
             val metadata = MetadataScraper.scrape(parsed.seriesTitle)
             val seriesId = mediaDao.insertSeries(
                 MediaSeriesEntity(
-                    title = parsed.seriesTitle,
-                    originalTitle = metadata.originalTitle,
+                    title = displayTitle,
+                    originalTitle = nfo?.originalTitle?.ifBlank { metadata.originalTitle } ?: metadata.originalTitle,
                     type = parsed.mediaType,
-                    genre = metadata.genre,
-                    year = metadata.year,
-                    description = metadata.description,
+                    genre = nfo?.genre?.ifBlank { metadata.genre } ?: metadata.genre,
+                    year = nfo?.year?.ifBlank { metadata.year } ?: metadata.year,
+                    description = nfo?.description?.ifBlank { metadata.description } ?: metadata.description,
                     posterUri = resolvedPosterUri.ifBlank { metadata.posterUri },
                     backdropUri = document.backdropUri.ifBlank { metadata.backdropUri },
                     totalSeasons = parsed.seasonNumber.coerceAtLeast(1)
@@ -224,8 +244,17 @@ class LocalMediaScanner(
         val storageType: String,
         val posterUri: String,
         val backdropUri: String,
-        val thumbnailUri: String
+        val thumbnailUri: String,
+        val nfo: MovieNfoParser.Metadata?
     )
+
+    private fun preferArtwork(current: String, candidate: String): String = when {
+        current.isBlank() -> candidate
+        candidate.isBlank() -> current
+        candidate.startsWith("content://") && (current.startsWith("smb://") || current.startsWith("https://")) -> candidate
+        "artworkFrame=1" in current && "artworkFrame=1" !in candidate -> candidate
+        else -> current
+    }
 
     private data class LocalDirectory(
         val document: DocumentFile,

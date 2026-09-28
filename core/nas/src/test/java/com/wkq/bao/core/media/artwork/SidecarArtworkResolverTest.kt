@@ -49,4 +49,17 @@ class SidecarArtworkResolverTest {
         assertFalse(SidecarArtworkResolver.isImageFile("movie.mkv"))
         assertFalse(SidecarArtworkResolver.isImageFile("cover.gif"))
     }
+
+    @Test
+    fun `movie specific poster and nfo take priority over folder artwork`() {
+        val directory = SidecarArtworkResolver.resolveDirectory(listOf(
+            SidecarArtworkResolver.Candidate("poster.jpg", "folder-poster"),
+            SidecarArtworkResolver.Candidate("Movie-poster.jpg", "movie-poster"),
+            SidecarArtworkResolver.Candidate("movie.nfo", "folder-nfo"),
+            SidecarArtworkResolver.Candidate("Movie.nfo", "movie-nfo")
+        ))
+        val movie = SidecarArtworkResolver.resolveMedia("Movie.mkv", directory)
+        assertEquals("movie-poster", movie.posterUri)
+        assertEquals("movie-nfo", movie.nfoUri)
+    }
 }

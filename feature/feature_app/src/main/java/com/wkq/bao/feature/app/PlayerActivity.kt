@@ -251,6 +251,10 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         // OSD 可见时交给已聚焦的控件处理方向键和确认键，保证倍速、下一集等按钮可达。
         if (binding.layoutOsd.visibility == View.VISIBLE) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
+                keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+                keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER
+            ) resetOsdTimer()
             when (keyCode) {
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_SPACE -> {
                     playerController.togglePlayPause()
@@ -297,7 +301,7 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
         osdHideJob?.cancel()
         osdHideJob = lifecycleScope.launch {
             delay(5000)
-            binding.layoutOsd.visibility = View.GONE
+            hideOsd()
         }
     }
 

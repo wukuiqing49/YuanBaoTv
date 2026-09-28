@@ -29,12 +29,27 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <Button
+            android:id="@+id/btn_import_nas"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/bg_tv_button_focus"
+            android:backgroundTint="@null"
+            android:paddingHorizontal="14dp"
+            android:text="@string/btn_import_nas"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="13sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/card_storage_info"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <!-- 外置存储卡片 (USB SSD) -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/card_storage_info"
-            android:layout_width="380dp"
-            android:layout_height="72dp"
-            android:background="@drawable/bg_glass_card"
+            android:layout_width="480dp"
+            android:layout_height="112dp"
+            android:background="@drawable/bg_tv_focus_ring"
             android:paddingStart="16dp"
             android:paddingTop="10dp"
             android:paddingEnd="16dp"
@@ -45,22 +60,27 @@
 
             <TextView
                 android:id="@+id/tv_storage_label"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="USB 外置存储"
+                android:ellipsize="end"
+                android:maxLines="3"
                 android:textColor="@color/tv_text_primary"
                 android:textSize="13sp"
                 android:textStyle="bold"
+                android:layout_marginEnd="8dp"
+                app:layout_constraintEnd_toStartOf="@id/btn_select_storage"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <TextView
                 android:id="@+id/tv_storage_capacity"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="428.5 GB 可用 / 512 GB"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:textColor="@color/tv_text_secondary"
                 android:textSize="11sp"
+                app:layout_constraintEnd_toStartOf="@id/btn_select_storage"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tv_storage_label" />
 
@@ -70,7 +90,7 @@
                 android:layout_height="32dp"
                 android:background="@drawable/bg_tv_button_focus"
                 android:paddingHorizontal="10dp"
-                android:text="设置目录"
+                android:text="@string/storage_select_target"
                 android:textColor="@color/tv_text_primary"
                 android:textSize="11sp"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -105,6 +125,7 @@
     <!-- 正在下载任务卡片 (Focused Example) -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/card_download_task"
+        android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="100dp"
         android:layout_marginTop="12dp"
@@ -189,9 +210,35 @@
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintTop_toBottomOf="@id/tv_label_downloading" />
 
+    <LinearLayout
+        android:id="@+id/layout_download_tasks_empty"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_label_downloading">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/downloads_empty_title"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="16sp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/downloads_empty_message"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="13sp" />
+    </LinearLayout>
+
     <!-- 已下载媒体海报流 -->
     <TextView
         android:id="@+id/tv_label_downloaded"
+        android:visibility="gone"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
@@ -204,6 +251,7 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_downloaded"
+        android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="10dp"

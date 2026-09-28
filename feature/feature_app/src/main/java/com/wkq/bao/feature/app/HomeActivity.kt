@@ -12,6 +12,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.wkq.base.activity.BaseActivity
@@ -36,6 +37,7 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
     }
 
     private val tabs by lazy { listOf(binding.tabHome, binding.tabLibrary, binding.tabDownloads) }
+    private val navigationTabs by lazy { tabs + binding.tabNas }
     override fun initView() {
         configureInsets()
         capTabFontScale()
@@ -43,14 +45,21 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
             adapter = MainPagerAdapter()
             offscreenPageLimit = 2
             isUserInputEnabled = false
+            // ViewPager2 内部列表只负责承载页面，不应成为电视遥控器的停留焦点。
+            (getChildAt(0) as? RecyclerView)?.isFocusable = false
             registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-                override fun onPageSelected(position: Int) = renderSelectedTab(position)
+                override fun onPageSelected(position: Int) {
+                    renderSelectedTab(position)
+                    restoreVisibleFocus()
+                }
             })
         }
         tabs.forEachIndexed { index, tab ->
             TvFocusHelper.applyFocusScale(tab, 1.04f)
             tab.setOnClickListener { showPage(index) }
         }
+        TvFocusHelper.applyFocusScale(binding.tabNas, 1.04f)
+        binding.tabNas.setOnClickListener { showPage(MainPageNavigator.NAS) }
         applyRequestedPage(intent)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -69,6 +78,11 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
         super.onNewIntent(intent)
         setIntent(intent)
         applyRequestedPage(intent)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) restoreVisibleFocus()
     }
 
     private fun applyRequestedPage(intent: Intent) {
@@ -115,18 +129,32 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
         val target = page.coerceIn(0, tabs.lastIndex)
         binding.vpMainPages.setCurrentItem(target, false)
         renderSelectedTab(target)
+        if (TvFocusHelper.isTelevision(binding.root)) tabs[target].requestFocus()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (TvFocusHelper.isTelevision(binding.root) && currentFocus?.isShown != true) {
+            tabs[binding.vpMainPages.currentItem].requestFocus()
+        }
         val focused = currentFocus
-        if (focused in tabs && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
-            val current = tabs.indexOf(focused)
-            val next = (current + if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1).coerceIn(0, tabs.lastIndex)
-            tabs[next].requestFocus()
-            showPage(next)
+        if (focused in navigationTabs && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+            val current = navigationTabs.indexOf(focused)
+            val next = (current + if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1).coerceIn(0, navigationTabs.lastIndex)
+            navigationTabs[next].requestFocus()
+            if (next < tabs.size) showPage(next)
             return true
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    private fun restoreVisibleFocus() {
+        if (!TvFocusHelper.isTelevision(binding.root)) return
+        binding.root.post {
+            val focused = currentFocus
+            if (focused?.isShown != true || focused === binding.vpMainPages.getChildAt(0)) {
+                tabs[binding.vpMainPages.currentItem].requestFocus()
+            }
+        }
     }
 
     private fun renderSelectedTab(selected: Int) {
@@ -144,7 +172,7 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
     private fun capTabFontScale() {
         val density = resources.displayMetrics.density
         val fontScale = resources.configuration.fontScale.coerceAtLeast(MIN_FONT_SCALE)
-        tabs.forEach { tab ->
+        navigationTabs.forEach { tab ->
             val baseSp = tab.textSize / (density * fontScale)
             tab.setTextSize(
                 TypedValue.COMPLEX_UNIT_PX,

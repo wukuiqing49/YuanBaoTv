@@ -34,6 +34,7 @@
     <string name="tip_downloading">Downloading...</string>
     <string name="title_nas_settings">NAS Settings</string>
     <string name="btn_add_nas">Add NAS</string>
+    <string name="btn_add_local_media">Choose local videos</string>
     <string name="btn_import_nas">Import from NAS</string>
     <string name="btn_test_conn">Test Connection</string>
     <string name="btn_scan_now">Scan Now</string>
@@ -132,7 +133,7 @@
     <string name="btn_download_episode">Download</string>
     <string name="download_episode_queued">Episode added to downloads</string>
     <string name="library_empty_title">No media found</string>
-    <string name="library_empty_message">Connect a NAS source, then download media to external storage</string>
+    <string name="library_empty_message">Choose videos on a USB drive, memory card, or hard drive, or connect a NAS to stream and download</string>
     <string name="library_filter_empty_message">No media in this category. Return to all media to keep browsing.</string>
     <string name="nav_nas">NAS</string>
     <string name="storage_select_target">Choose location</string>

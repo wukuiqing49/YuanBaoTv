@@ -6,8 +6,7 @@
     android:layout_height="108dp"
     android:layout_marginEnd="10dp"
     android:background="@drawable/bg_tv_focus_ring"
-    android:focusable="true"
-    android:focusableInTouchMode="true">
+    android:focusable="true">
     <ImageView android:id="@+id/iv_backdrop" android:layout_width="0dp" android:layout_height="0dp" android:scaleType="centerCrop" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
     <View android:layout_width="0dp" android:layout_height="48dp" android:background="#CC0A0C10" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
     <TextView android:id="@+id/tv_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_marginEnd="8dp" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_primary" android:textSize="11sp" android:textStyle="bold" app:layout_constraintBottom_toTopOf="@id/pb_progress" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />

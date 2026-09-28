@@ -8,8 +8,7 @@
     android:layout_marginEnd="20dp"
     android:background="@drawable/bg_tv_focus_ring"
     android:clipToPadding="false"
-    android:focusable="true"
-    android:focusableInTouchMode="true">
+    android:focusable="true">
 
     <!-- 1. 16:9 剧照大底图 (Figma Node 1:54) -->
     <ImageView

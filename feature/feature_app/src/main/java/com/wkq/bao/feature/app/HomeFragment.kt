@@ -91,6 +91,7 @@ class HomeFragment : Fragment() {
         binding.rvCartoons.visibility = if (hasCartoons) View.VISIBLE else View.GONE
         val featured = state.featured
         if (featured == null) {
+            binding.tvHeroDesc.maxLines = 4
             binding.ivHeroBackdrop.visibility = View.GONE
             binding.vHeroScrim.visibility = View.GONE
             binding.tvHeroTitle.setText(com.wkq.bao.feature.res.R.string.library_empty_title)
@@ -98,19 +99,25 @@ class HomeFragment : Fragment() {
             binding.tvHeroSeasonTag.visibility = View.GONE
             binding.tvHeroLastWatch?.visibility = View.GONE
             binding.tvHeroDesc.setText(com.wkq.bao.feature.res.R.string.library_empty_message)
-            binding.btnHeroPlay.setText(com.wkq.bao.feature.res.R.string.btn_add_nas)
+            binding.btnHeroPlay.setText(com.wkq.bao.feature.res.R.string.btn_add_local_media)
+            binding.btnHeroPlay.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             binding.btnHeroPlay.isEnabled = true
             binding.btnHeroPlay.visibility = View.VISIBLE
-            binding.btnHeroDetail.visibility = View.GONE
-            binding.btnHeroPlay.setOnClickListener { navigator().showPage(MainPageNavigator.NAS) }
+            binding.btnHeroDetail.setText(com.wkq.bao.feature.res.R.string.btn_add_nas)
+            binding.btnHeroDetail.visibility = View.VISIBLE
+            binding.btnHeroPlay.setOnClickListener { navigator().showPage(MainPageNavigator.DOWNLOADS) }
+            binding.btnHeroDetail.setOnClickListener { navigator().showPage(MainPageNavigator.NAS) }
             return
         }
         binding.ivHeroBackdrop.visibility = View.VISIBLE
+        binding.tvHeroDesc.maxLines = 2
         binding.vHeroScrim.visibility = View.VISIBLE
         binding.btnHeroPlay.setText(com.wkq.bao.feature.res.R.string.btn_continue_play)
+        binding.btnHeroPlay.setCompoundDrawablesWithIntrinsicBounds(com.wkq.bao.feature.res.R.drawable.ic_tv_play, 0, 0, 0)
         binding.btnHeroPlay.isEnabled = true
         binding.btnHeroPlay.visibility = View.VISIBLE
         binding.btnHeroDetail.visibility = View.VISIBLE
+        binding.btnHeroDetail.setText(com.wkq.bao.feature.res.R.string.btn_view_detail)
         binding.tvHeroSeasonTag.visibility = View.VISIBLE
         binding.tvHeroTitle.text = featured.title
         binding.tvHeroSeasonTag.text = if (MediaSeriesType.isMovie(featured.type)) {

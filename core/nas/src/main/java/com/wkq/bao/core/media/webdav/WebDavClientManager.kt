@@ -37,7 +37,8 @@ object WebDavClientManager {
         val lastModifiedAt: Long,
         val posterUri: String = "",
         val backdropUri: String = "",
-        val thumbnailUri: String = ""
+        val thumbnailUri: String = "",
+        val nfoUri: String = ""
     )
 
     private data class ScanDirectory(
@@ -144,7 +145,8 @@ object WebDavClientManager {
                                     entry.lastModifiedAt,
                                     mediaArtwork.posterUri,
                                     mediaArtwork.backdropUri,
-                                    mediaArtwork.thumbnailUri
+                                    mediaArtwork.thumbnailUri,
+                                    mediaArtwork.nfoUri
                                 )
                             )
                             visited++

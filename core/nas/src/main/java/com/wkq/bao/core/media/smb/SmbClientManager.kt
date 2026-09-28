@@ -39,7 +39,8 @@ object SmbClientManager {
         val lastModifiedAt: Long,
         val posterUri: String = "",
         val backdropUri: String = "",
-        val thumbnailUri: String = ""
+        val thumbnailUri: String = "",
+        val nfoUri: String = ""
     )
 
     private data class ScanDirectory(
@@ -265,7 +266,8 @@ object SmbClientManager {
                                     lastModifiedAt = item.lastWriteTime.toEpochMillis(),
                                     posterUri = mediaArtwork.posterUri,
                                     backdropUri = mediaArtwork.backdropUri,
-                                    thumbnailUri = mediaArtwork.thumbnailUri
+                                    thumbnailUri = mediaArtwork.thumbnailUri,
+                                    nfoUri = mediaArtwork.nfoUri
                                 )
                             )
                             visitedFileCount++

@@ -135,6 +135,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
+        android:clipChildren="false"
         android:paddingTop="4dp"
         android:paddingBottom="@dimen/nas_browser_list_bottom_padding"
         android:scrollbars="none"

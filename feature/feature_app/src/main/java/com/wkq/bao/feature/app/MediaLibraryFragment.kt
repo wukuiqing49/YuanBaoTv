@@ -90,14 +90,14 @@ class MediaLibraryFragment : Fragment() {
         )
         binding.btnEmptyLibraryAction.setText(
             if (state.selectedType == null) {
-                com.wkq.bao.feature.res.R.string.btn_add_nas
+                com.wkq.bao.feature.res.R.string.btn_add_local_media
             } else {
                 com.wkq.bao.feature.res.R.string.nav_all_media
             }
         )
         binding.btnEmptyLibraryAction.setOnClickListener {
             if (state.selectedType == null) {
-                (requireActivity() as MainPageNavigator).showPage(MainPageNavigator.NAS)
+                (requireActivity() as MainPageNavigator).showPage(MainPageNavigator.DOWNLOADS)
             } else {
                 viewModel.selectType(null)
             }
@@ -114,7 +114,7 @@ class MediaLibraryFragment : Fragment() {
     }
 
     private fun calculateSpanCount(widthPx: Int): Int {
-        val minimumCardWidthDp = if (resources.configuration.smallestScreenWidthDp >= 600) 176f else 116f
+        val minimumCardWidthDp = if (resources.configuration.smallestScreenWidthDp >= 600) 176f else 148f
         val minimumCardWidth = minimumCardWidthDp * resources.displayMetrics.density
         return (widthPx / minimumCardWidth).toInt().coerceIn(2, 6)
     }

@@ -7,5 +7,7 @@ data class NasRemoteMediaFile(
     val lastModifiedAt: Long,
     val posterUri: String = "",
     val backdropUri: String = "",
-    val thumbnailUri: String = ""
+    val thumbnailUri: String = "",
+    val nfoUri: String = "",
+    val nfo: com.wkq.bao.core.media.scraper.MovieNfoParser.Metadata? = null
 )

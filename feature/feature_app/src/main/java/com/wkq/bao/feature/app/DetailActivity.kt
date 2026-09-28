@@ -164,14 +164,24 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
         if (renderedSeasons != seasons) {
             renderedSeasons = seasons
             binding.llSeasonTabs.removeAllViews()
+            val compact = resources.configuration.smallestScreenWidthDp < 600 &&
+                !TvFocusHelper.isTelevision(binding.root)
             seasons.forEach { season ->
                 val button = android.widget.Button(this).apply {
                     text = getString(com.wkq.bao.feature.res.R.string.season_format, season.seasonNumber)
                     setBackgroundResource(com.wkq.bao.feature.res.R.drawable.bg_tv_button_focus)
                     setTextColor(getColor(com.wkq.bao.feature.res.R.color.tv_text_primary))
+                    if (compact) {
+                        isAllCaps = false
+                        textSize = 12f
+                        minWidth = 0
+                        minHeight = 0
+                        val horizontalPadding = (16 * resources.displayMetrics.density).toInt()
+                        setPadding(horizontalPadding, 0, horizontalPadding, 0)
+                    }
                     layoutParams = android.widget.LinearLayout.LayoutParams(
                         android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                        (48 * resources.displayMetrics.density).toInt()
+                        ((if (compact) 40 else 48) * resources.displayMetrics.density).toInt()
                     ).apply { marginEnd = (12 * resources.displayMetrics.density).toInt() }
                     tag = season.id
                     setOnClickListener { viewModel.selectSeason(season.id) }

@@ -11,13 +11,15 @@ object SidecarArtworkResolver {
     data class DirectoryArtwork(
         val posterUri: String = "",
         val backdropUri: String = "",
-        val imagesByStem: Map<String, String> = emptyMap()
+        val imagesByStem: Map<String, String> = emptyMap(),
+        val nfoByStem: Map<String, String> = emptyMap()
     )
 
     data class MediaArtwork(
         val posterUri: String,
         val backdropUri: String,
-        val thumbnailUri: String
+        val thumbnailUri: String,
+        val nfoUri: String
     )
 
     fun resolveDirectory(
@@ -27,12 +29,16 @@ object SidecarArtworkResolver {
         val images = candidates.asSequence()
             .filter { candidate -> candidate.fileName.extension() in IMAGE_EXTENSIONS }
             .associate { candidate -> candidate.fileName.stem() to candidate.uri }
+        val nfos = candidates.asSequence()
+            .filter { it.fileName.extension() == "nfo" }
+            .associate { it.fileName.stem() to it.uri }
         return DirectoryArtwork(
             posterUri = POSTER_NAMES.firstNotNullOfOrNull(images::get).orEmpty()
                 .ifBlank { inherited.posterUri },
             backdropUri = BACKDROP_NAMES.firstNotNullOfOrNull(images::get).orEmpty()
                 .ifBlank { inherited.backdropUri },
-            imagesByStem = images
+            imagesByStem = images,
+            nfoByStem = nfos
         )
     }
 
@@ -42,9 +48,15 @@ object SidecarArtworkResolver {
             .firstNotNullOfOrNull(directory.imagesByStem::get)
             .orEmpty()
         return MediaArtwork(
-            posterUri = directory.posterUri,
-            backdropUri = directory.backdropUri,
-            thumbnailUri = thumbnailUri
+            posterUri = listOf("$stem-poster", "$stem.poster", "$stem-cover", "$stem.cover")
+                .firstNotNullOfOrNull(directory.imagesByStem::get).orEmpty()
+                .ifBlank { directory.posterUri },
+            backdropUri = listOf("$stem-fanart", "$stem.fanart", "$stem-backdrop")
+                .firstNotNullOfOrNull(directory.imagesByStem::get).orEmpty()
+                .ifBlank { directory.backdropUri },
+            thumbnailUri = thumbnailUri,
+            nfoUri = directory.nfoByStem[stem].orEmpty()
+                .ifBlank { directory.nfoByStem["movie"].orEmpty() }
         )
     }
 

@@ -12,6 +12,7 @@ import com.wkq.bao.core.database.entity.NasSourceEntity
 import com.wkq.bao.core.database.entity.SeasonEntity
 import com.wkq.bao.core.media.parser.MediaFileNameParser
 import com.wkq.bao.core.media.scraper.MetadataScraper
+import com.wkq.bao.core.media.scraper.MovieNfoParser
 import com.wkq.bao.core.media.smb.SmbClientManager
 import com.wkq.bao.core.media.smb.SmbCredentialRegistry
 import com.wkq.bao.core.media.webdav.WebDavClientManager
@@ -19,6 +20,7 @@ import com.wkq.bao.core.media.webdav.WebDavCredentialRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayInputStream
 import kotlin.coroutines.coroutineContext
 
 /** NAS 媒体扫描。遍历与入库同步进行，避免先聚合整个库的路径列表。 */
@@ -42,6 +44,10 @@ class NasScanner(private val database: AppDatabase) {
         else SmbCredentialRegistry.register(nasSource)
         var importedCount = initialImportedCount
         val pendingFiles = ArrayList<NasRemoteMediaFile>(BATCH_SIZE)
+        val nfoCache = object : LinkedHashMap<String, MovieNfoParser.Metadata?>(128, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, MovieNfoParser.Metadata?>): Boolean =
+                size > 128
+        }
 
         suspend fun flushPendingFiles() {
             if (pendingFiles.isEmpty()) return
@@ -59,7 +65,12 @@ class NasScanner(private val database: AppDatabase) {
 
         val onRemoteFile: suspend (NasRemoteMediaFile) -> Unit = { remoteFile ->
             if (isVideoFile(remoteFile.path.substringAfterLast("/"))) {
-                pendingFiles += remoteFile
+                val isMovie = MediaFileNameParser.parse(remoteFile.path.substringAfterLast('/')).mediaType == MediaSeriesType.MOVIE
+                val nfo = remoteFile.nfoUri.takeIf { isMovie && it.isNotBlank() }?.let { uri ->
+                    if (!nfoCache.containsKey(uri)) nfoCache[uri] = readMovieNfo(nasSource, uri)
+                    nfoCache[uri]
+                }
+                pendingFiles += remoteFile.copy(nfo = nfo)
                 if (pendingFiles.size >= BATCH_SIZE) flushPendingFiles()
             }
         }
@@ -72,7 +83,8 @@ class NasScanner(private val database: AppDatabase) {
                         remoteFile.lastModifiedAt,
                         remoteFile.posterUri,
                         remoteFile.backdropUri,
-                        remoteFile.thumbnailUri
+                        remoteFile.thumbnailUri,
+                        remoteFile.nfoUri
                     )
                 )
             }
@@ -80,7 +92,8 @@ class NasScanner(private val database: AppDatabase) {
             SmbClientManager.scanFilesRecursive(nasSource, resumeAfterPath.ifBlank { null }) { remoteFile ->
                 onRemoteFile(NasRemoteMediaFile(
                     remoteFile.path, remoteFile.length, remoteFile.lastModifiedAt,
-                    remoteFile.posterUri, remoteFile.backdropUri, remoteFile.thumbnailUri
+                    remoteFile.posterUri, remoteFile.backdropUri, remoteFile.thumbnailUri,
+                    remoteFile.nfoUri
                 ))
             }
         }
@@ -138,6 +151,7 @@ class NasScanner(private val database: AppDatabase) {
             .toString()
 
         val scraped = MetadataScraper.scrape(parsed.seriesTitle)
+        val nfo = remoteFile.nfo
         val resolvedPosterUri = remoteFile.posterUri.ifBlank {
             remoteFile.thumbnailUri.takeIf { parsed.mediaType == MediaSeriesType.MOVIE }.orEmpty()
         }.ifBlank { scraped.posterUri }
@@ -146,11 +160,19 @@ class NasScanner(private val database: AppDatabase) {
             .ifBlank { videoFrameUri }
         val resolvedEpisodeThumbnailUri = remoteFile.thumbnailUri.ifBlank { videoFrameUri }
 
+        val displayTitle = nfo?.title?.takeIf(String::isNotBlank) ?: parsed.seriesTitle
         val existingSeries = mediaDao.getSeriesByTitle(parsed.seriesTitle)
+            ?: displayTitle.takeIf { it != parsed.seriesTitle }?.let { mediaDao.getSeriesByTitle(it) }
         val series = existingSeries?.copy(
             type = existingSeries.type.takeUnless { it in setOf(MediaSeriesType.CARTOON, MediaSeriesType.LOCAL) }
                 ?: parsed.mediaType,
             totalSeasons = maxOf(existingSeries.totalSeasons, parsed.seasonNumber),
+            originalTitle = if (existingSeries.originalTitle.isBlank() || existingSeries.originalTitle == existingSeries.title) {
+                nfo?.originalTitle?.ifBlank { existingSeries.originalTitle } ?: existingSeries.originalTitle
+            } else existingSeries.originalTitle,
+            year = existingSeries.year.ifBlank { nfo?.year.orEmpty() },
+            genre = existingSeries.genre.ifBlank { nfo?.genre.orEmpty() },
+            description = existingSeries.description.ifBlank { nfo?.description.orEmpty() },
             posterUri = NasArtworkPriority.prefer(existingSeries.posterUri, resolvedPosterUri),
             backdropUri = NasArtworkPriority.prefer(existingSeries.backdropUri, resolvedBackdropUri),
             updatedAt = System.currentTimeMillis()
@@ -159,12 +181,12 @@ class NasScanner(private val database: AppDatabase) {
         } ?: run {
             val seriesId = mediaDao.insertSeries(
                 MediaSeriesEntity(
-                    title = parsed.seriesTitle,
-                    originalTitle = scraped.originalTitle,
+                    title = displayTitle,
+                    originalTitle = nfo?.originalTitle?.ifBlank { scraped.originalTitle } ?: scraped.originalTitle,
                     type = parsed.mediaType,
-                    genre = scraped.genre,
-                    year = scraped.year,
-                    description = scraped.description,
+                    genre = nfo?.genre?.ifBlank { scraped.genre } ?: scraped.genre,
+                    year = nfo?.year?.ifBlank { scraped.year } ?: scraped.year,
+                    description = nfo?.description?.ifBlank { scraped.description } ?: scraped.description,
                     posterUri = resolvedPosterUri,
                     backdropUri = resolvedBackdropUri,
                     totalSeasons = parsed.seasonNumber.coerceAtLeast(1)
@@ -244,6 +266,27 @@ class NasScanner(private val database: AppDatabase) {
     private companion object {
         const val BATCH_SIZE = 64
     }
+
+    private fun readMovieNfo(source: NasSourceEntity, uri: String): MovieNfoParser.Metadata? = runCatching {
+        val parsedUri = Uri.parse(uri)
+        if (WebDavClientManager.isWebDav(source)) {
+            WebDavClientManager.openRemoteFile(source, parsedUri).use { response ->
+                if (!response.isSuccessful) return@use null
+                response.body?.byteStream()?.use(MovieNfoParser::parse)
+            }
+        } else {
+            SmbClientManager.withRemoteFile(source, parsedUri) { file, length ->
+                val bytes = ByteArray(minOf(length, 256L * 1024L + 1L).toInt())
+                var offset = 0
+                while (offset < bytes.size) {
+                    val read = file.read(bytes, offset.toLong(), offset, bytes.size - offset)
+                    if (read <= 0) break
+                    offset += read
+                }
+                MovieNfoParser.parse(ByteArrayInputStream(bytes, 0, offset))
+            }
+        }
+    }.getOrNull()
 }
 
 /** 真实海报到达后可以替换此前生成的抽帧，避免占位封面长期滞留。 */

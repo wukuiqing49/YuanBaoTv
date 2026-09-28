@@ -34,6 +34,7 @@
     <string name="tip_downloading">正在下载...</string>
     <string name="title_nas_settings">NAS 源设置</string>
     <string name="btn_add_nas">添加 NAS</string>
+    <string name="btn_add_local_media">选择本地影片</string>
     <string name="btn_import_nas">从 NAS 导入</string>
     <string name="btn_test_conn">测试连接</string>
     <string name="btn_scan_now">立即扫描</string>
@@ -132,7 +133,7 @@
     <string name="btn_download_episode">下载</string>
     <string name="download_episode_queued">该集已加入下载队列</string>
     <string name="library_empty_title">尚未发现媒体</string>
-    <string name="library_empty_message">连接 NAS 后选择资源下载到外置存储</string>
+    <string name="library_empty_message">选择 U 盘、内存卡或硬盘上的影片，也可连接 NAS 在线播放或下载</string>
     <string name="library_filter_empty_message">当前分类暂无媒体，可返回全部媒体查看</string>
     <string name="nav_nas">NAS</string>
     <string name="storage_select_target">选择位置</string>

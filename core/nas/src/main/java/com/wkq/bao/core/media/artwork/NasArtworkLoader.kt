@@ -2,6 +2,8 @@ package com.wkq.bao.core.media.artwork
 
 import android.content.Context
 import android.net.Uri
+import android.media.MediaMetadataRetriever
+import android.graphics.Bitmap
 import android.webkit.MimeTypeMap
 import coil.Coil
 import coil.ImageLoader
@@ -19,6 +21,9 @@ import com.wkq.bao.core.media.smb.SmbCredentialRegistry
 import com.wkq.bao.core.media.webdav.WebDavClientManager
 import com.wkq.bao.core.media.webdav.WebDavCredentialRegistry
 import java.io.IOException
+import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okio.Buffer
 import okio.Source
 import okio.Timeout
@@ -42,12 +47,60 @@ object NasArtworkLoader {
                         .components {
                             add(SmbArtworkFetcher.Factory(appContext))
                             add(HttpsArtworkFetcher.Factory(appContext))
+                            add(LocalVideoArtworkFetcher.Factory(appContext))
                         }
                         .build()
                 }
             )
             installed = true
         }
+    }
+}
+
+@OptIn(ExperimentalCoilApi::class)
+private class LocalVideoArtworkFetcher(
+    private val context: Context,
+    private val data: Uri,
+    private val options: Options,
+    private val diskCache: DiskCache?
+) : Fetcher {
+    override suspend fun fetch(): FetchResult = withContext(Dispatchers.IO) {
+        val key = options.diskCacheKey ?: data.toString()
+        if (options.diskCachePolicy.readEnabled) {
+            diskCache?.openSnapshot(key)?.let { snapshot ->
+                return@withContext SourceResult(
+                    ImageSource(snapshot.data, diskCache.fileSystem, key, snapshot),
+                    "image/jpeg", DataSource.DISK
+                )
+            }
+        }
+        val retriever = MediaMetadataRetriever()
+        val bytes = try {
+            retriever.setDataSource(context, data.buildUpon().clearQuery().build())
+            retriever.embeddedPicture?.takeIf { it.isNotEmpty() } ?: run {
+                val frame = retriever.getFrameAtTime(10_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    ?: throw IOException("无法从本地影片提取封面")
+                try {
+                    ByteArrayOutputStream().use { output ->
+                        check(frame.compress(Bitmap.CompressFormat.JPEG, 82, output))
+                        output.toByteArray()
+                    }
+                } finally {
+                    frame.recycle()
+                }
+            }
+        } finally {
+            retriever.release()
+        }
+        cacheGeneratedFrame(bytes, context, diskCache, key, options.diskCachePolicy.writeEnabled)
+    }
+
+    class Factory(private val context: Context) : Fetcher.Factory<Uri> {
+        override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? =
+            if (data.scheme == "content" && data.getQueryParameter(ARTWORK_FRAME_PARAMETER) == "1") {
+                LocalVideoArtworkFetcher(context, data, options, imageLoader.diskCache)
+            } else null
     }
 }
 
