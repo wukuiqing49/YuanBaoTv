@@ -16,6 +16,18 @@ class PosterCardAdapter(
     private val onItemClick: (MediaSeriesEntity) -> Unit
 ) : ListAdapter<MediaSeriesEntity, PosterCardAdapter.ViewHolder>(DIFF_CALLBACK) {
 
+    init {
+        setHasStableIds(true)
+        stateRestorationPolicy = StateRestorationPolicy.PREVENT_WHEN_EMPTY
+    }
+
+    override fun getItemId(position: Int): Long = getItem(position).id
+
+    override fun onViewRecycled(holder: ViewHolder) {
+        TvFocusHelper.resetRecycledFocus(holder.itemView)
+        super.onViewRecycled(holder)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemPosterCardBinding.inflate(
             LayoutInflater.from(parent.context),

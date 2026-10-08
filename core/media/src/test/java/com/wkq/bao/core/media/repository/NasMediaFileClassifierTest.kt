@@ -20,6 +20,7 @@ class NasMediaFileClassifierTest {
 
         assertTrue(NasMediaFileClassifier.belongsToVideo(file("Show.S01E01.xml", "shows/Show.S01E01.xml"), video))
         assertTrue(NasMediaFileClassifier.belongsToVideo(file("Show.S01E01.zh.ass", "shows/Show.S01E01.zh.ass"), video))
+        assertTrue(NasMediaFileClassifier.belongsToVideo(file("Show.S01E01.zh.ssa", "shows/Show.S01E01.zh.ssa"), video))
         assertFalse(NasMediaFileClassifier.belongsToVideo(file("Show.S01E02.xml", "shows/Show.S01E02.xml"), video))
         assertFalse(NasMediaFileClassifier.belongsToVideo(file("Show.S01E01.xml", "other/Show.S01E01.xml"), video))
     }

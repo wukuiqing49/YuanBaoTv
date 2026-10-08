@@ -83,10 +83,10 @@ object WebDavClientManager {
         }
     }
 
-    suspend fun listDirectoryEntries(source: NasSourceEntity, path: String): Result<List<NasFileEntry>> =
+    suspend fun listDirectoryEntries(source: NasSourceEntity, path: String, timeoutSeconds: Long? = null): Result<List<NasFileEntry>> =
         withContext(Dispatchers.IO) {
             runCatching {
-                listDirectory(source, path)
+                listDirectory(source, path, timeoutSeconds)
                     .map { entry ->
                         NasFileEntry(
                             name = entry.relativePath.substringAfterLast('/'),
@@ -238,20 +238,20 @@ object WebDavClientManager {
         request(source, uri.toString()).get().build()
     ).execute()
 
-    private fun listDirectory(source: NasSourceEntity, directory: String): List<DavEntry> {
-        executePropFind(source, directory, depth = 1).use { response ->
+    private fun listDirectory(source: NasSourceEntity, directory: String, timeoutSeconds: Long? = null): List<DavEntry> {
+        executePropFind(source, directory, depth = 1, timeoutSeconds).use { response ->
             check(response.code == 207) { "WebDAV 目录读取失败: HTTP ${response.code}" }
             return parseEntries(source, checkNotNull(response.body).byteStream())
                 .filter { it.relativePath.isNotBlank() && !it.relativePath.equals(directory.trim('/'), true) }
         }
     }
 
-    private fun executePropFind(source: NasSourceEntity, path: String, depth: Int) = client.newCall(
+    private fun executePropFind(source: NasSourceEntity, path: String, depth: Int, timeoutSeconds: Long? = null) = client.newCall(
         request(source, endpoint(source, path).toString())
             .header("Depth", depth.toString())
             .method("PROPFIND", PROPFIND_BODY.toRequestBody(XML_MEDIA_TYPE))
             .build()
-    ).execute()
+    ).apply { timeoutSeconds?.let { timeout().timeout(it, TimeUnit.SECONDS) } }.execute()
 
     private fun rangeResponse(source: NasSourceEntity, url: String, offset: Long, byteCount: Long) = client.newCall(
         request(source, url)

@@ -16,6 +16,7 @@ import com.wkq.bao.core.media.storage.MediaStorageLocation
 import kotlinx.coroutines.flow.Flow
 
 interface MediaDetailRepository {
+    suspend fun editMetadata(seriesId: Long, update: LocalMetadataUpdate): MediaSeriesEntity
     suspend fun getSeries(seriesId: Long): MediaSeriesEntity?
     fun observeSeasons(seriesId: Long): Flow<List<SeasonEntity>>
     fun observeEpisodes(seriesId: Long, seasonId: Long): Flow<List<EpisodeWithSource>>
@@ -30,6 +31,9 @@ interface MediaDetailRepository {
     ): EnqueueDownloadsResult
     suspend fun enqueueEpisode(seriesId: Long, episodeId: Long, downloadTarget: DownloadTarget): EnqueueDownloadsResult
 }
+
+data class LocalMetadataUpdate(val title: String, val year: String, val genre: String,
+    val description: String, val type: String, val posterUri: String? = null)
 
 data class DownloadTarget(
     val uri: String,
@@ -49,24 +53,24 @@ class RoomMediaDetailRepository private constructor(
     private val database: AppDatabase
 ) : MediaDetailRepository {
 
+    override suspend fun editMetadata(seriesId: Long, update: LocalMetadataUpdate): MediaSeriesEntity =
+        database.mediaDao().editSeriesMetadata(seriesId, update.title, update.year, update.genre,
+            update.description, update.type, update.posterUri)
+
     override suspend fun getSeries(seriesId: Long): MediaSeriesEntity? =
         database.mediaDao().getSeriesById(seriesId)
 
     override fun observeSeasons(seriesId: Long): Flow<List<SeasonEntity>> =
-        database.mediaDao().getDownloadedSeasonsBySeriesId(seriesId)
+        database.mediaDao().getPlayableSeasonsBySeriesId(seriesId)
 
     override fun observeEpisodes(seriesId: Long, seasonId: Long): Flow<List<EpisodeWithSource>> =
-        database.mediaDao().getEpisodesWithSource(seriesId, seasonId)
+        database.mediaDao().getPlayableEpisodesWithSource(seriesId, seasonId)
 
     override suspend fun getFirstPlayableEpisode(
         seriesId: Long,
         seasonId: Long,
         isMovie: Boolean
-    ): EpisodeEntity? = if (isMovie) {
-        database.mediaDao().getFirstDownloadedEpisode(seriesId)
-    } else {
-        database.mediaDao().getDownloadedEpisodesSync(seriesId, seasonId).firstOrNull()
-    }
+    ): EpisodeEntity? = database.mediaDao().getFirstPlayableEpisode(seriesId, if (isMovie) 0 else seasonId)
 
     override suspend fun isFavorite(seriesId: Long): Boolean =
         database.favoriteDao().getBySeriesId(seriesId) != null

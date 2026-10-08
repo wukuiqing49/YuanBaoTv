@@ -30,6 +30,26 @@ interface MediaDao {
     @Query("SELECT * FROM media_series WHERE type = :type AND EXISTS (SELECT 1 FROM media_files INNER JOIN media_locations ON media_locations.mediaFileId = media_files.id WHERE media_files.seriesId = media_series.id) ORDER BY updatedAt DESC")
     fun getDownloadedSeriesByType(type: String): Flow<List<MediaSeriesEntity>>
 
+    @Query("""SELECT * FROM media_series WHERE EXISTS (
+        SELECT 1 FROM media_files WHERE media_files.seriesId = media_series.id AND (
+            EXISTS (SELECT 1 FROM media_locations WHERE mediaFileId = media_files.id) OR
+            EXISTS (SELECT 1 FROM media_remote_sources remote
+                INNER JOIN nas_sources nas ON nas.id = remote.nasSourceId AND nas.enabled = 1
+                WHERE remote.mediaFileId = media_files.id)
+        )
+    ) ORDER BY updatedAt DESC""")
+    fun getPlayableSeries(): Flow<List<MediaSeriesEntity>>
+
+    @Query("""SELECT * FROM media_series WHERE type = :type AND EXISTS (
+        SELECT 1 FROM media_files WHERE media_files.seriesId = media_series.id AND (
+            EXISTS (SELECT 1 FROM media_locations WHERE mediaFileId = media_files.id) OR
+            EXISTS (SELECT 1 FROM media_remote_sources remote
+                INNER JOIN nas_sources nas ON nas.id = remote.nasSourceId AND nas.enabled = 1
+                WHERE remote.mediaFileId = media_files.id)
+        )
+    ) ORDER BY updatedAt DESC""")
+    fun getPlayableSeriesByType(type: String): Flow<List<MediaSeriesEntity>>
+
     @Query("SELECT * FROM media_series ORDER BY updatedAt DESC")
     suspend fun getAllSeriesSync(): List<MediaSeriesEntity>
 
@@ -39,7 +59,7 @@ interface MediaDao {
     @Query("SELECT * FROM media_series WHERE id = :seriesId LIMIT 1")
     suspend fun getSeriesById(seriesId: Long): MediaSeriesEntity?
 
-    @Query("SELECT * FROM media_series WHERE title = :title LIMIT 1")
+    @Query("SELECT * FROM media_series WHERE scanTitle = :title OR (scanTitle = '' AND title = :title) ORDER BY metadataEdited DESC, id ASC LIMIT 1")
     suspend fun getSeriesByTitle(title: String): MediaSeriesEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -47,6 +67,31 @@ interface MediaDao {
 
     @Update
     suspend fun updateSeries(series: MediaSeriesEntity)
+
+    /** 扫描不能覆盖用户编辑，即使扫描持有编辑前的旧快照。 */
+    @Transaction
+    suspend fun updateScannedSeries(series: MediaSeriesEntity) {
+        val current = getSeriesById(series.id) ?: return
+        updateSeries(if (current.metadataEdited) current.copy(
+            totalSeasons = maxOf(current.totalSeasons, series.totalSeasons), updatedAt = series.updatedAt
+        ) else series)
+    }
+
+    @Transaction
+    suspend fun editSeriesMetadata(seriesId: Long, title: String, year: String, genre: String,
+        description: String, type: String, posterUri: String?): MediaSeriesEntity {
+        val current = getSeriesById(seriesId) ?: error("Media missing")
+        require(title.isNotBlank() && title.length <= 200)
+        require(year.isBlank() || (year.length == 4 && year.toIntOrNull() in 1800..2999))
+        require(type in setOf("MOVIE", "TV", "CARTOON", "LOCAL"))
+        require(type != "MOVIE" || getEpisodesForSeriesSync(seriesId).size <= 1) { "Multiple episodes cannot become a movie" }
+        val updated = current.copy(title = title.trim(), year = year.trim(), genre = genre.trim(),
+            description = description.trim(), type = type, posterUri = posterUri ?: current.posterUri,
+            scanTitle = current.scanTitle.ifBlank { current.title }, metadataEdited = true,
+            updatedAt = System.currentTimeMillis())
+        updateSeries(updated)
+        return updated
+    }
 
     @Delete
     suspend fun deleteSeries(series: MediaSeriesEntity)
@@ -67,6 +112,17 @@ interface MediaDao {
         ORDER BY seasonNumber ASC
     """)
     fun getDownloadedSeasonsBySeriesId(seriesId: Long): Flow<List<SeasonEntity>>
+
+    @Query("""SELECT * FROM seasons WHERE seriesId = :seriesId AND EXISTS (
+        SELECT 1 FROM episodes INNER JOIN media_files ON media_files.episodeId = episodes.id
+        WHERE episodes.seasonId = seasons.id AND (
+            EXISTS (SELECT 1 FROM media_locations WHERE mediaFileId = media_files.id) OR
+            EXISTS (SELECT 1 FROM media_remote_sources remote
+                INNER JOIN nas_sources nas ON nas.id = remote.nasSourceId AND nas.enabled = 1
+                WHERE remote.mediaFileId = media_files.id)
+        )
+    ) ORDER BY seasonNumber ASC""")
+    fun getPlayableSeasonsBySeriesId(seriesId: Long): Flow<List<SeasonEntity>>
 
     @Query("SELECT * FROM seasons WHERE seriesId = :seriesId ORDER BY seasonNumber ASC")
     suspend fun getSeasonsSync(seriesId: Long): List<SeasonEntity>
@@ -99,6 +155,41 @@ interface MediaDao {
         ORDER BY episodes.episodeNumber ASC
     """)
     fun getEpisodesWithSource(seriesId: Long, seasonId: Long): Flow<List<EpisodeWithSource>>
+
+    @Query("""SELECT episodes.*,
+        (SELECT uri FROM media_locations WHERE mediaFileId = media_files.id ORDER BY updatedAt DESC LIMIT 1) AS localUri,
+        (SELECT storageType FROM media_locations WHERE mediaFileId = media_files.id ORDER BY updatedAt DESC LIMIT 1) AS localStorageType,
+        (SELECT remote.uri FROM media_remote_sources remote
+            INNER JOIN nas_sources nas ON nas.id = remote.nasSourceId AND nas.enabled = 1
+            WHERE remote.mediaFileId = media_files.id ORDER BY remote.updatedAt DESC LIMIT 1) AS nasUri,
+        media_series.backdropUri AS seriesBackdropUri
+        FROM episodes INNER JOIN media_files ON media_files.episodeId = episodes.id
+        INNER JOIN media_series ON media_series.id = episodes.seriesId
+        WHERE episodes.seriesId = :seriesId AND episodes.seasonId = :seasonId AND (
+            EXISTS (SELECT 1 FROM media_locations WHERE mediaFileId = media_files.id) OR
+            EXISTS (SELECT 1 FROM media_remote_sources remote
+                INNER JOIN nas_sources nas ON nas.id = remote.nasSourceId AND nas.enabled = 1
+                WHERE remote.mediaFileId = media_files.id)
+        ) ORDER BY episodes.episodeNumber ASC""")
+    fun getPlayableEpisodesWithSource(seriesId: Long, seasonId: Long): Flow<List<EpisodeWithSource>>
+
+    @Query("""SELECT episodes.* FROM episodes INNER JOIN media_files ON media_files.episodeId = episodes.id
+        WHERE episodes.seriesId = :seriesId AND (:seasonId = 0 OR episodes.seasonId = :seasonId) AND (
+            EXISTS (SELECT 1 FROM media_locations WHERE mediaFileId = media_files.id) OR
+            EXISTS (SELECT 1 FROM media_remote_sources remote
+                INNER JOIN nas_sources nas ON nas.id = remote.nasSourceId AND nas.enabled = 1
+                WHERE remote.mediaFileId = media_files.id)
+        ) ORDER BY episodes.seasonId ASC, episodes.episodeNumber ASC LIMIT 1""")
+    suspend fun getFirstPlayableEpisode(seriesId: Long, seasonId: Long = 0): EpisodeEntity?
+
+    @Query("""SELECT episodes.* FROM episodes INNER JOIN media_files ON media_files.episodeId = episodes.id
+        WHERE episodes.seriesId = :seriesId AND episodes.seasonId = :seasonId AND (
+            EXISTS (SELECT 1 FROM media_locations WHERE mediaFileId = media_files.id) OR
+            EXISTS (SELECT 1 FROM media_remote_sources remote
+                INNER JOIN nas_sources nas ON nas.id = remote.nasSourceId AND nas.enabled = 1
+                WHERE remote.mediaFileId = media_files.id)
+        ) ORDER BY episodes.episodeNumber ASC""")
+    suspend fun getPlayableEpisodesSync(seriesId: Long, seasonId: Long): List<EpisodeEntity>
 
     @Query("SELECT * FROM episodes WHERE seriesId = :seriesId AND seasonId = :seasonId ORDER BY episodeNumber ASC")
     suspend fun getEpisodesSync(seriesId: Long, seasonId: Long): List<EpisodeEntity>

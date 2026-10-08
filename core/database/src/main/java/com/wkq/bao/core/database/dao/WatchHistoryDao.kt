@@ -17,8 +17,15 @@ interface WatchHistoryDao {
           AND watch_histories.positionMs > 120000
           AND EXISTS (
               SELECT 1 FROM media_files
-              INNER JOIN media_locations ON media_locations.mediaFileId = media_files.id
               WHERE media_files.episodeId = watch_histories.episodeId
+                AND (
+                    EXISTS (SELECT 1 FROM media_locations WHERE mediaFileId = media_files.id)
+                    OR EXISTS (
+                        SELECT 1 FROM media_remote_sources remote
+                        INNER JOIN nas_sources nas ON nas.id = remote.nasSourceId AND nas.enabled = 1
+                        WHERE remote.mediaFileId = media_files.id
+                    )
+                )
           )
         ORDER BY watch_histories.lastPlayedAt DESC
         LIMIT 20

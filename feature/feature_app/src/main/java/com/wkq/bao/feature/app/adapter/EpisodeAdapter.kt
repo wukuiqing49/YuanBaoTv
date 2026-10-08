@@ -16,6 +16,18 @@ class EpisodeAdapter(
     private val onItemClick: (EpisodeEntity) -> Unit
 ) : ListAdapter<EpisodeWithSource, EpisodeAdapter.ViewHolder>(DIFF_CALLBACK) {
 
+    init {
+        setHasStableIds(true)
+        stateRestorationPolicy = StateRestorationPolicy.PREVENT_WHEN_EMPTY
+    }
+
+    override fun getItemId(position: Int): Long = getItem(position).episode.id
+
+    override fun onViewRecycled(holder: ViewHolder) {
+        TvFocusHelper.resetRecycledFocus(holder.itemView)
+        super.onViewRecycled(holder)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemEpisodeCardBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -58,6 +70,8 @@ class EpisodeAdapter(
                     com.wkq.bao.feature.res.R.string.badge_usb_drive to com.wkq.bao.feature.res.R.drawable.bg_badge_local
                 !item.localUri.isNullOrBlank() ->
                     com.wkq.bao.feature.res.R.string.badge_downloaded to com.wkq.bao.feature.res.R.drawable.bg_badge_local
+                !item.nasUri.isNullOrBlank() ->
+                    com.wkq.bao.feature.res.R.string.badge_nas_online to com.wkq.bao.feature.res.R.drawable.bg_badge_nas
                 else -> com.wkq.bao.feature.res.R.string.badge_offline to com.wkq.bao.feature.res.R.drawable.bg_badge_local
             }
             binding.tvBadge.setText(labelRes)

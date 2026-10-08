@@ -186,6 +186,14 @@
     <string name="player_subtitles_on">Subtitles: On</string>
     <string name="player_subtitles_off">Subtitles: Off</string>
     <string name="player_subtitles_none">No subtitles</string>
+    <string name="player_audio_tracks">Audio</string>
+    <string name="player_subtitle_tracks">Subtitles</string>
+    <string name="player_track_auto">Automatic</string>
+    <string name="storage_saved_target_format">%1$s · %2$s</string>
+    <string name="storage_target_current">%1$s (current)</string>
+    <string name="storage_target_online">Available</string>
+    <string name="storage_target_offline">Device disconnected</string>
+    <string name="storage_add_target">Add storage folder</string>
     <string name="player_playback_failed">Playback failed. Check the NAS or storage device and retry.</string>
     <string name="title_nas_files">NAS Files</string>
     <string name="nas_file_refresh">Refresh</string>
@@ -203,4 +211,40 @@
     <string name="download_task_number">Download #%1$d</string>
     <plurals name="nas_file_selected_count"><item quantity="one">%1$d item selected</item><item quantity="other">%1$d items selected</item></plurals>
     <plurals name="nas_file_queued"><item quantity="one">Added %1$d file to downloads</item><item quantity="other">Added %1$d files to downloads</item></plurals>
+    <string name="library_search_hint">Search title or original title</string>
+    <string name="library_clear_search">Clear search</string>
+    <string name="library_sort">Sort</string>
+    <string name="library_sort_recent">Recently added</string>
+    <string name="library_sort_title">Title order</string>
+    <string name="library_sort_year">Newest year first</string>
+    <string name="library_favorites_only">Favorites only</string>
+    <string name="library_no_results">No matching titles</string>
+    <string name="library_no_results_message">Try another title or clear the filters</string>
+    <string name="library_clear_filters">Clear filters</string>
+    <string name="storage_permission_required">Permission required</string>
+    <string name="storage_read_only">Read-only folder</string>
+    <string name="storage_use_target">Use this folder</string>
+    <string name="storage_reauthorize">Grant access again</string>
+    <string name="storage_remove_target">Remove folder</string>
+    <string name="storage_remove_confirmation">Remove from the folder list? Videos, download tasks, and watch history will be kept.</string>
+    <string name="player_subtitle_settings">Subtitle settings</string>
+    <string name="player_subtitle_size">Subtitle size</string>
+    <string name="player_subtitle_size_small">Small</string>
+    <string name="player_subtitle_size_normal">Normal</string>
+    <string name="player_subtitle_size_large">Large</string>
+    <string name="player_subtitle_delay">Subtitle delay</string>
+    <string name="player_subtitle_delay_value">%1$+.1f s</string>
+    <string name="media_edit_metadata">Edit information</string>
+    <string name="media_edit_title">Title</string>
+    <string name="media_edit_year">Year</string>
+    <string name="media_edit_genre">Genre</string>
+    <string name="media_edit_type">Media category</string>
+    <string name="media_edit_type_local">Local video</string>
+    <string name="media_edit_description">Description</string>
+    <string name="media_edit_poster">Choose local artwork</string>
+    <string name="media_edit_poster_selected">Artwork selected</string>
+    <string name="media_edit_save">Save</string>
+    <string name="media_edit_title_required">Enter a title</string>
+    <string name="media_edit_year_invalid">Enter a four-digit year between 1800 and 2999</string>
+    <string name="media_edit_failed">Could not save. Check the year and category. A series with multiple episodes cannot become a movie.</string>
 </resources>

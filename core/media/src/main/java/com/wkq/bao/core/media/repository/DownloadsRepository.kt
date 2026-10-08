@@ -27,16 +27,14 @@ class RoomDownloadsRepository private constructor(
     override suspend fun togglePauseResume(taskId: Long) {
         val task = database.downloadDao().getTaskById(taskId) ?: return
         val nextStatus = DownloadTaskAction.nextToggleStatus(task.status) ?: return
-        database.downloadDao().updateTask(task.copy(status = nextStatus))
-        if (nextStatus == DownloadTaskStatus.WAITING) {
+        val changed = database.downloadDao().transitionTaskStatus(taskId, task.status, nextStatus)
+        if (changed > 0 && nextStatus == DownloadTaskStatus.WAITING) {
             DownloadWorkScheduler.enqueue(appContext, expedited = true)
         }
     }
 
     override suspend fun cancel(taskId: Long) {
-        val task = database.downloadDao().getTaskById(taskId) ?: return
-        if (task.status in setOf(DownloadTaskStatus.SUCCESS, DownloadTaskStatus.CANCELLED)) return
-        database.downloadDao().updateTask(task.copy(status = DownloadTaskStatus.CANCELLED))
+        database.downloadDao().cancelPendingTask(taskId)
     }
 
     companion object {

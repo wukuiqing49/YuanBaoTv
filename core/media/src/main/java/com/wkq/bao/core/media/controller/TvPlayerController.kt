@@ -2,7 +2,10 @@ package com.wkq.bao.core.media.controller
 
 import android.content.ComponentName
 import android.content.Context
+import android.net.Uri
+import android.util.Log
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
 import androidx.media3.session.MediaController
@@ -12,11 +15,16 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.database.entity.WatchHistoryEntity
 import com.wkq.bao.core.media.resolver.MediaResolver
+import com.wkq.bao.core.media.resolver.LocalSubtitleResolver
+import com.wkq.bao.core.media.resolver.NasSubtitleResolver
 import com.wkq.bao.core.media.resolver.PlaybackSource
 import com.wkq.bao.core.media.service.TvPlaybackService
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -29,6 +37,9 @@ class TvPlayerController(
     private val scope: CoroutineScope
 ) {
     private val mediaResolver = MediaResolver(context)
+    private val subtitleResolver = LocalSubtitleResolver(context)
+    private val nasSubtitleResolver = NasSubtitleResolver(context)
+    private var subtitleJob: Job? = null
     private val watchHistoryDao = AppDatabase.getInstance(context).watchHistoryDao()
 
     private var controllerFuture: ListenableFuture<MediaController>? = null
@@ -39,6 +50,10 @@ class TvPlayerController(
     private var currentSeasonId: Long = 0L
     private var currentEpisodeId: Long = 0L
     private var progressTrackingJob: Job? = null
+    private var playbackJob: Job? = null
+    private var historyWriteJob: Job? = null
+    private val historyScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var playbackRequestId = 0L
     private var pendingPlayback: PlaybackRequest? = null
     private var activeSource: PlaybackSource? = null
     private var activeResultCallback: ((Boolean, String) -> Unit)? = null
@@ -74,7 +89,7 @@ class TvPlayerController(
         p?.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 when (playbackState) {
-                    Player.STATE_READY -> startProgressTracking()
+                    Player.STATE_READY -> if (p.isPlaying) startProgressTracking()
                     Player.STATE_ENDED -> {
                         stopProgressTracking()
                         saveWatchProgress(completed = true)
@@ -87,7 +102,8 @@ class TvPlayerController(
                 if (isPlaying) {
                     startProgressTracking()
                 } else {
-                    saveWatchProgress(completed = false)
+                    stopProgressTracking()
+                    saveWatchProgress(completed = p.playbackState == Player.STATE_ENDED)
                 }
             }
 
@@ -105,25 +121,44 @@ class TvPlayerController(
             pendingPlayback = PlaybackRequest(seriesId, seasonId, episodeId, onResult)
             return
         }
+        saveWatchProgress(completed = player?.playbackState == Player.STATE_ENDED)
+        playbackJob?.cancel()
+        val requestId = ++playbackRequestId
+        activeSource = null
+        player?.pause()
+        player?.clearMediaItems()
+        stopProgressTracking()
         currentSeriesId = seriesId
         currentSeasonId = seasonId
         currentEpisodeId = episodeId
-        activeSource = null
         activeResultCallback = onResult
         failedNasSourceIds.clear()
 
-        scope.launch {
-            when (val source = mediaResolver.resolve(episodeId)) {
-                is PlaybackSource.Local -> {
-                    activeSource = source
-                    startPlay(source.uri.toString(), source.title)
-                    onResult?.invoke(true, source.location.name)
+        playbackJob = scope.launch {
+            try {
+                when (val source = mediaResolver.resolve(episodeId)) {
+                    is PlaybackSource.Local -> {
+                        if (requestId != playbackRequestId) return@launch
+                        activeSource = source
+                        if (!startPlay(source.uri.toString(), source.title, requestId)) return@launch
+                        onResult?.invoke(true, source.location.name)
+                    }
+                    is PlaybackSource.NasStream -> {
+                        if (requestId != playbackRequestId) return@launch
+                        activeSource = source
+                        if (!startPlay(source.uri.toString(), source.title, requestId)) return@launch
+                        onResult?.invoke(true, "NAS")
+                    }
+                    is PlaybackSource.Unavailable -> {
+                        if (requestId == playbackRequestId) onResult?.invoke(false, source.reason)
+                    }
                 }
-                is PlaybackSource.NasStream -> {
-                    onResult?.invoke(false, "NAS streaming is disabled")
-                }
-                is PlaybackSource.Unavailable -> {
-                    onResult?.invoke(false, source.reason)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (requestId == playbackRequestId) {
+                    activeSource = null
+                    onResult?.invoke(false, "Unable to load playback source")
                 }
             }
         }
@@ -131,50 +166,67 @@ class TvPlayerController(
 
     /** 本地盘或当前 NAS 播放失败时，使用未失败的 NAS 来源继续播放。 */
     private fun fallbackFromPlaybackError() {
-        if (activeSource is PlaybackSource.Local) {
-            activeSource = null
-            activeResultCallback?.invoke(false, "Local media file cannot be played")
-            return
-        }
+        if (player?.currentMediaItem?.mediaId != currentEpisodeId.toString()) return
         val failedSource = activeSource ?: return
         val failedEpisodeId = currentEpisodeId
+        val requestId = playbackRequestId
         val resumePosition = player?.currentPosition?.coerceAtLeast(0L) ?: 0L
         val callback = activeResultCallback
         if (failedSource is PlaybackSource.NasStream) {
             failedNasSourceIds += failedSource.nasSourceId
         }
         activeSource = null // 等待新来源解析，防止同一次错误重复触发回退。
+        val excludedSources = failedNasSourceIds.toSet()
 
-        scope.launch {
-            when (val fallback = mediaResolver.resolve(
-                episodeId = failedEpisodeId,
-                allowLocal = false,
-                excludedNasSourceIds = failedNasSourceIds
-            )) {
-                is PlaybackSource.NasStream -> {
-                    activeSource = fallback
-                    startPlay(fallback.uri.toString(), fallback.title, resumePosition)
-                    callback?.invoke(true, "NAS")
+        playbackJob?.cancel()
+        playbackJob = scope.launch {
+            try {
+                when (val fallback = mediaResolver.resolve(
+                    episodeId = failedEpisodeId,
+                    allowLocal = false,
+                    excludedNasSourceIds = excludedSources
+                )) {
+                    is PlaybackSource.NasStream -> {
+                        if (requestId != playbackRequestId) return@launch
+                        activeSource = fallback
+                        if (!startPlay(fallback.uri.toString(), fallback.title, requestId, resumePosition)) return@launch
+                        callback?.invoke(true, "NAS")
+                    }
+                    is PlaybackSource.Unavailable -> {
+                        if (requestId == playbackRequestId) callback?.invoke(false, "播放源回退失败: ${fallback.reason}")
+                    }
+                    is PlaybackSource.Local -> Unit
                 }
-                is PlaybackSource.Unavailable -> {
-                    callback?.invoke(false, "播放源回退失败: ${fallback.reason}")
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (requestId == playbackRequestId) {
+                    activeSource = null
+                    callback?.invoke(false, "Unable to switch playback source")
                 }
-                is PlaybackSource.Local -> Unit
             }
         }
     }
 
-    private suspend fun startPlay(uriString: String, title: String, resumePosition: Long? = null) {
-        val p = player ?: return
+    private suspend fun startPlay(uriString: String, title: String, requestId: Long, resumePosition: Long? = null): Boolean {
+        subtitleJob?.cancel()
+        val episodeId = currentEpisodeId
+        // 先读取历史，再更换播放器内容，避免挂起期间把上一集进度写入下一集。
+        historyWriteJob?.join()
+        val history = watchHistoryDao.getHistoryByEpisodeId(episodeId)
+        val subtitles = subtitleResolver.resolve(Uri.parse(uriString))
+        if (requestId != playbackRequestId) return false
+        val p = player ?: return false
         val mediaItem = MediaItem.Builder()
             .setUri(uriString)
-            .setMediaId(currentEpisodeId.toString())
+            .setMediaId(episodeId.toString())
+            .setMediaMetadata(MediaMetadata.Builder().setTitle(title).build())
+            .setSubtitleConfigurations(subtitles)
             .build()
 
         p.setMediaItem(mediaItem)
 
         // 查找历史进度并恢复
-        val history = watchHistoryDao.getHistoryByEpisodeId(currentEpisodeId)
         val initialPosition = resumePosition ?: history
             ?.takeIf { !it.completed && it.positionMs > 5000 }
             ?.positionMs
@@ -184,6 +236,21 @@ class TvPlayerController(
 
         p.prepare()
         p.play()
+        val source = activeSource as? PlaybackSource.NasStream
+        if (source != null) subtitleJob = scope.launch {
+            val remoteSubtitles = nasSubtitleResolver.resolve(source)
+            if (remoteSubtitles.isEmpty()) return@launch
+            // 先开始视频，目录请求不能延迟首帧；加载后保留当前进度和暂停状态。
+            while (requestId == playbackRequestId && p.playbackState == Player.STATE_BUFFERING) delay(100)
+            if (requestId != playbackRequestId || p.currentMediaItem?.mediaId != episodeId.toString() ||
+                p.playbackState != Player.STATE_READY) return@launch
+            val position = p.currentPosition
+            val shouldPlay = p.playWhenReady
+            p.setMediaItem(mediaItem.buildUpon().setSubtitleConfigurations(remoteSubtitles).build(), position)
+            p.prepare()
+            p.playWhenReady = shouldPlay
+        }
+        return true
     }
 
     // 遥控器操作快捷方法
@@ -220,7 +287,8 @@ class TvPlayerController(
 
     private fun saveWatchProgress(completed: Boolean) {
         val p = player ?: return
-        if (currentEpisodeId == 0L) return
+        if (currentEpisodeId == 0L || p.currentMediaItem?.mediaId != currentEpisodeId.toString()) return
+        if (p.duration <= 0L) return
         // 在切集前固定归属，避免异步写库时将上一集进度写进下一集。
         val seriesId = currentSeriesId
         val seasonId = currentSeasonId
@@ -228,22 +296,36 @@ class TvPlayerController(
         val pos = if (completed) 0L else p.currentPosition
         val duration = p.duration.coerceAtLeast(0L)
 
-        scope.launch(Dispatchers.IO) {
-            watchHistoryDao.saveHistory(
-                WatchHistoryEntity(
-                    seriesId = seriesId,
-                    seasonId = seasonId,
-                    episodeId = episodeId,
-                    positionMs = pos,
-                    durationMs = duration,
-                    completed = completed,
-                    lastPlayedAt = System.currentTimeMillis()
+        val previousWrite = historyWriteJob
+        historyWriteJob = historyScope.launch {
+            previousWrite?.join()
+            try {
+                watchHistoryDao.saveHistory(
+                    WatchHistoryEntity(
+                        seriesId = seriesId,
+                        seasonId = seasonId,
+                        episodeId = episodeId,
+                        positionMs = pos,
+                        durationMs = duration,
+                        completed = completed,
+                        lastPlayedAt = System.currentTimeMillis()
+                    )
                 )
-            )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // 空间不足等写库失败不能使正在播放的视频崩溃，日志不包含媒体信息。
+                Log.w("TvPlayerController", "Cannot save progress: ${error.javaClass.simpleName}")
+            }
         }
     }
 
     fun release() {
+        subtitleJob?.cancel()
+        saveWatchProgress(completed = player?.playbackState == Player.STATE_ENDED)
+        playbackRequestId++
+        playbackJob?.cancel()
+        playbackJob = null
         stopProgressTracking()
         controllerFuture?.let {
             MediaController.releaseFuture(it)
@@ -252,5 +334,10 @@ class TvPlayerController(
         pendingPlayback = null
         activeSource = null
         activeResultCallback = null
+        val pendingWrite = historyWriteJob
+        historyScope.launch {
+            pendingWrite?.join()
+            historyScope.cancel()
+        }
     }
 }

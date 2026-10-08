@@ -3,6 +3,7 @@ package com.wkq.bao.feature.app
 import com.wkq.bao.core.database.entity.EpisodeEntity
 import com.wkq.bao.core.media.repository.PlaybackNavigationRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -57,17 +58,43 @@ class PlayerViewModelTest {
         assertEquals(PlayerEvent.LastEpisodeReached, lastEvent.await())
     }
 
+    @Test
+    fun `repeated next episode requests share the pending lookup`() = runTest {
+        val repository = FakePlaybackNavigationRepository()
+        val gate = CompletableDeferred<Unit>()
+        repository.nextEpisodeGate = gate
+        val viewModel = PlayerViewModel(repository)
+        val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }
+
+        repeat(3) { viewModel.playNextEpisode(repository.currentEpisode.seriesId, repository.currentEpisode.id) }
+        assertEquals(1, repository.nextEpisodeCalls)
+        gate.complete(Unit)
+        assertEquals(PlayerEvent.PlayNext(repository.nextEpisode), event.await())
+
+        repository.nextEpisodeGate = null
+        val secondEvent = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }
+        viewModel.playNextEpisode(repository.currentEpisode.seriesId, repository.currentEpisode.id)
+        assertEquals(PlayerEvent.PlayNext(repository.nextEpisode), secondEvent.await())
+        assertEquals(2, repository.nextEpisodeCalls)
+    }
+
     private class FakePlaybackNavigationRepository : PlaybackNavigationRepository {
         val currentEpisode = EpisodeEntity(id = 1L, seriesId = 2L, seasonId = 3L, episodeNumber = 1)
         val nextEpisode = EpisodeEntity(id = 4L, seriesId = 2L, seasonId = 5L, episodeNumber = 1)
         var nextEpisodeResult: EpisodeEntity? = nextEpisode
         var resolveSeasonCalls = 0
+        var nextEpisodeCalls = 0
+        var nextEpisodeGate: CompletableDeferred<Unit>? = null
 
         override suspend fun resolveSeasonId(episodeId: Long): Long {
             resolveSeasonCalls++
             return currentEpisode.seasonId
         }
 
-        override suspend fun findNextEpisode(seriesId: Long, episodeId: Long): EpisodeEntity? = nextEpisodeResult
+        override suspend fun findNextEpisode(seriesId: Long, episodeId: Long): EpisodeEntity? {
+            nextEpisodeCalls++
+            nextEpisodeGate?.await()
+            return nextEpisodeResult
+        }
     }
 }

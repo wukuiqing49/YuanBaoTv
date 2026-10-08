@@ -8,6 +8,7 @@ import com.wkq.bao.core.database.entity.EpisodeEntity
 import com.wkq.bao.core.media.repository.PlaybackNavigationRepository
 import com.wkq.bao.core.media.repository.RoomPlaybackNavigationRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -34,6 +35,7 @@ class PlayerViewModel(
 
     private val _events = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<PlayerEvent> = _events.asSharedFlow()
+    private var nextEpisodeJob: Job? = null
 
     fun initialize(initialSeasonId: Long, episodeId: Long) {
         if (_uiState.value.initialSeasonId != null) return
@@ -45,8 +47,8 @@ class PlayerViewModel(
     }
 
     fun playNextEpisode(seriesId: Long, episodeId: Long) {
-        if (seriesId <= 0L || episodeId <= 0L) return
-        viewModelScope.launch {
+        if (seriesId <= 0L || episodeId <= 0L || nextEpisodeJob?.isActive == true) return
+        nextEpisodeJob = viewModelScope.launch {
             runCatching { repository.findNextEpisode(seriesId, episodeId) }
                 .onSuccess { episode ->
                     _events.emit(episode?.let(PlayerEvent::PlayNext) ?: PlayerEvent.LastEpisodeReached)

@@ -81,6 +81,14 @@ class LocalMediaScanWorker(appContext: Context, parameters: WorkerParameters) : 
             .fold(
                 onSuccess = { importedCount ->
                     AppDiagnostics.record(applicationContext, "local_scan", "succeeded")
+                    // 扫描期间仍可下载；新完成的文件需要一次从头扫描，不能复用旧检查点。
+                    val latestCompletion = database.downloadDao().getLatestRawDownloadCompletion(sourceKey)
+                    val latestSession = sessionDao.get(ScanSessionKind.LOCAL, sourceKey)
+                    if (latestCompletion != null && latestCompletion > session.startedAt &&
+                        !ScanSessionStatus.isActive(latestSession?.status.orEmpty())
+                    ) {
+                        LocalMediaScanController(applicationContext).enqueue(uri)
+                    }
                     Result.success(workDataOf(KEY_IMPORTED_COUNT to importedCount))
                 },
                 onFailure = { error ->

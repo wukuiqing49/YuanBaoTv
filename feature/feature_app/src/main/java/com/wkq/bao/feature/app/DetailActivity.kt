@@ -1,6 +1,11 @@
 package com.wkq.bao.feature.app
 
 import android.view.View
+import android.content.Intent
+import android.os.Bundle
+import com.wkq.bao.core.media.repository.LocalMetadataUpdate
+import androidx.activity.result.contract.ActivityResultContracts
+import com.lxj.xpopup.XPopup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -29,12 +34,38 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
     private var seriesId = 0L
     private var renderedSeries: MediaSeriesEntity? = null
     private var renderedSeasons: List<SeasonEntity> = emptyList()
+    private var editorPopup: MediaEditorPopup? = null
+    private var restoredEditor: Bundle? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        restoredEditor = savedInstanceState?.getBundle("metadata_editor")
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        if (editorPopup?.isShow == true) editorPopup?.draft()?.let { draft ->
+            outState.putBundle("metadata_editor", Bundle().apply {
+                putString("title", draft.title); putString("year", draft.year); putString("genre", draft.genre)
+                putString("description", draft.description); putString("type", draft.type); putString("poster", draft.posterUri)
+            })
+        }
+        super.onSaveInstanceState(outState)
+    }
+    private val posterPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null && editorPopup?.isShow == true) runCatching {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            editorPopup?.setPoster(uri.toString())
+        }.onFailure {
+            Toast.makeText(this, com.wkq.bao.feature.res.R.string.storage_permission_failed, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     override fun initView() {
         seriesId = intent.getLongExtra("seriesId", 0L)
         listOf(
             binding.btnPlay,
             binding.btnFavorite,
+            binding.btnEditMetadata,
             binding.btnDetailStateAction
         ).forEach { button ->
             button.backgroundTintList = null
@@ -45,6 +76,7 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
         binding.btnPlay.setOnClickListener { viewModel.playFirstEpisode() }
         binding.btnDownloadSeason.visibility = View.GONE
         binding.btnFavorite.setOnClickListener { viewModel.toggleFavorite() }
+        binding.btnEditMetadata.setOnClickListener { showMetadataEditor() }
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnPlay)
     }
 
@@ -63,9 +95,11 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
     }
 
     private fun renderState(state: DetailUiState) {
+        editorPopup?.setSaving(state.actionInProgress)
         renderPageState(state)
         if (state.loading || state.missing || state.loadFailed) return
         val series = state.series ?: return
+        if (restoredEditor != null) showMetadataEditor()
         if (renderedSeries != series) {
             renderedSeries = series
             renderSeries(series, state.isMovie)
@@ -89,6 +123,7 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
             )
             binding.rvEpisodes.isVisible = !noSeasons && !noEpisodes
         }
+        TvFocusHelper.requestInitialFocus(binding.root, binding.btnPlay)
     }
 
     private fun renderPageState(state: DetailUiState) {
@@ -216,6 +251,11 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
 
     private fun handleEvent(event: DetailEvent) {
         when (event) {
+            DetailEvent.MetadataSaved -> {
+                editorPopup?.dismiss()
+                editorPopup = null
+                if (TvFocusHelper.isTelevision(binding.root)) binding.btnEditMetadata.requestFocus()
+            }
             is DetailEvent.Play -> playEpisode(event.episode)
             DetailEvent.NoPlayableEpisode -> Toast.makeText(
                 this,
@@ -225,10 +265,33 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
             is DetailEvent.DownloadsQueued -> showDownloadResult(event.result)
             DetailEvent.ActionFailed -> Toast.makeText(
                 this,
-                com.wkq.bao.feature.res.R.string.download_status_failed,
+                if (editorPopup?.isShow == true) com.wkq.bao.feature.res.R.string.media_edit_failed
+                    else com.wkq.bao.feature.res.R.string.download_status_failed,
                 Toast.LENGTH_SHORT
             ).show()
         }
+    }
+
+    private fun showMetadataEditor() {
+        if (editorPopup?.isShow == true) return
+        val series = viewModel.uiState.value.series ?: return
+        val draft = restoredEditor?.let { LocalMetadataUpdate(it.getString("title", series.title),
+            it.getString("year", series.year), it.getString("genre", series.genre),
+            it.getString("description", series.description), it.getString("type", series.type), it.getString("poster")) }
+        restoredEditor = null
+        val popup = MediaEditorPopup(this, series, { posterPicker.launch(arrayOf("image/*")) }, viewModel::saveMetadata, draft)
+        editorPopup = popup
+        XPopup.Builder(this).isDarkTheme(true)
+            .autoOpenSoftInput(false)
+            .maxWidth((600 * resources.displayMetrics.density).toInt())
+            .maxHeight((resources.displayMetrics.heightPixels * 0.85f).toInt())
+            .asCustom(popup).show()
+    }
+
+    override fun onDestroy() {
+        editorPopup?.dismiss()
+        editorPopup = null
+        super.onDestroy()
     }
 
     private fun showDownloadResult(result: EnqueueDownloadsResult) {

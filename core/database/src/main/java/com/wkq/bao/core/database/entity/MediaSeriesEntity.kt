@@ -3,13 +3,14 @@ package com.wkq.bao.core.database.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 /**
  * 剧集 / 动漫 / 电影 主体信息实体
  */
 @Entity(
     tableName = "media_series",
-    indices = [Index(value = ["title"])]
+    indices = [Index(value = ["title"]), Index(value = ["scanTitle"])]
 )
 data class MediaSeriesEntity(
     @PrimaryKey(autoGenerate = true)
@@ -24,7 +25,9 @@ data class MediaSeriesEntity(
     val genre: String = "",
     val totalSeasons: Int = 1,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "''") val scanTitle: String = "",
+    @ColumnInfo(defaultValue = "0") val metadataEdited: Boolean = false
 )
 
 /** 媒体类型在扫描、列表与详情页之间共享，避免通过展示文案推断内容形态。 */

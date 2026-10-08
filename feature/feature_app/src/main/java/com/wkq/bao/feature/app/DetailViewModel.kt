@@ -12,6 +12,7 @@ import com.wkq.bao.core.database.entity.SeasonEntity
 import com.wkq.bao.core.media.repository.EnqueueDownloadsResult
 import com.wkq.bao.core.media.repository.DownloadTarget
 import com.wkq.bao.core.media.repository.MediaDetailRepository
+import com.wkq.bao.core.media.repository.LocalMetadataUpdate
 import com.wkq.bao.core.media.repository.RoomMediaDetailRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -43,6 +44,7 @@ sealed interface DetailEvent {
     data object NoPlayableEpisode : DetailEvent
     data class DownloadsQueued(val result: EnqueueDownloadsResult) : DetailEvent
     data object ActionFailed : DetailEvent
+    data object MetadataSaved : DetailEvent
 }
 
 class DetailViewModel(
@@ -59,6 +61,29 @@ class DetailViewModel(
     private var initializeJob: Job? = null
     private var seasonsJob: Job? = null
     private var episodesJob: Job? = null
+
+    fun saveMetadata(update: LocalMetadataUpdate): Boolean {
+        if (_uiState.value.series == null || _uiState.value.actionInProgress) return false
+        _uiState.update { it.copy(actionInProgress = true) }
+        viewModelScope.launch {
+            try {
+                val updated = repository.editMetadata(seriesId, update)
+                seasonsJob?.cancel()
+                episodesJob?.cancel()
+                _uiState.update { it.copy(series = updated, isMovie = MediaSeriesType.isMovie(updated.type),
+                    seasons = emptyList(), selectedSeasonId = 0L, episodes = emptyList()) }
+                if (!MediaSeriesType.isMovie(updated.type)) observeSeasons()
+                _events.emit(DetailEvent.MetadataSaved)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _events.emit(DetailEvent.ActionFailed)
+            } finally {
+                _uiState.update { it.copy(actionInProgress = false) }
+            }
+        }
+        return true
+    }
 
     fun initialize(targetSeriesId: Long) {
         if (seriesId != 0L || targetSeriesId <= 0L) return

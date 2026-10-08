@@ -15,8 +15,12 @@ import com.wkq.bao.core.base.diagnostics.AppDiagnostics
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.database.entity.DownloadTaskErrorCode
 import com.wkq.bao.core.database.entity.DownloadTaskStatus
+import com.wkq.bao.core.database.entity.ScanSessionKind
+import com.wkq.bao.core.database.entity.ScanSessionStatus
 import com.wkq.bao.core.media.scanner.LocalMediaScanController
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /** 前台执行串行下载队列，WorkManager 负责重启、网络约束和退避。 */
 class DownloadQueueWorker(
@@ -30,17 +34,25 @@ class DownloadQueueWorker(
 
     override suspend fun doWork(): Result {
         AppDiagnostics.record(applicationContext, "download", "queue_started")
-        val completedRawStorageTrees = linkedSetOf<Uri>()
+        enqueueLocalIndexing()
         database.downloadDao().requeueInterruptedTasks()
         if (database.downloadDao().getNextTaskByStatus(DownloadTaskStatus.WAITING) == null) {
             AppDiagnostics.record(applicationContext, "download", "queue_finished")
             return Result.success()
         }
         setForeground(createForegroundInfo(0))
+        try {
+            return processQueue()
+        } finally {
+            // 重试、失败或取消前，也要交付此前成功下载文件的入库任务。
+            withContext(NonCancellable) { enqueueLocalIndexing() }
+        }
+    }
+
+    private suspend fun processQueue(): Result {
         while (true) {
             val task = database.downloadDao().getNextTaskByStatus(DownloadTaskStatus.WAITING)
                 ?: run {
-                    enqueueLocalIndexing(completedRawStorageTrees)
                     AppDiagnostics.record(applicationContext, "download", "queue_finished")
                     return Result.success()
                 }
@@ -53,7 +65,7 @@ class DownloadQueueWorker(
             }
             val latest = database.downloadDao().getTaskById(task.id) ?: continue
             if (task.episodeId < 0L && latest.status == DownloadTaskStatus.SUCCESS) {
-                latest.targetUri.takeIf(String::isNotBlank)?.let(Uri::parse)?.let(completedRawStorageTrees::add)
+                enqueueLocalIndexing()
             }
             if (latest.status == DownloadTaskStatus.FAILED && DownloadTaskErrorCode.isRetryable(latest.errorCode)) {
                 AppDiagnostics.record(applicationContext, "download", "retry_${latest.errorCode.lowercase()}")
@@ -67,13 +79,19 @@ class DownloadQueueWorker(
         }
     }
 
-    private suspend fun enqueueLocalIndexing(storageTrees: Set<Uri>) {
+    private suspend fun enqueueLocalIndexing() {
+        val storageTrees = database.downloadDao().getRawDownloadTreesPendingIndex()
         if (storageTrees.isEmpty()) return
         val scanController = LocalMediaScanController(applicationContext)
-        storageTrees.forEach { treeUri ->
-            runCatching { scanController.enqueue(treeUri) }
+        storageTrees.forEach { tree ->
+            val session = database.scanSessionDao().get(ScanSessionKind.LOCAL, tree)
+            if (session != null && ScanSessionStatus.isActive(session.status)) return@forEach
+            runCatching { scanController.enqueue(Uri.parse(tree)) }
                 .onSuccess { AppDiagnostics.record(applicationContext, "download", "local_index_enqueued") }
-                .onFailure { AppDiagnostics.record(applicationContext, "download", "local_index_enqueue_failed") }
+                .onFailure { error ->
+                    if (error is CancellationException) throw error
+                    AppDiagnostics.record(applicationContext, "download", "local_index_enqueue_failed")
+                }
         }
     }
 

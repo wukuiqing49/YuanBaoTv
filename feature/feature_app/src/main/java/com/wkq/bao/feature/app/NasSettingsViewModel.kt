@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 
 data class NasSettingsUiState(
     val sources: List<NasSourceEntity> = emptyList(),
@@ -60,6 +62,9 @@ class NasSettingsViewModel(
     val events = MutableSharedFlow<NasSettingsEvent>(extraBufferCapacity = 1)
     private val _browserState = MutableStateFlow(NasBrowserUiState())
     val browserState: StateFlow<NasBrowserUiState> = _browserState
+    private var directoryJob: Job? = null
+    private var directoryRequestId = 0L
+    private var downloadJob: Job? = null
 
     val uiState: StateFlow<NasSettingsUiState> = combine(
         repository.sources,
@@ -122,18 +127,18 @@ class NasSettingsViewModel(
     fun enqueueSelected(source: NasSourceEntity, target: TvStorageManager.StorageTarget) {
         val state = _browserState.value
         val selected = state.entries.filter { it.path in state.selectedPaths }
-        if (selected.isEmpty() || state.downloadInProgress) return
+        if (selected.isEmpty() || state.downloadInProgress || downloadJob?.isActive == true) return
         _browserState.value = state.copy(downloadInProgress = true)
-        viewModelScope.launch {
+        downloadJob = viewModelScope.launch {
             browserRepository.enqueueMediaSelected(source, selected, target)
                 .onSuccess { result ->
-                    _browserState.value = _browserState.value.copy(
-                        selectedPaths = emptySet(),
-                        downloadInProgress = false
-                    )
+                    if (_browserState.value.sourceId == state.sourceId && _browserState.value.currentPath == state.currentPath) {
+                        _browserState.value = _browserState.value.copy(selectedPaths = emptySet(), downloadInProgress = false)
+                    }
                     events.emit(NasSettingsEvent.FilesQueued(result.totalCount))
                 }
-                .onFailure {
+                .onFailure { error ->
+                    if (error is CancellationException) throw error
                     _browserState.value = _browserState.value.copy(downloadInProgress = false)
                     events.emit(NasSettingsEvent.FileActionFailed)
                 }
@@ -146,13 +151,15 @@ class NasSettingsViewModel(
         path: String,
         refresh: Boolean = false
     ) {
+        directoryJob?.cancel()
+        val requestId = ++directoryRequestId
         _browserState.value = NasBrowserUiState(
             sourceId = source.id,
             rootPath = rootPath,
             currentPath = path,
             loading = true
         )
-        viewModelScope.launch {
+        directoryJob = viewModelScope.launch {
             val request = if (refresh) {
                 browserRepository.refreshMediaDirectory(source, path)
             } else {
@@ -160,10 +167,15 @@ class NasSettingsViewModel(
             }
             request
                 .onSuccess { entries ->
-                    _browserState.value = _browserState.value.copy(entries = entries, loading = false)
+                    if (requestId == directoryRequestId) {
+                        _browserState.value = _browserState.value.copy(entries = entries, loading = false)
+                    }
                 }
-                .onFailure {
-                    _browserState.value = _browserState.value.copy(loading = false, loadFailed = true)
+                .onFailure { error ->
+                    if (error is CancellationException) throw error
+                    if (requestId == directoryRequestId) {
+                        _browserState.value = _browserState.value.copy(loading = false, loadFailed = true)
+                    }
                 }
         }
     }

@@ -158,12 +158,13 @@ class LocalMediaScanner(
             posterUri = preferArtwork(existingSeries.posterUri, resolvedPosterUri),
             backdropUri = preferArtwork(existingSeries.backdropUri, document.backdropUri)
         )?.also { updated ->
-            if (updated != existingSeries) mediaDao.updateSeries(updated)
+            if (updated != existingSeries) mediaDao.updateScannedSeries(updated)
         } ?: run {
             val metadata = MetadataScraper.scrape(parsed.seriesTitle)
             val seriesId = mediaDao.insertSeries(
                 MediaSeriesEntity(
                     title = displayTitle,
+                    scanTitle = parsed.seriesTitle,
                     originalTitle = nfo?.originalTitle?.ifBlank { metadata.originalTitle } ?: metadata.originalTitle,
                     type = parsed.mediaType,
                     genre = nfo?.genre?.ifBlank { metadata.genre } ?: metadata.genre,

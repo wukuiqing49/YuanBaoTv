@@ -4,12 +4,15 @@ import android.app.PendingIntent
 import android.content.Intent
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.wkq.bao.core.media.smb.SchemeDataSource
+import com.wkq.bao.core.media.subtitle.PlaybackSubtitleParserFactory
 
 /**
  * 电视端核心媒体后台播放服务 (MediaSessionService)
@@ -43,11 +46,16 @@ class TvPlaybackService : MediaSessionService() {
                 2_500,
                 5_000
             )
-            .setPrioritizeTimeOverSizeThresholds(true)
+            .setTargetBufferBytes(64 * 1024 * 1024)
+            .setPrioritizeTimeOverSizeThresholds(false)
             .build()
         val exoPlayer = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(SchemeDataSource.Factory(this)))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(SchemeDataSource.Factory(this))
+                .setSubtitleParserFactory(PlaybackSubtitleParserFactory(getSharedPreferences("playback_preferences", MODE_PRIVATE)))
+                .experimentalParseSubtitlesDuringExtraction(true))
             .setLoadControl(loadControl)
+            .setAudioAttributes(AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
             .setHandleAudioBecomingNoisy(true)
             .build()
         player = exoPlayer

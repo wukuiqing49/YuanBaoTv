@@ -6,7 +6,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.wkq.bao.core.database.entity.EpisodeEntity
 import com.wkq.bao.core.database.entity.MediaFileEntity
 import com.wkq.bao.core.database.entity.MediaLocationEntity
+import com.wkq.bao.core.database.entity.MediaRemoteSourceEntity
 import com.wkq.bao.core.database.entity.MediaSeriesEntity
+import com.wkq.bao.core.database.entity.NasSourceEntity
 import com.wkq.bao.core.database.entity.SeasonEntity
 import com.wkq.bao.core.database.entity.WatchHistoryEntity
 import kotlinx.coroutines.flow.first
@@ -78,5 +80,58 @@ class LocalOnlyMediaQueryTest {
 
         // 保留该局部变量可确保测试数据包含完整的仅 NAS 媒体文件记录。
         assertEquals(remoteOnlyId, mediaDao.getMediaFileById(remoteFileId)?.episodeId)
+    }
+
+    @Test
+    fun playableLibraryIncludesEnabledNasAndKeepsLocalCopiesWhenNasIsDisabled() = runBlocking {
+        val mediaDao = database.mediaDao()
+        val seriesId = mediaDao.insertSeries(MediaSeriesEntity(title = "NAS Series"))
+        val seasonId = mediaDao.insertSeason(SeasonEntity(seriesId = seriesId, seasonNumber = 1))
+        val remoteEpisodeId = mediaDao.insertEpisode(EpisodeEntity(seriesId = seriesId, seasonId = seasonId, episodeNumber = 1))
+        val localEpisodeId = mediaDao.insertEpisode(EpisodeEntity(seriesId = seriesId, seasonId = seasonId, episodeNumber = 2))
+        val remoteFileId = mediaDao.insertMediaFile(MediaFileEntity(episodeId = remoteEpisodeId, seriesId = seriesId))
+        val localFileId = mediaDao.insertMediaFile(MediaFileEntity(episodeId = localEpisodeId, seriesId = seriesId))
+        val nasId = database.nasDao().insertSource(NasSourceEntity(name = "NAS", host = "nas", shareName = "media"))
+        mediaDao.insertMediaRemoteSource(MediaRemoteSourceEntity(
+            mediaFileId = remoteFileId, nasSourceId = nasId,
+            uri = "smb://nas/media/episode.mp4", fileName = "episode.mp4"
+        ))
+        mediaDao.insertMediaLocation(MediaLocationEntity(
+            mediaFileId = localFileId, uri = "content://storage/local.mp4",
+            storageType = "USB_DRIVE", fileName = "local.mp4"
+        ))
+        database.watchHistoryDao().saveHistory(WatchHistoryEntity(
+            seriesId = seriesId, seasonId = seasonId, episodeId = remoteEpisodeId,
+            positionMs = 180_000L, lastPlayedAt = 2L
+        ))
+        database.watchHistoryDao().saveHistory(WatchHistoryEntity(
+            seriesId = seriesId, seasonId = seasonId, episodeId = localEpisodeId,
+            positionMs = 180_000L, lastPlayedAt = 1L
+        ))
+
+        assertEquals(listOf(seriesId), mediaDao.getPlayableSeries().first().map { it.id })
+        assertEquals(listOf(seasonId), mediaDao.getPlayableSeasonsBySeriesId(seriesId).first().map { it.id })
+        assertEquals(listOf(remoteEpisodeId, localEpisodeId),
+            mediaDao.getPlayableEpisodesWithSource(seriesId, seasonId).first().map { it.episode.id })
+        assertEquals(remoteEpisodeId, mediaDao.getFirstPlayableEpisode(seriesId)?.id)
+        assertEquals(listOf(remoteEpisodeId, localEpisodeId),
+            database.watchHistoryDao().getContinueWatchingList().first().map { it.history.episodeId })
+
+        val nas = database.nasDao().getSourceById(nasId)!!
+        database.nasDao().updateSource(nas.copy(enabled = false))
+        assertEquals(listOf(localEpisodeId),
+            mediaDao.getPlayableEpisodesWithSource(seriesId, seasonId).first().map { it.episode.id })
+        assertEquals(localEpisodeId, mediaDao.getFirstPlayableEpisode(seriesId)?.id)
+        assertEquals(listOf(seriesId), mediaDao.getPlayableSeries().first().map { it.id })
+        assertEquals(listOf(localEpisodeId),
+            database.watchHistoryDao().getContinueWatchingList().first().map { it.history.episodeId })
+
+        database.nasDao().updateSource(nas)
+        database.watchHistoryDao().saveHistory(WatchHistoryEntity(
+            seriesId = seriesId, seasonId = seasonId, episodeId = remoteEpisodeId,
+            completed = true, positionMs = 180_000L, lastPlayedAt = 3L
+        ))
+        assertEquals(listOf(localEpisodeId),
+            database.watchHistoryDao().getContinueWatchingList().first().map { it.history.episodeId })
     }
 }

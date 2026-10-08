@@ -107,6 +107,7 @@ class HomeFragment : Fragment() {
             binding.btnHeroDetail.visibility = View.VISIBLE
             binding.btnHeroPlay.setOnClickListener { navigator().showPage(MainPageNavigator.DOWNLOADS) }
             binding.btnHeroDetail.setOnClickListener { navigator().showPage(MainPageNavigator.NAS) }
+            TvFocusHelper.requestInitialFocus(binding.root, binding.btnHeroPlay)
             return
         }
         binding.ivHeroBackdrop.visibility = View.VISIBLE
@@ -147,6 +148,7 @@ class HomeFragment : Fragment() {
         binding.ivHeroBackdrop.contentDescription = null
         binding.btnHeroPlay.setOnClickListener { viewModel.playFeatured() }
         binding.btnHeroDetail.setOnClickListener { openDetail(featured.id) }
+        TvFocusHelper.requestInitialFocus(binding.root, binding.btnHeroPlay)
     }
 
     private fun renderLoadingState() {

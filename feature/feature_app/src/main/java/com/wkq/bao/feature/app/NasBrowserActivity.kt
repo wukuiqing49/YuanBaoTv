@@ -51,7 +51,7 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
         runCatching {
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             contentResolver.takePersistableUriPermission(uri, flags)
-            require(storageManager.isStorageTargetAvailable(uri)) {
+            require(storageManager.isStorageTargetWritable(uri)) {
                 getString(com.wkq.bao.feature.res.R.string.storage_location_invalid)
             }
             require(storageManager.isExternalStorageTarget(uri)) {

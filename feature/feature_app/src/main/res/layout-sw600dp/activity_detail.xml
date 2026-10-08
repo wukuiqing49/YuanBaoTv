@@ -151,7 +151,9 @@
                 <Button
                     android:id="@+id/btn_favorite"
                     android:layout_width="0dp"
-                    android:layout_height="46dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:paddingVertical="6dp"
                     android:layout_marginStart="8dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tv_button_focus"
@@ -161,6 +163,7 @@
                     android:textColor="@color/tv_text_primary"
                     android:maxLines="2"
                     android:textSize="11sp" />
+                <Button android:id="@+id/btn_edit_metadata" android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="48dp" android:paddingVertical="6dp" android:layout_weight="1" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:maxLines="2" android:text="@string/media_edit_metadata" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
             </LinearLayout>
 
         </LinearLayout>

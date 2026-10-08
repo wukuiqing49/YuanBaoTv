@@ -21,6 +21,7 @@ class SchemeDataSource(context: Context) : DataSource {
     private var delegate: DataSource? = null
 
     override fun addTransferListener(transferListener: TransferListener) {
+        localDataSource.addTransferListener(transferListener)
         smbDataSource.addTransferListener(transferListener)
         webDavDataSource.addTransferListener(transferListener)
     }
@@ -41,7 +42,6 @@ class SchemeDataSource(context: Context) : DataSource {
     override fun getUri(): Uri? = delegate?.uri
 
     override fun close() {
-        delegate?.close()
-        delegate = null
+        try { delegate?.close() } finally { delegate = null }
     }
 }

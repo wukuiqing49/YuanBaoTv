@@ -6,13 +6,13 @@ import org.junit.Test
 
 class DownloadStorageRequirementTest {
     @Test
-    fun `requires one next chunk and reserve while streaming assembly`() {
+    fun `requires remaining file plus assembly overhead and reserve`() {
         val total = 2L * 1024 * 1024 * 1024
         val completed = 512L * 1024 * 1024
 
         val required = DownloadStorageRequirement.requiredFreeBytes(total, completed)
 
-        assertEquals(DownloadStorageRequirement.MAX_PART_BYTES + DownloadStorageRequirement.SAFETY_RESERVE_BYTES, required)
+        assertEquals(total - completed + DownloadStorageRequirement.MAX_PART_BYTES + DownloadStorageRequirement.SAFETY_RESERVE_BYTES, required)
     }
 
     @Test
@@ -30,5 +30,16 @@ class DownloadStorageRequirementTest {
         assertThrows(IllegalArgumentException::class.java) {
             DownloadStorageRequirement.requiredFreeBytes(100L, 101L)
         }
+    }
+
+    @Test
+    fun `small final chunk requires room for both part and assembled copy`() {
+        assertEquals(100L + DownloadStorageRequirement.SAFETY_RESERVE_BYTES,
+            DownloadStorageRequirement.requiredFreeBytes(100L, 50L))
+    }
+
+    @Test
+    fun `overflow saturates rather than accepting insufficient storage`() {
+        assertEquals(Long.MAX_VALUE, DownloadStorageRequirement.requiredFreeBytes(Long.MAX_VALUE, 0L))
     }
 }

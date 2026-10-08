@@ -177,11 +177,12 @@ class NasScanner(private val database: AppDatabase) {
             backdropUri = NasArtworkPriority.prefer(existingSeries.backdropUri, resolvedBackdropUri),
             updatedAt = System.currentTimeMillis()
         )?.also { updated ->
-            if (updated != existingSeries) mediaDao.updateSeries(updated)
+            if (updated != existingSeries) mediaDao.updateScannedSeries(updated)
         } ?: run {
             val seriesId = mediaDao.insertSeries(
                 MediaSeriesEntity(
                     title = displayTitle,
+                    scanTitle = parsed.seriesTitle,
                     originalTitle = nfo?.originalTitle?.ifBlank { scraped.originalTitle } ?: scraped.originalTitle,
                     type = parsed.mediaType,
                     genre = nfo?.genre?.ifBlank { scraped.genre } ?: scraped.genre,

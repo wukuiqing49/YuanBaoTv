@@ -6,12 +6,14 @@ import androidx.documentfile.provider.DocumentFile
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.media.storage.MediaStorageLocation
 import com.wkq.bao.core.media.storage.TvStorageManager
+import com.wkq.bao.core.media.smb.SmbCredentialRegistry
+import com.wkq.bao.core.media.webdav.WebDavCredentialRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * 媒体路径与可用性决策解析器，只返回已下载的本地副本。
+ * 优先返回本地副本，其次使用已启用的 NAS 来源。
  */
 class MediaResolver(private val context: Context) {
 
@@ -23,7 +25,7 @@ class MediaResolver(private val context: Context) {
     suspend fun resolve(
         episodeId: Long,
         allowLocal: Boolean = true,
-        @Suppress("UNUSED_PARAMETER") excludedNasSourceIds: Set<Long> = emptySet()
+        excludedNasSourceIds: Set<Long> = emptySet()
     ): PlaybackSource = withContext(Dispatchers.IO) {
         val episode = mediaDao.getEpisodeById(episodeId)
             ?: return@withContext PlaybackSource.Unavailable("Episode not found: $episodeId", episodeId)
@@ -53,7 +55,22 @@ class MediaResolver(private val context: Context) {
             }
         }
 
-        PlaybackSource.Unavailable("Local media is not available on the selected storage", episodeId)
+        val enabledSources = AppDatabase.getInstance(context).nasDao().getEnabledSources()
+            .associateBy { it.id }
+        mediaDao.getMediaRemoteSources(mediaFile.id).forEach { remote ->
+            val sourceId = remote.nasSourceId ?: return@forEach
+            val source = enabledSources[sourceId] ?: return@forEach
+            if (sourceId in excludedNasSourceIds) return@forEach
+            val uri = Uri.parse(remote.uri)
+            when (uri.scheme?.lowercase()) {
+                "smb" -> SmbCredentialRegistry.register(source)
+                "https" -> WebDavCredentialRegistry.register(source)
+                else -> return@forEach
+            }
+            return@withContext PlaybackSource.NasStream(uri, title, sourceId)
+        }
+
+        PlaybackSource.Unavailable("No available local or NAS source", episodeId)
     }
 
     /**

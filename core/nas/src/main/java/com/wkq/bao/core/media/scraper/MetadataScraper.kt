@@ -90,7 +90,7 @@ object MetadataScraper {
             backdropUri = series.backdropUri.ifEmpty { metadata.backdropUri },
             updatedAt = System.currentTimeMillis()
         )
-        database.mediaDao().updateSeries(updated)
-        return@withContext updated
+        database.mediaDao().updateScannedSeries(updated)
+        return@withContext database.mediaDao().getSeriesById(series.id) ?: updated
     }
 }

@@ -109,7 +109,42 @@ class DetailViewModelTest {
         assertEquals(repository.series.id, viewModel.uiState.value.series?.id)
     }
 
+    @Test
+    fun `metadata save updates the page and releases the action guard`() = runTest {
+        val repository = FakeDetailRepository()
+        val viewModel = DetailViewModel(repository)
+        viewModel.initialize(repository.series.id)
+        advanceUntilIdle()
+        val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }
+        assertTrue(viewModel.saveMetadata(com.wkq.bao.core.media.repository.LocalMetadataUpdate("Corrected", "2024", "Drama", "Plot", "MOVIE")))
+        advanceUntilIdle()
+        assertEquals(DetailEvent.MetadataSaved, event.await())
+        assertEquals("Corrected", viewModel.uiState.value.series?.title)
+        assertTrue(viewModel.uiState.value.isMovie)
+        assertFalse(viewModel.uiState.value.actionInProgress)
+    }
+
+    @Test
+    fun `failed metadata save keeps the current page and allows retry`() = runTest {
+        val repository = FakeDetailRepository().apply { editFailure = IllegalArgumentException("Invalid category") }
+        val viewModel = DetailViewModel(repository)
+        viewModel.initialize(repository.series.id)
+        advanceUntilIdle()
+        val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }
+        viewModel.saveMetadata(com.wkq.bao.core.media.repository.LocalMetadataUpdate("Invalid", "2024", "", "", "MOVIE"))
+        advanceUntilIdle()
+        assertEquals(DetailEvent.ActionFailed, event.await())
+        assertEquals(repository.series, viewModel.uiState.value.series)
+        assertFalse(viewModel.uiState.value.actionInProgress)
+    }
+
     private class FakeDetailRepository : MediaDetailRepository {
+        var editFailure: Throwable? = null
+        override suspend fun editMetadata(seriesId: Long, update: com.wkq.bao.core.media.repository.LocalMetadataUpdate): MediaSeriesEntity {
+            editFailure?.let { throw it }
+            return series.copy(title = update.title, year = update.year, genre = update.genre, description = update.description,
+                type = update.type, posterUri = update.posterUri ?: series.posterUri)
+        }
         val series = MediaSeriesEntity(id = 1L, title = "Series", type = MediaSeriesType.TV)
         val season = SeasonEntity(id = 2L, seriesId = series.id, seasonNumber = 1)
         val episode = EpisodeEntity(id = 3L, seriesId = series.id, seasonId = season.id, episodeNumber = 1)

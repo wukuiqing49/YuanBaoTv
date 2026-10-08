@@ -27,6 +27,16 @@
         </LinearLayout>
     </HorizontalScrollView>
 
+    <include
+        android:id="@+id/library_tools"
+        layout="@layout/layout_library_tools"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_filter_scroll" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_media_grid"
         android:layout_width="0dp"
@@ -39,7 +49,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_filter_scroll"
+        app:layout_constraintTop_toBottomOf="@id/library_tools"
         app:spanCount="3" />
 
     <LinearLayout
@@ -53,7 +63,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_filter_scroll">
+        app:layout_constraintTop_toBottomOf="@id/library_tools">
 
         <ProgressBar
             android:id="@+id/progress_library"

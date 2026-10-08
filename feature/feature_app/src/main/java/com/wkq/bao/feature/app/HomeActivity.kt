@@ -38,6 +38,17 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
 
     private val tabs by lazy { listOf(binding.tabHome, binding.tabLibrary, binding.tabDownloads) }
     private val navigationTabs by lazy { tabs + binding.tabNas }
+    private var restoredPage: Int? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        restoredPage = savedInstanceState?.getInt("selected_page")
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("selected_page", binding.vpMainPages.currentItem)
+        super.onSaveInstanceState(outState)
+    }
     override fun initView() {
         configureInsets()
         capTabFontScale()
@@ -60,7 +71,12 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
         }
         TvFocusHelper.applyFocusScale(binding.tabNas, 1.04f)
         binding.tabNas.setOnClickListener { showPage(MainPageNavigator.NAS) }
-        applyRequestedPage(intent)
+        if (restoredPage != null) {
+            binding.vpMainPages.setCurrentItem(checkNotNull(restoredPage).coerceIn(0, tabs.lastIndex), false)
+            restoreVisibleFocus(alignNavigation = true)
+        } else {
+            applyRequestedPage(intent)
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (binding.vpMainPages.currentItem == MainPageNavigator.HOME) {
@@ -93,7 +109,7 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
             requestedPage.coerceIn(0, tabs.lastIndex)
         }
         binding.vpMainPages.setCurrentItem(initialPage, false)
-        TvFocusHelper.requestInitialFocus(binding.root, tabs[binding.vpMainPages.currentItem])
+        restoreVisibleFocus(alignNavigation = true)
         if (requestedPage == MainPageNavigator.NAS) {
             binding.root.post { NasBrowserActivity.start(this) }
         }
@@ -147,11 +163,12 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
         return super.onKeyDown(keyCode, event)
     }
 
-    private fun restoreVisibleFocus() {
+    private fun restoreVisibleFocus(alignNavigation: Boolean = false) {
         if (!TvFocusHelper.isTelevision(binding.root)) return
         binding.root.post {
             val focused = currentFocus
-            if (focused?.isShown != true || focused === binding.vpMainPages.getChildAt(0)) {
+            if (focused?.isShown != true || focused === binding.vpMainPages.getChildAt(0) ||
+                (alignNavigation && focused in navigationTabs)) {
                 tabs[binding.vpMainPages.currentItem].requestFocus()
             }
         }

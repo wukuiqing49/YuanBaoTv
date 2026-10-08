@@ -1,6 +1,11 @@
 package com.wkq.bao.feature.app
 
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.provider.DocumentsContract
+import com.lxj.xpopup.XPopup
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,14 +17,19 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.core.content.ContextCompat
 import com.wkq.bao.core.database.entity.ScanSessionStatus
 import com.wkq.bao.core.media.storage.MediaStorageLocation
 import com.wkq.bao.core.media.storage.TvStorageManager
+import com.wkq.bao.core.media.storage.UsbStorageReceiver
 import com.wkq.bao.feature.app.adapter.DownloadTaskAdapter
 import com.wkq.bao.feature.app.databinding.ActivityDownloadsBinding
 import com.wkq.bao.feature.app.utils.TvFocusHelper
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 
 class DownloadsFragment : Fragment() {
     private var _binding: ActivityDownloadsBinding? = null
@@ -28,6 +38,13 @@ class DownloadsFragment : Fragment() {
     private val storageManager by lazy { TvStorageManager(requireContext()) }
     private lateinit var downloadAdapter: DownloadTaskAdapter
     private var keepScreenRequested = false
+    private var storageRenderJob: Job? = null
+    private var targetPickerJob: Job? = null
+    private val storageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (_binding != null) renderStorage()
+        }
+    }
 
     private val openStorageLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
@@ -37,7 +54,6 @@ class DownloadsFragment : Fragment() {
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             requireContext().contentResolver.takePersistableUriPermission(selectedUri, flags)
             if (!storageManager.isStorageTargetAvailable(selectedUri)) {
-                requireContext().contentResolver.releasePersistableUriPermission(selectedUri, flags)
                 throw IllegalArgumentException(getString(com.wkq.bao.feature.res.R.string.storage_location_invalid))
             }
             storageManager.saveStorageRoot(selectedUri, storageManager.resolveLocalLocation(selectedUri))
@@ -103,44 +119,119 @@ class DownloadsFragment : Fragment() {
     }
 
     private fun renderStorage(state: DownloadsUiState = viewModel.uiState.value) {
-        val target = storageManager.getStorageTarget()
-        val stat = storageManager.getStorageInfo(target)
-        binding.tvStorageLabel.setText(
-            when {
-                target == null -> com.wkq.bao.feature.res.R.string.storage_target_required
-                !target.isAvailable -> com.wkq.bao.feature.res.R.string.storage_target_unavailable
-                target.location == MediaStorageLocation.INTERNAL_STORAGE -> com.wkq.bao.feature.res.R.string.storage_internal
-                target.location == MediaStorageLocation.TF_CARD -> com.wkq.bao.feature.res.R.string.storage_tf_card
-                target.location == MediaStorageLocation.USB_DRIVE -> com.wkq.bao.feature.res.R.string.storage_usb_drive
-                else -> com.wkq.bao.feature.res.R.string.storage_target_required
+        val currentBinding = _binding ?: return
+        storageRenderJob?.cancel()
+        storageRenderJob = viewLifecycleOwner.lifecycleScope.launch {
+            val (target, stat) = withContext(Dispatchers.IO) {
+                val target = storageManager.getStorageTarget()
+                target to storageManager.getStorageInfo(target)
             }
-        )
-        val capacity = getString(
-            com.wkq.bao.feature.res.R.string.storage_space_format,
-            stat.formattedFree,
-            stat.formattedTotal
-        )
-        binding.tvStorageCapacity.text = when (state.scanSession?.status) {
-            ScanSessionStatus.QUEUED, ScanSessionStatus.RUNNING, ScanSessionStatus.RETRYING ->
-                "$capacity · ${getString(com.wkq.bao.feature.res.R.string.scan_progress, state.scanSession.importedCount)}"
-            ScanSessionStatus.SUCCEEDED ->
-                "$capacity · ${getString(com.wkq.bao.feature.res.R.string.scan_complete, state.scanSession.importedCount)}"
-            ScanSessionStatus.FAILED -> "$capacity · ${getString(com.wkq.bao.feature.res.R.string.local_scan_failed)}"
-            ScanSessionStatus.CANCELLED -> "$capacity · ${getString(com.wkq.bao.feature.res.R.string.scan_cancelled)}"
-            else -> capacity
+            if (_binding !== currentBinding) return@launch
+            binding.tvStorageLabel.setText(
+                when {
+                    target == null -> com.wkq.bao.feature.res.R.string.storage_target_required
+                    target.status == TvStorageManager.TargetStatus.PERMISSION_REQUIRED -> com.wkq.bao.feature.res.R.string.storage_permission_required
+                    target.status == TvStorageManager.TargetStatus.OFFLINE -> com.wkq.bao.feature.res.R.string.storage_target_offline
+                    target.status == TvStorageManager.TargetStatus.READ_ONLY -> com.wkq.bao.feature.res.R.string.storage_read_only
+                    !target.isAvailable -> com.wkq.bao.feature.res.R.string.storage_target_unavailable
+                    target.location == MediaStorageLocation.INTERNAL_STORAGE -> com.wkq.bao.feature.res.R.string.storage_internal
+                    target.location == MediaStorageLocation.TF_CARD -> com.wkq.bao.feature.res.R.string.storage_tf_card
+                    target.location == MediaStorageLocation.USB_DRIVE -> com.wkq.bao.feature.res.R.string.storage_usb_drive
+                    else -> com.wkq.bao.feature.res.R.string.storage_target_required
+                }
+            )
+            val capacity = getString(
+                com.wkq.bao.feature.res.R.string.storage_space_format,
+                stat.formattedFree,
+                stat.formattedTotal
+            )
+            binding.tvStorageCapacity.text = when (state.scanSession?.status) {
+                ScanSessionStatus.QUEUED, ScanSessionStatus.RUNNING, ScanSessionStatus.RETRYING ->
+                    "$capacity · ${getString(com.wkq.bao.feature.res.R.string.scan_progress, state.scanSession.importedCount)}"
+                ScanSessionStatus.SUCCEEDED ->
+                    "$capacity · ${getString(com.wkq.bao.feature.res.R.string.scan_complete, state.scanSession.importedCount)}"
+                ScanSessionStatus.FAILED -> "$capacity · ${getString(com.wkq.bao.feature.res.R.string.local_scan_failed)}"
+                ScanSessionStatus.CANCELLED -> "$capacity · ${getString(com.wkq.bao.feature.res.R.string.scan_cancelled)}"
+                else -> capacity
+            }
+            binding.btnSelectStorage.setText(com.wkq.bao.feature.res.R.string.storage_select_target)
+            binding.pbStorage.progress = if (stat.totalBytes > 0L) (((stat.totalBytes - stat.freeBytes) * 100L) / stat.totalBytes).toInt() else 0
+            viewModel.observeStorage(target?.uri)
         }
-        binding.btnSelectStorage.setText(com.wkq.bao.feature.res.R.string.storage_select_target)
-        binding.pbStorage.progress = if (stat.totalBytes > 0L) (((stat.totalBytes - stat.freeBytes) * 100L) / stat.totalBytes).toInt() else 0
-        viewModel.observeStorage(target?.uri)
     }
 
     private fun selectStorageLocation() {
-        openStorageLauncher.launch(null)
+        if (targetPickerJob?.isActive == true) return
+        targetPickerJob = viewLifecycleOwner.lifecycleScope.launch {
+            val targets = withContext(Dispatchers.IO) { storageManager.getStorageTargets() }
+            if (targets.isEmpty()) {
+                openStorageLauncher.launch(null)
+                return@launch
+            }
+            val currentUri = storageManager.getStorageRoot()
+            val labels = targets.map { target ->
+                val documentId = DocumentsContract.getTreeDocumentId(target.uri)
+                val label = getString(com.wkq.bao.feature.res.R.string.storage_saved_target_format,
+                    documentId, getString(when (target.status) {
+                        TvStorageManager.TargetStatus.AVAILABLE -> com.wkq.bao.feature.res.R.string.storage_target_online
+                        TvStorageManager.TargetStatus.READ_ONLY -> com.wkq.bao.feature.res.R.string.storage_read_only
+                        TvStorageManager.TargetStatus.OFFLINE -> com.wkq.bao.feature.res.R.string.storage_target_offline
+                        TvStorageManager.TargetStatus.PERMISSION_REQUIRED -> com.wkq.bao.feature.res.R.string.storage_permission_required
+                        else -> com.wkq.bao.feature.res.R.string.storage_target_unavailable
+                    }))
+                if (target.uri.toString() == currentUri) getString(com.wkq.bao.feature.res.R.string.storage_target_current, label)
+                else label
+            } + getString(com.wkq.bao.feature.res.R.string.storage_add_target)
+            XPopup.Builder(requireContext()).isDarkTheme(true)
+                .asCenterList(getString(com.wkq.bao.feature.res.R.string.storage_select_target), labels.toTypedArray()) { index, _ ->
+                    if (_binding != null) {
+                        if (index == targets.size) openStorageLauncher.launch(null)
+                        else {
+                            manageStorageTarget(targets[index])
+                        }
+                    }
+                }.show()
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        renderStorage()
         updateKeepScreenOn(keepScreenRequested)
+    }
+
+    private fun manageStorageTarget(target: TvStorageManager.StorageTarget) {
+        val actions = listOf(
+            com.wkq.bao.feature.res.R.string.storage_use_target,
+            com.wkq.bao.feature.res.R.string.storage_reauthorize,
+            com.wkq.bao.feature.res.R.string.storage_remove_target
+        ).map(::getString).toTypedArray()
+        XPopup.Builder(requireContext()).isDarkTheme(true)
+            .asCenterList(DocumentsContract.getTreeDocumentId(target.uri), actions) { index, _ ->
+                if (_binding != null) when (index) {
+                    0 -> { storageManager.saveStorageRoot(target.uri, target.location); renderStorage() }
+                    1 -> openStorageLauncher.launch(target.uri)
+                    2 -> XPopup.Builder(requireContext()).isDarkTheme(true).asConfirm(
+                        getString(com.wkq.bao.feature.res.R.string.storage_remove_target),
+                        getString(com.wkq.bao.feature.res.R.string.storage_remove_confirmation),
+                        {
+                            storageManager.removeStorageRoot(target.uri)
+                            if (_binding != null) renderStorage()
+                        }
+                    ).show()
+                }
+            }.show()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        ContextCompat.registerReceiver(requireContext(), storageReceiver,
+            IntentFilter(UsbStorageReceiver.ACTION_USB_STATE_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    override fun onStop() {
+        requireContext().unregisterReceiver(storageReceiver)
+        super.onStop()
     }
 
     override fun onPause() {

@@ -3,6 +3,8 @@ package com.wkq.bao.core.media.download
 import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
+import android.system.ErrnoException
+import android.system.OsConstants
 import androidx.documentfile.provider.DocumentFile
 import androidx.room.withTransaction
 import com.wkq.bao.core.database.AppDatabase
@@ -41,46 +43,52 @@ class TvDownloadEngine(
         if (downloadDao.claimWaitingTask(latestTask.id) == 0) return@withContext
         val claimedTask = latestTask.copy(status = DownloadTaskStatus.DOWNLOADING, errorMessage = "")
 
-        val isRawFileTask = claimedTask.episodeId < 0L
-        val mediaFile = if (isRawFileTask) {
-            null
-        } else {
-            database.mediaDao().getMediaFileByEpisodeId(claimedTask.episodeId)
-                ?: return@withContext fail(claimedTask, "Media file is missing", DownloadTaskErrorCode.DATA_MISSING)
-        }
-        val selectedSource = if (isRawFileTask) {
-            DownloadSourceSelector.Source(claimedTask.sourceUri, claimedTask.sourceNasId)
-                .takeIf { it.uri.isNotBlank() && it.nasSourceId > 0L }
-        } else {
-            DownloadSourceSelector.select(
-                claimedTask,
-                checkNotNull(mediaFile),
-                database.mediaDao().getMediaRemoteSources(mediaFile.id)
-            )
-        } ?: return@withContext fail(claimedTask, "NAS source is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
-        val sourceUri = Uri.parse(selectedSource.uri)
-        val sourceNasId = selectedSource.nasSourceId
-        val nasSource = database.nasDao().getSourceById(sourceNasId)
-            ?.takeIf { it.enabled }
-            ?: return@withContext fail(claimedTask, "NAS source is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
-        if (sourceUri.scheme !in setOf("smb", "https")) return@withContext fail(claimedTask, "Unsupported NAS download source", DownloadTaskErrorCode.UNSUPPORTED_SOURCE)
-        if (sourceUri.scheme == "https" && !WebDavClientManager.isWebDav(nasSource)) return@withContext fail(claimedTask, "WebDAV source configuration is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
-
-        val storageTarget = resolveStorageTarget(claimedTask)
-            ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)
-        val root = DocumentFile.fromTreeUri(context, storageTarget.uri)
-            ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)
-        val downloadRoot = root.findFile(DOWNLOAD_DIRECTORY) ?: root.createDirectory(DOWNLOAD_DIRECTORY)
-            ?: return@withContext fail(claimedTask, "Cannot create download directory", DownloadTaskErrorCode.STORAGE_ACCESS)
-        val downloadDirectory = if (isRawFileTask) {
-            ensureRelativeDirectory(downloadRoot, nasSource, sourceUri)
-                ?: return@withContext fail(claimedTask, "Cannot create source directory", DownloadTaskErrorCode.STORAGE_ACCESS)
-        } else downloadRoot
-        val partsDirectory = downloadRoot.findFile(PARTS_DIRECTORY)
-            ?: downloadRoot.createDirectory(PARTS_DIRECTORY)
-            ?: return@withContext fail(claimedTask, "Cannot create download part directory", DownloadTaskErrorCode.STORAGE_ACCESS)
-
         try {
+            val isRawFileTask = claimedTask.episodeId < 0L
+            val mediaFile = if (isRawFileTask) {
+                null
+            } else {
+                database.mediaDao().getMediaFileByEpisodeId(claimedTask.episodeId)
+                    ?: return@withContext fail(claimedTask, "Media file is missing", DownloadTaskErrorCode.DATA_MISSING)
+            }
+            val selectedSource = if (isRawFileTask) {
+                DownloadSourceSelector.Source(claimedTask.sourceUri, claimedTask.sourceNasId)
+                    .takeIf { it.uri.isNotBlank() && it.nasSourceId > 0L }
+            } else {
+                DownloadSourceSelector.select(
+                    claimedTask,
+                    checkNotNull(mediaFile),
+                    database.mediaDao().getMediaRemoteSources(mediaFile.id)
+                )
+            } ?: return@withContext fail(claimedTask, "NAS source is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
+            val sourceUri = Uri.parse(selectedSource.uri)
+            val sourceNasId = selectedSource.nasSourceId
+            val nasSource = database.nasDao().getSourceById(sourceNasId)
+                ?.takeIf { it.enabled }
+                ?: return@withContext fail(claimedTask, "NAS source is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
+            if (sourceUri.scheme !in setOf("smb", "https")) return@withContext fail(claimedTask, "Unsupported NAS download source", DownloadTaskErrorCode.UNSUPPORTED_SOURCE)
+            if (sourceUri.scheme == "https" && !WebDavClientManager.isWebDav(nasSource)) return@withContext fail(claimedTask, "WebDAV source configuration is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
+
+            val storageTarget = resolveStorageTarget(claimedTask)
+                ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)
+            if (!TvStorageManager(context).isExternalStorageTarget(storageTarget)) {
+                return@withContext fail(claimedTask, "NAS downloads require external storage", DownloadTaskErrorCode.STORAGE_ACCESS)
+            }
+            val root = DocumentFile.fromTreeUri(context, storageTarget.uri)
+                ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)
+            if (!TvStorageManager(context).isStorageTargetWritable(storageTarget.uri)) {
+                return@withContext fail(claimedTask, "Download storage is not writable", DownloadTaskErrorCode.STORAGE_ACCESS)
+            }
+            val downloadRoot = root.findFile(DOWNLOAD_DIRECTORY) ?: root.createDirectory(DOWNLOAD_DIRECTORY)
+                ?: return@withContext fail(claimedTask, "Cannot create download directory", DownloadTaskErrorCode.STORAGE_ACCESS)
+            val downloadDirectory = if (isRawFileTask) {
+                ensureRelativeDirectory(downloadRoot, nasSource, sourceUri)
+                    ?: return@withContext fail(claimedTask, "Cannot create source directory", DownloadTaskErrorCode.STORAGE_ACCESS)
+            } else downloadRoot
+            val partsDirectory = downloadRoot.findFile(PARTS_DIRECTORY)
+                ?: downloadRoot.createDirectory(PARTS_DIRECTORY)
+                ?: return@withContext fail(claimedTask, "Cannot create download part directory", DownloadTaskErrorCode.STORAGE_ACCESS)
+
             val remoteInfo = getRemoteFileInfo(nasSource, sourceUri)
             if (remoteInfo.length <= 0L) throw DownloadFailure(DownloadTaskErrorCode.SOURCE_CHANGED, "NAS source file is empty")
             val assemblingName = "download_${claimedTask.id}.assembling"
@@ -114,7 +122,9 @@ class TvDownloadEngine(
                 deletePartFiles(partsDirectory, chunks)
                 downloadDirectory.findFile(assemblingName)?.delete()
                 downloadDao.deleteChunks(claimedTask.id)
-                downloadDao.updateTask(claimedTask.copy(assembledBytes = 0L))
+                if (downloadDao.updateAssembledBytesWhileDownloading(claimedTask.id, 0L) == 0) {
+                    ensureTaskIsDownloading(claimedTask.id)
+                }
                 chunks = emptyList()
             }
             if (chunks.isEmpty()) {
@@ -142,6 +152,14 @@ class TvDownloadEngine(
                 for (chunk in chunks) {
                     if (chunk.status != DownloadChunkStatus.WAITING) continue
                     ensureTaskIsDownloading(claimedTask.id)
+                    val currentAssembledBytes = downloadDao.getTaskById(claimedTask.id)?.assembledBytes ?: 0L
+                    if (!TvStorageManager(context).isStorageTargetAvailable(storageTarget.uri)) {
+                        throw DownloadFailure(DownloadTaskErrorCode.STORAGE_UNAVAILABLE, "Download storage was disconnected")
+                    }
+                    if (!TvStorageManager(context).hasAvailableBytes(storageTarget,
+                            DownloadStorageRequirement.requiredFreeBytes(remoteInfo.length, currentAssembledBytes))) {
+                        throw DownloadFailure(DownloadTaskErrorCode.STORAGE_CAPACITY, "Download storage has insufficient free space")
+                    }
                     val downloadedPart = downloadChunkWithRetry(
                         source = nasSource,
                         sourceUri = sourceUri,
@@ -205,30 +223,37 @@ class TvDownloadEngine(
             downloadDao.deleteChunks(claimedTask.id)
             onProgress(100)
         } catch (interrupted: DownloadInterrupted) {
-            val current = downloadDao.getTaskById(claimedTask.id) ?: claimedTask
-            downloadDao.updateTask(current.copy(status = interrupted.status))
+            // 用户操作已持久化，不能用较早读到的状态覆盖后续恢复或取消。
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
+            val errorCode = when {
+                error is SecurityException -> DownloadTaskErrorCode.STORAGE_ACCESS
+                generateSequence<Throwable>(error) { it.cause }.take(16)
+                    .any { it is ErrnoException && it.errno == OsConstants.ENOSPC } -> DownloadTaskErrorCode.STORAGE_CAPACITY
+                error is IOException && resolveStorageTarget(claimedTask) == null -> DownloadTaskErrorCode.STORAGE_UNAVAILABLE
+                else -> error.toDownloadErrorCode()
+            }
             fail(
                 downloadDao.getTaskById(claimedTask.id) ?: claimedTask,
                 error.message ?: "Download failed",
-                error.toDownloadErrorCode()
+                errorCode
             )
         }
     }
 
     private fun resolveStorageTarget(task: DownloadTaskEntity): TvStorageManager.StorageTarget? {
         val storageManager = TvStorageManager(context)
-        return task.targetUri.takeIf { it.isNotBlank() }?.let { treeUri ->
-            val targetUri = Uri.parse(treeUri)
-            TvStorageManager.StorageTarget(
+        if (task.targetUri.isNotBlank()) {
+            val targetUri = Uri.parse(task.targetUri)
+            return TvStorageManager.StorageTarget(
                 uri = targetUri,
                 location = MediaStorageLocation.fromStored(task.targetStorageType)
                     ?: storageManager.resolveLocalLocation(targetUri),
                 isAvailable = storageManager.isStorageTargetAvailable(targetUri)
             ).takeIf { it.isAvailable }
-        } ?: storageManager.getAvailableStorageTarget()
+        }
+        return storageManager.getAvailableExternalStorageTarget()
     }
 
     /**
@@ -266,6 +291,7 @@ class TvDownloadEngine(
                 updatedAt = System.currentTimeMillis()
             ))
             val completedTask = downloadDao.getTaskById(taskId) ?: return@withTransaction
+            if (completedTask.status != DownloadTaskStatus.DOWNLOADING) throw DownloadInterrupted(completedTask.status)
             downloadDao.updateTask(completedTask.copy(
                 downloadedBytes = assembled.length,
                 assembledBytes = assembled.length,
@@ -285,19 +311,22 @@ class TvDownloadEngine(
         remoteInfo: RemoteInfo
     ) {
         val completedLength = completedFile.length()
-        val completedTask = database.downloadDao().getTaskById(taskId) ?: return
-        database.downloadDao().updateTask(
-            completedTask.copy(
-                downloadedBytes = completedLength,
-                assembledBytes = completedLength,
-                totalBytes = remoteInfo.length,
-                sourceLastModifiedAt = remoteInfo.lastModifiedAt,
-                status = DownloadTaskStatus.SUCCESS,
-                finishedAt = System.currentTimeMillis(),
-                errorMessage = "",
-                errorCode = DownloadTaskErrorCode.NONE
+        database.withTransaction {
+            val completedTask = database.downloadDao().getTaskById(taskId) ?: return@withTransaction
+            if (completedTask.status != DownloadTaskStatus.DOWNLOADING) throw DownloadInterrupted(completedTask.status)
+            database.downloadDao().updateTask(
+                completedTask.copy(
+                    downloadedBytes = completedLength,
+                    assembledBytes = completedLength,
+                    totalBytes = remoteInfo.length,
+                    sourceLastModifiedAt = remoteInfo.lastModifiedAt,
+                    status = DownloadTaskStatus.SUCCESS,
+                    finishedAt = System.currentTimeMillis(),
+                    errorMessage = "",
+                    errorCode = DownloadTaskErrorCode.NONE
+                )
             )
-        )
+        }
     }
 
     /** 原始 NAS 文件保留配置根目录以下的文件夹结构。 */
@@ -367,8 +396,10 @@ class TvDownloadEngine(
                 } ?: throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Cannot open download part output stream")
                 return DownloadedPart(part, checksum)
             } catch (error: Throwable) {
-                part.delete()
-                replaceReadHandle(null)
+                // 清理失败不能替换真正的传输错误或协程取消信号。
+                runCatching { part.delete() }
+                runCatching { replaceReadHandle(null) }
+                if (error is CancellationException) throw error
                 lastError = error
                 val retryable = if (sourceUri.scheme == "smb") SmbClientManager.isRetryable(error) else WebDavClientManager.isRetryable(error)
                 if (!retryable || attempt == MAX_RANGE_ATTEMPTS - 1) throw error
@@ -410,8 +441,9 @@ class TvDownloadEngine(
                 updatedAt = System.currentTimeMillis()
             ).also { database.downloadDao().updateChunk(it) }
         }
-        val currentTask = database.downloadDao().getTaskById(task.id) ?: task
-        database.downloadDao().updateTask(currentTask.copy(assembledBytes = 0L))
+        if (database.downloadDao().updateAssembledBytesWhileDownloading(task.id, 0L) == 0) {
+            ensureTaskIsDownloading(task.id)
+        }
         return reset
     }
 
@@ -448,7 +480,7 @@ class TvDownloadEngine(
     ): List<DownloadChunkEntity> {
         val downloadDao = database.downloadDao()
         var updatedChunks = chunks.sortedBy { it.chunkIndex }
-        var currentTask = downloadDao.getTaskById(taskId) ?: return updatedChunks
+        val currentTask = downloadDao.getTaskById(taskId) ?: return updatedChunks
         var assembledBytes = currentTask.assembledBytes
         while (true) {
             val next = updatedChunks.firstOrNull { it.status != DownloadChunkStatus.ASSEMBLED } ?: break
@@ -465,8 +497,9 @@ class TvDownloadEngine(
             downloadDao.updateChunk(assembledChunk)
             part.delete()
             assembledBytes += next.byteCount
-            currentTask = currentTask.copy(assembledBytes = assembledBytes)
-            downloadDao.updateTask(currentTask)
+            if (downloadDao.updateAssembledBytesWhileDownloading(taskId, assembledBytes) == 0) {
+                ensureTaskIsDownloading(taskId)
+            }
             updatedChunks = updatedChunks.map { if (it.id == next.id) assembledChunk else it }
         }
         return updatedChunks
@@ -516,13 +549,10 @@ class TvDownloadEngine(
         remoteInfo: RemoteInfo,
         onProgress: (Int) -> Unit
     ) {
-        val current = database.downloadDao().getTaskById(taskId) ?: return
-        if (current.status != DownloadTaskStatus.DOWNLOADING) throw DownloadInterrupted(current.status)
-        database.downloadDao().updateTask(current.copy(
-            downloadedBytes = downloadedBytes,
-            totalBytes = remoteInfo.length,
-            sourceLastModifiedAt = remoteInfo.lastModifiedAt
-        ))
+        if (database.downloadDao().updateProgressWhileDownloading(taskId, downloadedBytes,
+                remoteInfo.length, remoteInfo.lastModifiedAt) == 0) {
+            ensureTaskIsDownloading(taskId)
+        }
         onProgress(((downloadedBytes * 100L) / remoteInfo.length).toInt().coerceIn(0, 100))
     }
 
@@ -558,11 +588,7 @@ class TvDownloadEngine(
     }
 
     private suspend fun fail(task: DownloadTaskEntity, message: String, errorCode: String) {
-        database.downloadDao().updateTask(task.copy(
-            status = DownloadTaskStatus.FAILED,
-            errorMessage = message,
-            errorCode = errorCode
-        ))
+        database.downloadDao().failDownloadingTask(task.id, message, errorCode)
     }
 
     private class DownloadInterrupted(val status: String) : IOException()

@@ -16,7 +16,11 @@ import com.wkq.bao.core.nas.browser.NasFileEntry
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.ArrayDeque
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 
 data class EnqueueNasMediaResult(
     val videoCount: Int,
@@ -28,7 +32,7 @@ data class EnqueueNasMediaResult(
 /** NAS 媒体浏览只识别视频和与视频同名的弹幕、字幕文件。 */
 internal object NasMediaFileClassifier {
     private val videoExtensions = setOf("mp4", "mkv", "avi", "mov", "ts", "webm", "m4v")
-    private val danmakuExtensions = setOf("xml", "ass", "srt", "vtt")
+    private val danmakuExtensions = setOf("xml", "ass", "ssa", "srt", "vtt")
 
     fun isVideo(entry: NasFileEntry): Boolean = !entry.isDirectory && extension(entry.name) in videoExtensions
 
@@ -70,7 +74,7 @@ class NasFileBrowserRepository private constructor(
      * 仅展示视频文件以及其后代目录中含有视频的文件夹。
      * 目录判定结果按来源和路径缓存，避免用户在同一层级来回进入时重复遍历 NAS。
      */
-    suspend fun listMediaDirectory(source: NasSourceEntity, path: String): Result<List<NasFileEntry>> = runCatching {
+    suspend fun listMediaDirectory(source: NasSourceEntity, path: String): Result<List<NasFileEntry>> = mediaOperation {
         val entries = listDirectory(source, path).getOrThrow()
         entries.filter { entry ->
             NasMediaFileClassifier.isVideo(entry) ||
@@ -79,7 +83,7 @@ class NasFileBrowserRepository private constructor(
     }
 
     suspend fun refreshMediaDirectory(source: NasSourceEntity, path: String): Result<List<NasFileEntry>> {
-        directoryVideoCache.keys.removeAll { it.startsWith("${source.id}|") }
+        synchronized(directoryVideoCache) { directoryVideoCache.keys.removeAll { it.startsWith("${source.id}|") } }
         return listMediaDirectory(source, path)
     }
 
@@ -87,11 +91,11 @@ class NasFileBrowserRepository private constructor(
         source: NasSourceEntity,
         selected: Collection<NasFileEntry>,
         target: TvStorageManager.StorageTarget
-    ): Result<Int> = runCatching {
-        require(target.location != MediaStorageLocation.INTERNAL_STORAGE) {
+    ): Result<Int> = mediaOperation {
+        require(TvStorageManager(context).isExternalStorageTarget(target)) {
             "NAS downloads require external storage"
         }
-        require(target.isAvailable && TvStorageManager(context).isStorageTargetAvailable(target.uri)) {
+        require(target.isAvailable && TvStorageManager(context).isStorageTargetWritable(target.uri)) {
             "下载目标不可用"
         }
         register(source)
@@ -130,11 +134,11 @@ class NasFileBrowserRepository private constructor(
         source: NasSourceEntity,
         selected: Collection<NasFileEntry>,
         target: TvStorageManager.StorageTarget
-    ): Result<EnqueueNasMediaResult> = runCatching {
-        require(target.location != MediaStorageLocation.INTERNAL_STORAGE) {
+    ): Result<EnqueueNasMediaResult> = mediaOperation {
+        require(TvStorageManager(context).isExternalStorageTarget(target)) {
             "NAS downloads require external storage"
         }
-        require(target.isAvailable && TvStorageManager(context).isStorageTargetAvailable(target.uri)) {
+        require(target.isAvailable && TvStorageManager(context).isStorageTargetWritable(target.uri)) {
             "下载目标不可用"
         }
         register(source)
@@ -157,8 +161,9 @@ class NasFileBrowserRepository private constructor(
         val visitedDirectories = mutableSetOf<String>()
         selected.forEach { if (it.isDirectory) directories += it else files += it }
         while (directories.isNotEmpty()) {
+            currentCoroutineContext().ensureActive()
             val directory = directories.removeFirst()
-            if (!visitedDirectories.add(directory.path.lowercase())) continue
+            if (!visitedDirectories.add(directory.path)) continue
             val children = listDirectory(source, directory.path).getOrThrow()
             children.forEach { if (it.isDirectory) directories += it else files += it }
         }
@@ -210,28 +215,39 @@ class NasFileBrowserRepository private constructor(
     }
 
     private suspend fun containsVideo(source: NasSourceEntity, path: String): Boolean {
-        val cacheKey = "${source.id}|${path.lowercase()}"
-        directoryVideoCache[cacheKey]?.let { return it }
+        val cacheKey = "${source.id}|${source.type}|${source.host}|${source.port}|${source.shareName}|${source.rootPath}|$path"
+        synchronized(directoryVideoCache) { directoryVideoCache[cacheKey] }?.let { return it }
         val directories = ArrayDeque<String>()
         val visited = mutableSetOf<String>()
         directories += path
         while (directories.isNotEmpty()) {
+            currentCoroutineContext().ensureActive()
             val directory = directories.removeFirst()
-            if (!visited.add(directory.lowercase())) continue
+            if (!visited.add(directory)) continue
             val entries = listDirectory(source, directory).getOrThrow()
             if (entries.any(NasMediaFileClassifier::isVideo)) {
-                directoryVideoCache[cacheKey] = true
+                synchronized(directoryVideoCache) { directoryVideoCache[cacheKey] = true }
                 return true
             }
             entries.filter(NasFileEntry::isDirectory).forEach { directories += it.path }
         }
-        directoryVideoCache[cacheKey] = false
+        synchronized(directoryVideoCache) { directoryVideoCache[cacheKey] = false }
         return false
     }
 
     private fun register(source: NasSourceEntity) {
         if (WebDavClientManager.isWebDav(source)) WebDavCredentialRegistry.register(source)
         else SmbCredentialRegistry.register(source)
+    }
+
+    private suspend fun <T> mediaOperation(block: suspend () -> T): Result<T> = withContext(Dispatchers.IO) {
+        try {
+            Result.success(block())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
     }
 
     private fun buildUri(source: NasSourceEntity, path: String): String =
@@ -247,7 +263,9 @@ class NasFileBrowserRepository private constructor(
     }
 
     companion object {
-        private val directoryVideoCache = ConcurrentHashMap<String, Boolean>()
+        private val directoryVideoCache = object : LinkedHashMap<String, Boolean>(256, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?): Boolean = size > 256
+        }
 
         fun create(context: Context): NasFileBrowserRepository {
             val appContext = context.applicationContext

@@ -66,10 +66,10 @@ object SmbClientManager {
         }
     }
 
-    private fun newClient(): SMBClient {
+    private fun newClient(timeoutSeconds: Long = 10): SMBClient {
         val config = SmbConfig.builder()
-            .withTimeout(10, TimeUnit.SECONDS)
-            .withSoTimeout(15, TimeUnit.SECONDS)
+            .withTimeout(timeoutSeconds, TimeUnit.SECONDS)
+            .withSoTimeout(timeoutSeconds + 5, TimeUnit.SECONDS)
             .build()
         return SMBClient(config)
     }
@@ -165,10 +165,10 @@ object SmbClientManager {
     }
 
     /** 只读取当前层级，供文件浏览器按需进入目录，避免一次性扫描整台 NAS。 */
-    suspend fun listDirectory(source: NasSourceEntity, path: String): Result<List<NasFileEntry>> =
+    suspend fun listDirectory(source: NasSourceEntity, path: String, timeoutSeconds: Long = 10): Result<List<NasFileEntry>> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val client = newClient()
+                val client = newClient(timeoutSeconds)
                 var connection: Connection? = null
                 var session: Session? = null
                 var share: DiskShare? = null

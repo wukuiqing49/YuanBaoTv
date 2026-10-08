@@ -196,6 +196,14 @@
     <string name="player_subtitles_on">字幕：开</string>
     <string name="player_subtitles_off">字幕：关</string>
     <string name="player_subtitles_none">无字幕</string>
+    <string name="player_audio_tracks">音轨</string>
+    <string name="player_subtitle_tracks">字幕</string>
+    <string name="player_track_auto">自动选择</string>
+    <string name="storage_saved_target_format">%1$s · %2$s</string>
+    <string name="storage_target_current">%1$s（当前）</string>
+    <string name="storage_target_online">可用</string>
+    <string name="storage_target_offline">设备未连接</string>
+    <string name="storage_add_target">添加存储目录</string>
     <string name="player_playback_failed">播放失败，请检查 NAS 或存储设备后重试</string>
     <string name="title_nas_files">NAS 文件</string>
     <string name="nas_file_refresh">刷新</string>
@@ -213,4 +221,40 @@
     <string name="download_task_number">下载任务 #%1$d</string>
     <plurals name="nas_file_selected_count"><item quantity="one">已选择 %1$d 项</item><item quantity="other">已选择 %1$d 项</item></plurals>
     <plurals name="nas_file_queued"><item quantity="one">已将 %1$d 个文件加入下载队列</item><item quantity="other">已将 %1$d 个文件加入下载队列</item></plurals>
+    <string name="library_search_hint">搜索片名或原名</string>
+    <string name="library_clear_search">清除搜索</string>
+    <string name="library_sort">排序</string>
+    <string name="library_sort_recent">最近添加</string>
+    <string name="library_sort_title">片名顺序</string>
+    <string name="library_sort_year">年份从新到旧</string>
+    <string name="library_favorites_only">只看收藏</string>
+    <string name="library_no_results">没有匹配的影片</string>
+    <string name="library_no_results_message">试试其他片名或清除筛选条件</string>
+    <string name="library_clear_filters">清除筛选</string>
+    <string name="storage_permission_required">需要重新授权</string>
+    <string name="storage_read_only">只读目录</string>
+    <string name="storage_use_target">使用此目录</string>
+    <string name="storage_reauthorize">重新授权</string>
+    <string name="storage_remove_target">移除目录</string>
+    <string name="storage_remove_confirmation">从目录列表中移除？视频文件、下载任务和播放记录会保留。</string>
+    <string name="player_subtitle_settings">字幕设置</string>
+    <string name="player_subtitle_size">字幕大小</string>
+    <string name="player_subtitle_size_small">小</string>
+    <string name="player_subtitle_size_normal">标准</string>
+    <string name="player_subtitle_size_large">大</string>
+    <string name="player_subtitle_delay">字幕延迟</string>
+    <string name="player_subtitle_delay_value">%1$+.1f 秒</string>
+    <string name="media_edit_metadata">编辑信息</string>
+    <string name="media_edit_title">片名</string>
+    <string name="media_edit_year">年份</string>
+    <string name="media_edit_genre">类型标签</string>
+    <string name="media_edit_type">媒体类别</string>
+    <string name="media_edit_type_local">本地视频</string>
+    <string name="media_edit_description">简介</string>
+    <string name="media_edit_poster">选择本地封面</string>
+    <string name="media_edit_poster_selected">已选择封面</string>
+    <string name="media_edit_save">保存</string>
+    <string name="media_edit_title_required">请输入片名</string>
+    <string name="media_edit_year_invalid">请输入 1800–2999 之间的四位年份</string>
+    <string name="media_edit_failed">保存失败，请检查年份及媒体类别。多集剧集不能改为电影。</string>
 </resources>

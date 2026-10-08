@@ -8,7 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -17,6 +16,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -36,7 +36,7 @@ class DownloadsViewModelTest {
     }
 
     @Test
-    fun `state exposes only actionable tasks and downloaded series`() = runTest {
+    fun `state exposes only actionable tasks with no storage scan selected`() = runTest {
         val waiting = task(1L, DownloadTaskStatus.WAITING)
         val completed = task(2L, DownloadTaskStatus.SUCCESS)
         val repository = FakeDownloadsRepository(
@@ -51,7 +51,7 @@ class DownloadsViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(waiting), viewModel.uiState.value.tasks)
-        assertEquals(9L, viewModel.uiState.value.downloadedSeries.single().id)
+        assertNull(viewModel.uiState.value.scanSession)
         assertTrue(!viewModel.uiState.value.keepScreenOn)
         collection.cancel()
     }

@@ -6,6 +6,7 @@ import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import com.wkq.bao.core.database.entity.MediaSeriesType
 import com.wkq.bao.core.database.entity.WatchHistoryEntity
 import com.wkq.bao.core.media.repository.MediaBrowseRepository
+import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -60,7 +61,7 @@ class MediaBrowseViewModelTest {
     @Test
     fun `library state follows the selected media type`() = runTest {
         val repository = FakeMediaBrowseRepository()
-        val viewModel = MediaLibraryViewModel(repository)
+        val viewModel = MediaLibraryViewModel(repository, dispatcher)
         val stateCollection = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.uiState.collect {}
         }
@@ -75,6 +76,103 @@ class MediaBrowseViewModelTest {
         stateCollection.cancel()
     }
 
+    @Test
+    fun `search category and favorites intersect and react to favorite changes`() = runTest {
+        val repository = FakeMediaBrowseRepository()
+        repository.series.value = listOf(repository.movie.copy(originalTitle = "Original Movie"), repository.cartoon)
+        val viewModel = MediaLibraryViewModel(repository, dispatcher)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        viewModel.search("  ORIGINAL  ")
+        advanceUntilIdle()
+        assertEquals(listOf(repository.movie.id), viewModel.uiState.value.series.map { it.id })
+        viewModel.showFavorites(true)
+        advanceUntilIdle()
+        assertEquals(emptyList<MediaSeriesEntity>(), viewModel.uiState.value.series)
+        repository.favoriteSeriesIds.value = setOf(repository.movie.id)
+        advanceUntilIdle()
+        assertEquals(listOf(repository.movie.id), viewModel.uiState.value.series.map { it.id })
+        viewModel.selectType(MediaSeriesType.CARTOON)
+        advanceUntilIdle()
+        assertEquals(emptyList<MediaSeriesEntity>(), viewModel.uiState.value.series)
+        viewModel.clearFilters()
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.series.size)
+        assertEquals(false, viewModel.uiState.value.hasFilters)
+    }
+
+    @Test
+    fun `sort uses added date title or year with unknown years last`() = runTest {
+        val repository = FakeMediaBrowseRepository()
+        repository.series.value = listOf(
+            repository.movie.copy(id = 1, title = "beta", year = "2024", createdAt = 10, updatedAt = 100),
+            repository.movie.copy(id = 2, title = "Alpha", year = "2000", createdAt = 30, updatedAt = 1),
+            repository.movie.copy(id = 3, title = "Gamma", year = "unknown", createdAt = 20)
+        )
+        val viewModel = MediaLibraryViewModel(repository, dispatcher)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf(2L, 3L, 1L), viewModel.uiState.value.series.map { it.id })
+        viewModel.selectSort(LibrarySort.TITLE)
+        advanceUntilIdle()
+        assertEquals(listOf(2L, 1L, 3L), viewModel.uiState.value.series.map { it.id })
+        viewModel.selectSort(LibrarySort.YEAR)
+        advanceUntilIdle()
+        assertEquals(listOf(1L, 2L, 3L), viewModel.uiState.value.series.map { it.id })
+        viewModel.search("missing")
+        viewModel.clearFilters()
+        advanceUntilIdle()
+        assertEquals(LibrarySort.YEAR, viewModel.uiState.value.sort)
+    }
+
+    @Test
+    fun `library filters survive reconstruction and invalid sort falls back`() = runTest {
+        val savedState = SavedStateHandle()
+        val repository = FakeMediaBrowseRepository()
+        val original = MediaLibraryViewModel(repository, dispatcher, savedState)
+        original.search("Movie")
+        original.selectType(MediaSeriesType.MOVIE)
+        original.showFavorites(true)
+        original.selectSort(LibrarySort.YEAR)
+        val restored = MediaLibraryViewModel(repository, dispatcher, savedState)
+        assertEquals("Movie", restored.uiState.value.query)
+        assertEquals(MediaSeriesType.MOVIE, restored.uiState.value.selectedType)
+        assertEquals(true, restored.uiState.value.favoritesOnly)
+        assertEquals(LibrarySort.YEAR, restored.uiState.value.sort)
+        restored.clearFilters()
+        val cleared = MediaLibraryViewModel(repository, dispatcher, savedState)
+        assertEquals(false, cleared.uiState.value.hasFilters)
+        assertEquals(LibrarySort.YEAR, cleared.uiState.value.sort)
+        savedState["library_sort"] = "removed_sort"
+        assertEquals(LibrarySort.RECENT, MediaLibraryViewModel(repository, dispatcher, savedState).uiState.value.sort)
+    }
+
+    @Test
+    fun `large library expands in bounded windows and filtering resets the window`() = runTest {
+        val repository = FakeMediaBrowseRepository()
+        repository.series.value = (1..5000).map { index -> repository.movie.copy(id = index.toLong(),
+            title = "Movie $index", createdAt = index.toLong()) }
+        val savedState = SavedStateHandle()
+        val viewModel = MediaLibraryViewModel(repository, dispatcher, savedState)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(5000, viewModel.uiState.value.totalCount)
+        assertEquals(60, viewModel.uiState.value.series.size)
+        assertEquals(5000L, viewModel.uiState.value.series.first().id)
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertEquals(120, viewModel.uiState.value.series.size)
+        assertEquals(120, savedState.get<Int>("library_visible_limit"))
+        viewModel.search("Movie 5000")
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.totalCount)
+        assertEquals(false, viewModel.uiState.value.hasMore)
+        viewModel.clearFilters()
+        advanceUntilIdle()
+        assertEquals(60, viewModel.uiState.value.series.size)
+    }
+
     private class FakeMediaBrowseRepository : MediaBrowseRepository {
         val movie = MediaSeriesEntity(id = 1L, title = "Movie", type = MediaSeriesType.MOVIE)
         val cartoon = MediaSeriesEntity(id = 2L, title = "Cartoon", type = MediaSeriesType.CARTOON)
@@ -84,7 +182,8 @@ class MediaBrowseViewModelTest {
             seriesTitle = movie.title,
             episodeTitle = firstEpisode.title
         )
-        private val series = MutableStateFlow(listOf(movie, cartoon))
+        val series = MutableStateFlow(listOf(movie, cartoon))
+        override val favoriteSeriesIds = MutableStateFlow<Set<Long>>(emptySet())
 
         override val continueWatching: Flow<List<ContinueWatchingItem>> = MutableStateFlow(listOf(continueItem))
         override val allSeries: Flow<List<MediaSeriesEntity>> = series

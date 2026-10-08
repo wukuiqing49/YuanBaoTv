@@ -82,4 +82,21 @@ class AppDatabaseMigrationTest {
     private companion object {
         const val TEST_DATABASE_NAME = "migration-test"
     }
+
+    @Test
+    fun migrationFrom12To13PreservesExistingMedia() {
+        migrationHelper.createDatabase(TEST_DATABASE_NAME, 12).apply {
+            execSQL("INSERT INTO media_series (id, title, originalTitle, type, posterUri, backdropUri, description, year, genre, totalSeasons, createdAt, updatedAt) VALUES (1, 'Original', '', 'MOVIE', 'file://poster', '', '', '2024', '', 1, 1, 1)")
+            close()
+        }
+        val migrated = migrationHelper.runMigrationsAndValidate(TEST_DATABASE_NAME, 13, true, AppDatabase.MIGRATION_12_13)
+        migrated.query("SELECT title, posterUri, scanTitle, metadataEdited FROM media_series WHERE id=1").use {
+            assertTrue(it.moveToFirst())
+            org.junit.Assert.assertEquals("Original", it.getString(0))
+            org.junit.Assert.assertEquals("file://poster", it.getString(1))
+            org.junit.Assert.assertEquals("", it.getString(2))
+            org.junit.Assert.assertEquals(0, it.getInt(3))
+        }
+        migrated.close()
+    }
 }

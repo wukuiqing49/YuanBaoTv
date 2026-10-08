@@ -6,11 +6,14 @@ import com.wkq.bao.core.database.entity.ContinueWatchingItem
 import com.wkq.bao.core.database.entity.EpisodeEntity
 import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 /** 首页和媒体库共享的只读媒体浏览能力。 */
 interface MediaBrowseRepository {
     val continueWatching: Flow<List<ContinueWatchingItem>>
     val allSeries: Flow<List<MediaSeriesEntity>>
+    val favoriteSeriesIds: Flow<Set<Long>> get() = flowOf(emptySet())
 
     fun observeSeriesByType(type: String?): Flow<List<MediaSeriesEntity>>
     suspend fun getFirstEpisode(seriesId: Long): EpisodeEntity?
@@ -22,14 +25,15 @@ class RoomMediaBrowseRepository private constructor(
 
     override val continueWatching: Flow<List<ContinueWatchingItem>> =
         database.watchHistoryDao().getContinueWatchingList()
-    // 首页与媒体库只展示拥有可播放本地副本的内容，NAS 远程索引仅服务下载来源选择。
-    override val allSeries: Flow<List<MediaSeriesEntity>> = database.mediaDao().getDownloadedSeries()
+    override val allSeries: Flow<List<MediaSeriesEntity>> = database.mediaDao().getPlayableSeries()
+    override val favoriteSeriesIds: Flow<Set<Long>> = database.favoriteDao().getFavoriteSeries()
+        .map { series -> series.mapTo(mutableSetOf()) { it.id } }
 
     override fun observeSeriesByType(type: String?): Flow<List<MediaSeriesEntity>> =
-        type?.let(database.mediaDao()::getDownloadedSeriesByType) ?: database.mediaDao().getDownloadedSeries()
+        type?.let(database.mediaDao()::getPlayableSeriesByType) ?: database.mediaDao().getPlayableSeries()
 
     override suspend fun getFirstEpisode(seriesId: Long): EpisodeEntity? =
-        database.mediaDao().getFirstDownloadedEpisode(seriesId)
+        database.mediaDao().getFirstPlayableEpisode(seriesId)
 
     companion object {
         fun create(context: Context): RoomMediaBrowseRepository =
