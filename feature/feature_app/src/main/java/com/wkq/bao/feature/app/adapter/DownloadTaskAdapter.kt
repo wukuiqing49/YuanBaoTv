@@ -49,16 +49,22 @@ class DownloadTaskAdapter(
                 MediaStorageLocation.USB_DRIVE -> com.wkq.bao.feature.res.R.string.storage_usb_drive
                 else -> com.wkq.bao.feature.res.R.string.storage_external
             }
+            val directory = runCatching {
+                android.provider.DocumentsContract.getTreeDocumentId(Uri.parse(task.targetUri))
+            }.getOrNull().orEmpty()
+            val targetLabel = if (directory.isBlank()) context.getString(target) else
+                context.getString(com.wkq.bao.feature.res.R.string.download_progress_with_target,
+                    context.getString(target), directory)
             tvTaskDetail.text = if (task.status == DownloadTaskStatus.FAILED) {
                 context.getString(
                     com.wkq.bao.feature.res.R.string.download_failure_with_target,
-                    context.getString(target),
+                    targetLabel,
                     context.getString(failureReason(task.errorCode))
                 )
             } else {
                 context.getString(
                     com.wkq.bao.feature.res.R.string.download_progress_with_target,
-                    context.getString(target),
+                    targetLabel,
                     context.getString(
                         com.wkq.bao.feature.res.R.string.download_byte_progress_format,
                         task.downloadedBytes / 1024 / 1024,
@@ -85,6 +91,7 @@ class DownloadTaskAdapter(
     private fun statusLabel(status: String): Int = when (status) {
         DownloadTaskStatus.DOWNLOADING -> com.wkq.bao.feature.res.R.string.download_status_downloading
         DownloadTaskStatus.WAITING -> com.wkq.bao.feature.res.R.string.download_status_waiting
+        DownloadTaskStatus.WAITING_STORAGE -> com.wkq.bao.feature.res.R.string.download_waiting_storage
         DownloadTaskStatus.PAUSED -> com.wkq.bao.feature.res.R.string.download_status_paused
         DownloadTaskStatus.SUCCESS -> com.wkq.bao.feature.res.R.string.download_status_success
         else -> com.wkq.bao.feature.res.R.string.download_status_failed
@@ -95,6 +102,7 @@ class DownloadTaskAdapter(
         DownloadTaskErrorCode.STORAGE_UNAVAILABLE -> com.wkq.bao.feature.res.R.string.download_error_storage_unavailable
         DownloadTaskErrorCode.STORAGE_CAPACITY -> com.wkq.bao.feature.res.R.string.download_error_storage_capacity
         DownloadTaskErrorCode.STORAGE_ACCESS -> com.wkq.bao.feature.res.R.string.download_error_storage_access
+        DownloadTaskErrorCode.LIBRARY_MISMATCH -> com.wkq.bao.feature.res.R.string.download_library_mismatch
         DownloadTaskErrorCode.SOURCE_UNAVAILABLE -> com.wkq.bao.feature.res.R.string.download_error_source_unavailable
         DownloadTaskErrorCode.SOURCE_CHANGED -> com.wkq.bao.feature.res.R.string.download_error_source_changed
         DownloadTaskErrorCode.UNSUPPORTED_SOURCE -> com.wkq.bao.feature.res.R.string.download_error_unsupported_source

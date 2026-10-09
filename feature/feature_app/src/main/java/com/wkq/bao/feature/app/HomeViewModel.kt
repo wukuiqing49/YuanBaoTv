@@ -35,6 +35,7 @@ sealed interface HomeEvent {
 class HomeViewModel(
     private val repository: MediaBrowseRepository
 ) : ViewModel() {
+    val offlineSeriesIds = repository.offlineSeriesIds
 
     val uiState: StateFlow<HomeUiState> = combine(
         repository.continueWatching,
@@ -55,9 +56,15 @@ class HomeViewModel(
     val events: SharedFlow<HomeEvent> = _events.asSharedFlow()
 
     fun playFeatured() {
-        val seriesId = uiState.value.featured?.id ?: return
+        val state = uiState.value
+        val seriesId = state.featured?.id ?: return
+        val history = state.featuredProgress?.history?.takeIf { it.seriesId == seriesId && !it.completed }
         viewModelScope.launch {
-            runCatching { repository.getFirstEpisode(seriesId) }
+            runCatching {
+                history?.let { repository.getPlayableEpisode(seriesId, it.episodeId) }
+                    ?.takeIf { it.seriesId == seriesId && it.id == history.episodeId }
+                    ?: repository.getFirstEpisode(seriesId)
+            }
                 .onSuccess { episode ->
                     _events.emit(
                         episode?.let { HomeEvent.Play(seriesId, it) }

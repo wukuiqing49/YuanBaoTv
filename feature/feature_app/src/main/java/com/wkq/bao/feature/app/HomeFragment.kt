@@ -59,6 +59,7 @@ class HomeFragment : Fragment() {
     private fun observeData() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { viewModel.offlineSeriesIds.collect(posterAdapter::updateOfflineIds) }
                 launch {
                     viewModel.uiState.collect(::renderState)
                 }
@@ -113,7 +114,10 @@ class HomeFragment : Fragment() {
         binding.ivHeroBackdrop.visibility = View.VISIBLE
         binding.tvHeroDesc.maxLines = 2
         binding.vHeroScrim.visibility = View.VISIBLE
-        binding.btnHeroPlay.setText(com.wkq.bao.feature.res.R.string.btn_continue_play)
+        binding.btnHeroPlay.setText(if (state.featuredProgress?.history?.let {
+                it.seriesId == featured.id && !it.completed
+            } == true) com.wkq.bao.feature.res.R.string.btn_continue_play
+            else com.wkq.bao.feature.res.R.string.btn_play_now)
         binding.btnHeroPlay.setCompoundDrawablesWithIntrinsicBounds(com.wkq.bao.feature.res.R.drawable.ic_tv_play, 0, 0, 0)
         binding.btnHeroPlay.isEnabled = true
         binding.btnHeroPlay.visibility = View.VISIBLE

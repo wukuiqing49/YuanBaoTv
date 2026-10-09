@@ -18,6 +18,7 @@ class LocalMediaScanController(context: Context) {
     suspend fun enqueue(treeUri: Uri, retry: Boolean = false) {
         val sourceKey = treeUri.toString()
         val existing = sessionDao.get(ScanSessionKind.LOCAL, sourceKey)
+        if (!retry && existing != null && ScanSessionStatus.isActive(existing.status)) return
         val now = System.currentTimeMillis()
         val session = if (retry && existing != null) {
             existing.copy(status = ScanSessionStatus.QUEUED, errorMessage = "", updatedAt = now)

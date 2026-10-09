@@ -49,6 +49,11 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
         outState.putInt("selected_page", binding.vpMainPages.currentItem)
         super.onSaveInstanceState(outState)
     }
+
+    override fun onResume() {
+        super.onResume()
+        com.wkq.bao.core.media.storage.StorageReconnectWorker.enqueue(this)
+    }
     override fun initView() {
         configureInsets()
         capTabFontScale()

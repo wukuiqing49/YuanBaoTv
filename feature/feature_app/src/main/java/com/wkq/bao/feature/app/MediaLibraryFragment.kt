@@ -113,6 +113,7 @@ class MediaLibraryFragment : Fragment() {
     private fun observeData() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { viewModel.offlineSeriesIds.collect(posterAdapter::updateOfflineIds) }
                 viewModel.uiState.collect(::renderState)
             }
         }

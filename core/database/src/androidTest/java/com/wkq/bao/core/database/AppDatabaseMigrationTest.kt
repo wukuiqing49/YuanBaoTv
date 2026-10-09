@@ -84,6 +84,23 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrationFrom13To14PreservesLegacyDownloadBinding() {
+        migrationHelper.createDatabase(TEST_DATABASE_NAME, 13).apply {
+            execSQL("INSERT INTO download_tasks (id, seriesId, seasonId, episodeId, sourceUri, sourceNasId, targetUri, targetStorageType, totalBytes, downloadedBytes, assembledBytes, sourceLastModifiedAt, status, errorMessage, errorCode, createdAt, finishedAt) VALUES (1,0,0,-1,'smb://fixture/video.mkv',1,'content://fixture/usb','USB_DRIVE',100,50,50,0,'PAUSED','','',0,0)")
+            close()
+        }
+        migrationHelper.runMigrationsAndValidate(TEST_DATABASE_NAME, 14, true, AppDatabase.MIGRATION_13_14).apply {
+            query("SELECT targetLibraryId, downloadedBytes, status FROM download_tasks WHERE id=1").use {
+                assertTrue(it.moveToFirst())
+                org.junit.Assert.assertEquals("", it.getString(0))
+                org.junit.Assert.assertEquals(50L, it.getLong(1))
+                org.junit.Assert.assertEquals("PAUSED", it.getString(2))
+            }
+            close()
+        }
+    }
+
+    @Test
     fun migrationFrom12To13PreservesExistingMedia() {
         migrationHelper.createDatabase(TEST_DATABASE_NAME, 12).apply {
             execSQL("INSERT INTO media_series (id, title, originalTitle, type, posterUri, backdropUri, description, year, genre, totalSeasons, createdAt, updatedAt) VALUES (1, 'Original', '', 'MOVIE', 'file://poster', '', '', '2024', '', 1, 1, 1)")

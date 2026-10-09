@@ -43,6 +43,7 @@ class NasSourceRemovalCoordinator(private val context: Context) {
                 sourceNasId = sourceNasId,
                 activeStatuses = listOf(
                     DownloadTaskStatus.WAITING,
+                    DownloadTaskStatus.WAITING_STORAGE,
                     DownloadTaskStatus.DOWNLOADING,
                     DownloadTaskStatus.PAUSED,
                     DownloadTaskStatus.FAILED
@@ -92,6 +93,24 @@ class NasSourceRemovalCoordinator(private val context: Context) {
             }
             val root = DocumentFile.fromTreeUri(appContext, targetUri)
                 ?: return ArtifactCleanupResult.STORAGE_UNAVAILABLE
+            val library = com.wkq.bao.core.media.storage.MediaLibraryStorage(appContext)
+            if (task.targetLibraryId.isNotBlank()) {
+                if (!library.matches(targetUri, task.targetLibraryId)) return ArtifactCleanupResult.STORAGE_UNAVAILABLE
+                val libraryRoot = library.read(targetUri)?.root ?: return ArtifactCleanupResult.STORAGE_UNAVAILABLE
+                val directories = java.util.ArrayDeque<DocumentFile>()
+                directories.add(libraryRoot)
+                while (directories.isNotEmpty()) {
+                    val directory = directories.removeFirst()
+                    directory.listFiles().forEach { file ->
+                        if (file.isDirectory) directories.addLast(file)
+                        else if (file.name == "download_${task.id}.assembling" ||
+                            (directory.name == PARTS_DIRECTORY && file.name?.startsWith("chunk_${task.id}_") == true && file.name?.endsWith(".part") == true)) {
+                            if (!file.delete()) return ArtifactCleanupResult.FAILED
+                        }
+                    }
+                }
+                return@forEach
+            }
             val downloadDirectory = root.findFile(DOWNLOAD_DIRECTORY) ?: return@forEach
             val partsDirectory = downloadDirectory.findFile(PARTS_DIRECTORY)
             val files = buildList {

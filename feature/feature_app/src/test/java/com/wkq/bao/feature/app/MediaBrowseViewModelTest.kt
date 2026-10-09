@@ -59,6 +59,37 @@ class MediaBrowseViewModelTest {
     }
 
     @Test
+    fun `featured playback resumes the actual historical episode`() = runTest {
+        val repository = FakeMediaBrowseRepository()
+        val fifth = repository.firstEpisode.copy(id = 50, episodeNumber = 5)
+        repository.playableEpisode = fifth
+        repository.continueWatching.value = listOf(repository.continueItem.copy(
+            history = repository.continueItem.history.copy(episodeId = fifth.id)))
+        val viewModel = HomeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+        val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }
+        viewModel.playFeatured()
+        assertEquals(HomeEvent.Play(repository.movie.id, fifth), event.await())
+    }
+
+    @Test
+    fun `missing or foreign historical episode falls back to the first playable episode`() = runTest {
+        for (invalid in listOf(null, EpisodeEntity(id = 50, seriesId = 99, seasonId = 4, episodeNumber = 5))) {
+            val repository = FakeMediaBrowseRepository()
+            repository.playableEpisode = invalid
+            repository.continueWatching.value = listOf(repository.continueItem.copy(
+                history = repository.continueItem.history.copy(episodeId = 50)))
+            val viewModel = HomeViewModel(repository)
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+            advanceUntilIdle()
+            val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }
+            viewModel.playFeatured()
+            assertEquals(HomeEvent.Play(repository.movie.id, repository.firstEpisode), event.await())
+        }
+    }
+
+    @Test
     fun `library state follows the selected media type`() = runTest {
         val repository = FakeMediaBrowseRepository()
         val viewModel = MediaLibraryViewModel(repository, dispatcher)
@@ -185,12 +216,14 @@ class MediaBrowseViewModelTest {
         val series = MutableStateFlow(listOf(movie, cartoon))
         override val favoriteSeriesIds = MutableStateFlow<Set<Long>>(emptySet())
 
-        override val continueWatching: Flow<List<ContinueWatchingItem>> = MutableStateFlow(listOf(continueItem))
+        var playableEpisode: EpisodeEntity? = firstEpisode
+        override val continueWatching = MutableStateFlow(listOf(continueItem))
         override val allSeries: Flow<List<MediaSeriesEntity>> = series
 
         override fun observeSeriesByType(type: String?): Flow<List<MediaSeriesEntity>> =
             series.map { allSeries -> type?.let { filter -> allSeries.filter { it.type == filter } } ?: allSeries }
 
         override suspend fun getFirstEpisode(seriesId: Long): EpisodeEntity? = firstEpisode.takeIf { seriesId == movie.id }
+        override suspend fun getPlayableEpisode(seriesId: Long, episodeId: Long): EpisodeEntity? = playableEpisode
     }
 }

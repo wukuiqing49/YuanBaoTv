@@ -12,6 +12,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MediaDao {
+    @Query("SELECT media_files.seriesId, media_locations.uri FROM media_locations INNER JOIN media_files ON media_files.id = media_locations.mediaFileId UNION SELECT seriesId, localUri AS uri FROM media_files WHERE localUri IS NOT NULL AND localUri != ''")
+    fun observeLocalStorageLocations(): Flow<List<SeriesStorageLocation>>
+
+    @Query("SELECT DISTINCT media_files.seriesId FROM media_remote_sources remote INNER JOIN media_files ON media_files.id=remote.mediaFileId INNER JOIN nas_sources nas ON nas.id=remote.nasSourceId WHERE nas.enabled=1")
+    fun observeRemoteSeriesIds(): Flow<List<Long>>
     /** 清理早期版本写入的通用图库图片，避免把无关图片误展示为真实影视海报。 */
     @Query("""
         UPDATE media_series
@@ -299,3 +304,5 @@ interface MediaDao {
     @Update
     suspend fun updateMediaRemoteSource(source: MediaRemoteSourceEntity)
 }
+
+data class SeriesStorageLocation(val seriesId: Long, val uri: String)

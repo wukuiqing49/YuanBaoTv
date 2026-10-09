@@ -100,6 +100,7 @@ class NasFileBrowserRepository private constructor(
         }
         register(source)
         val files = expandFiles(source, selected).distinctBy(NasFileEntry::path)
+        val libraryId = com.wkq.bao.core.media.storage.MediaLibraryStorage(context).initialize(target.uri).id
         var queued = 0
         files.forEach { file ->
             val sourceUri = buildUri(source, file.path)
@@ -116,6 +117,7 @@ class NasFileBrowserRepository private constructor(
                         sourceUri = sourceUri,
                         sourceNasId = source.id,
                         targetUri = targetUri,
+                        targetLibraryId = libraryId,
                         targetStorageType = target.location.name,
                         totalBytes = file.size,
                         sourceLastModifiedAt = file.lastModifiedAt,
@@ -187,6 +189,7 @@ class NasFileBrowserRepository private constructor(
         target: TvStorageManager.StorageTarget
     ): Set<String> {
         val targetUri = target.uri.toString()
+        val libraryId = com.wkq.bao.core.media.storage.MediaLibraryStorage(context).initialize(target.uri).id
         val queuedPaths = mutableSetOf<String>()
         files.forEach { file ->
             val rawEpisodeId = rawDownloadKey(source.id, file.path)
@@ -201,6 +204,7 @@ class NasFileBrowserRepository private constructor(
                         sourceUri = buildUri(source, file.path),
                         sourceNasId = source.id,
                         targetUri = targetUri,
+                        targetLibraryId = libraryId,
                         targetStorageType = target.location.name,
                         totalBytes = file.size,
                         sourceLastModifiedAt = file.lastModifiedAt,

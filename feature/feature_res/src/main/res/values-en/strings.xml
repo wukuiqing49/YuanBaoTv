@@ -206,7 +206,7 @@
     <string name="nas_file_type_folder">Folder · Tap to open; check to download</string>
     <string name="nas_file_size">File · %1$s</string>
     <string name="nas_file_open">Open</string>
-    <string name="nas_file_download_selected">Download video and danmaku</string>
+    <string name="nas_file_download_selected">Download video and companion files</string>
     <string name="nas_file_action_failed">Unable to read or queue files. Check the NAS and target device.</string>
     <string name="download_task_number">Download #%1$d</string>
     <plurals name="nas_file_selected_count"><item quantity="one">%1$d item selected</item><item quantity="other">%1$d items selected</item></plurals>
@@ -247,4 +247,21 @@
     <string name="media_edit_title_required">Enter a title</string>
     <string name="media_edit_year_invalid">Enter a four-digit year between 1800 and 2999</string>
     <string name="media_edit_failed">Could not save. Check the year and category. A series with multiple episodes cannot become a movie.</string>
+    <string name="storage_check_write">Check write access</string>
+    <string name="storage_write_verified">Write and read-back check passed. Large-file compatibility still depends on the device and disk format.</string>
+    <string name="storage_read_only_notice">This folder is read-only. Videos can be imported and played, but downloads are unavailable.</string>
+    <string name="storage_write_failed_label">Write check failed</string>
+    <string name="storage_write_failed">Cannot write or read back a test file. Check free space, folder permissions and disk format, then check again.</string>
+    <string name="storage_check_cleanup_failed">The temporary .yuanbao-check- file could not be removed. Delete it from the selected folder and check again.</string>
+    <string name="storage_picker_missing">The system does not provide folder authorization. External download storage cannot be selected on this device.</string>
+    <string name="download_waiting_storage">Waiting for storage device</string>
+    <string name="download_library_mismatch">The media library does not match this task. Reconnect the original device.</string>
+    <string name="storage_device_connected">Storage device connected. Open Downloads → Choose location to set up its media library.</string>
+    <string name="storage_detected_device">Connected device: %1$s · %2$s</string>
+    <string name="storage_initialize_library">Create or connect media library</string>
+    <string name="storage_initialize_description">Create YuanBaoTV/Movies, TVShows and Downloads in this folder, or connect an existing library. Existing media files will be kept.</string>
+    <string name="storage_library_ready">Media library ready. Scanning local videos.</string>
+    <string name="storage_library_failed">Cannot initialize the library. Check write access and the library marker. Existing files have been kept.</string>
+    <string name="storage_scan_now">Scan this folder</string>
+    <string name="media_storage_offline">Storage offline · reconnect to play</string>
 </resources>

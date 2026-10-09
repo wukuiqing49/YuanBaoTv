@@ -51,6 +51,7 @@ object DownloadTaskAction {
         DownloadTaskStatus.FAILED -> DownloadTaskStatus.WAITING
 
         DownloadTaskStatus.WAITING,
+        DownloadTaskStatus.WAITING_STORAGE,
         DownloadTaskStatus.DOWNLOADING -> DownloadTaskStatus.PAUSED
 
         else -> null

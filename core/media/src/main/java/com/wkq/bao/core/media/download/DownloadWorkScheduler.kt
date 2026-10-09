@@ -20,7 +20,8 @@ object DownloadWorkScheduler {
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .setRequiresBatteryNotLow(true)
+                    // 加急任务不支持电量约束，否则 build() 抛异常，已入库任务会无人调度。
+                    .setRequiresBatteryNotLow(!expedited)
                     .setRequiresStorageNotLow(true)
                     .build()
             )

@@ -1,6 +1,7 @@
 package com.wkq.bao.core.database.entity
 
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -27,6 +28,8 @@ data class DownloadTaskEntity(
     val sourceNasId: Long = 0L,
     val targetUri: String = "",
     val targetStorageType: String = "",
+    @ColumnInfo(defaultValue = "''")
+    val targetLibraryId: String = "",
     val totalBytes: Long = 0L,
     val downloadedBytes: Long = 0L,
     /** 已安全追加到最终临时文件的连续字节数，用于大文件低空间恢复。 */
@@ -48,6 +51,7 @@ object DownloadTaskErrorCode {
     const val STORAGE_UNAVAILABLE = "STORAGE_UNAVAILABLE"
     const val STORAGE_CAPACITY = "STORAGE_CAPACITY"
     const val STORAGE_ACCESS = "STORAGE_ACCESS"
+    const val LIBRARY_MISMATCH = "LIBRARY_MISMATCH"
     const val SOURCE_UNAVAILABLE = "SOURCE_UNAVAILABLE"
     const val SOURCE_CHANGED = "SOURCE_CHANGED"
     const val UNSUPPORTED_SOURCE = "UNSUPPORTED_SOURCE"

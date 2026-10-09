@@ -19,7 +19,7 @@ interface DownloadDao {
     /** 从持久化完成记录恢复待入库目录，扫描开始前已完成的文件由该次扫描覆盖。 */
     @Query("""
         SELECT DISTINCT task.targetUri FROM download_tasks task
-        WHERE task.episodeId < 0 AND task.status = 'SUCCESS' AND task.targetUri != ''
+        WHERE (task.episodeId < 0 OR task.targetLibraryId != '') AND task.status = 'SUCCESS' AND task.targetUri != ''
           AND NOT EXISTS (
               SELECT 1 FROM scan_sessions scan
               WHERE scan.kind = 'LOCAL' AND scan.sourceKey = task.targetUri
@@ -30,7 +30,7 @@ interface DownloadDao {
 
     @Query("""
         SELECT MAX(finishedAt) FROM download_tasks
-        WHERE episodeId < 0 AND status = 'SUCCESS' AND targetUri = :treeUri
+        WHERE (episodeId < 0 OR targetLibraryId != '') AND status = 'SUCCESS' AND targetUri = :treeUri
     """)
     suspend fun getLatestRawDownloadCompletion(treeUri: String): Long?
 
@@ -73,6 +73,9 @@ interface DownloadDao {
 
     @Query("UPDATE download_tasks SET status = 'FAILED', errorMessage = :message, errorCode = :errorCode WHERE id = :id AND status = 'DOWNLOADING'")
     suspend fun failDownloadingTask(id: Long, message: String, errorCode: String): Int
+
+    @Query("UPDATE download_tasks SET status = 'WAITING_STORAGE', errorCode = 'STORAGE_UNAVAILABLE' WHERE id = :id AND status = 'DOWNLOADING'")
+    suspend fun waitForStorage(id: Long): Int
 
     @Query("UPDATE download_tasks SET status = :waiting WHERE status = :downloading")
     suspend fun requeueInterruptedTasks(waiting: String = "WAITING", downloading: String = "DOWNLOADING"): Int

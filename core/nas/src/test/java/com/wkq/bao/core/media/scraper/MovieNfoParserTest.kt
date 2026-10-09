@@ -17,6 +17,15 @@ class MovieNfoParserTest {
     }
 
     @Test
+    fun `supports unicode BOM and rejects encoded doctype`() {
+        val nfo = "<movie><title>影片</title></movie>"
+        assertEquals("影片", MovieNfoParser.parse(nfo.toByteArray(Charsets.UTF_16).inputStream())?.title)
+        assertEquals("影片", MovieNfoParser.parse(("\uFEFF" + nfo).byteInputStream())?.title)
+        val malicious = "<!DOCTYPE movie [<!ENTITY x SYSTEM 'https://example.com/'>]><movie><title>&x;</title></movie>"
+        assertNull(MovieNfoParser.parse(malicious.toByteArray(Charsets.UTF_16).inputStream()))
+    }
+
+    @Test
     fun `rejects external entities and oversized files`() {
         assertNull(MovieNfoParser.parse("""<!DOCTYPE movie [<!ENTITY x SYSTEM "file:///etc/passwd">]><movie><plot>&x;</plot></movie>""".byteInputStream()))
         assertNull(MovieNfoParser.parse(ByteArray(256 * 1024 + 1).inputStream()))

@@ -15,6 +15,12 @@ import com.wkq.bao.feature.app.utils.TvFocusHelper
 class PosterCardAdapter(
     private val onItemClick: (MediaSeriesEntity) -> Unit
 ) : ListAdapter<MediaSeriesEntity, PosterCardAdapter.ViewHolder>(DIFF_CALLBACK) {
+    private var offlineIds: Set<Long> = emptySet()
+    fun updateOfflineIds(ids: Set<Long>) {
+        val changed = (offlineIds - ids) + (ids - offlineIds)
+        offlineIds = ids
+        currentList.forEachIndexed { index, item -> if (item.id in changed) notifyItemChanged(index) }
+    }
 
     init {
         setHasStableIds(true)
@@ -56,7 +62,9 @@ class PosterCardAdapter(
             val context = binding.root.context
             val genre = MediaLabels.genreOrType(context, item.genre, item.type)
             binding.tvTitle.text = item.title
-            binding.tvSubtitle.text = if (MediaSeriesType.isMovie(item.type)) {
+            binding.tvSubtitle.text = if (item.id in offlineIds) {
+                context.getString(com.wkq.bao.feature.res.R.string.media_storage_offline)
+            } else if (MediaSeriesType.isMovie(item.type)) {
                 context.getString(com.wkq.bao.feature.res.R.string.poster_movie_subtitle, genre)
             } else {
                 context.getString(com.wkq.bao.feature.res.R.string.poster_series_subtitle, item.totalSeasons, genre)

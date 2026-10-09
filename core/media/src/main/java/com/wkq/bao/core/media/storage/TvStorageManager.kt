@@ -9,10 +9,13 @@ import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.UUID
+import java.io.IOException
 
 /** 管理用户授权的本机、TF 卡、USB 或移动硬盘目录，并识别本地媒体所在卷。 */
 class TvStorageManager(private val context: Context) {
-    enum class TargetStatus { AVAILABLE, READ_ONLY, OFFLINE, PERMISSION_REQUIRED, UNAVAILABLE }
+    enum class TargetStatus { AVAILABLE, READ_ONLY, OFFLINE, PERMISSION_REQUIRED, UNAVAILABLE, WRITE_FAILED }
+    enum class WriteCheck { WRITABLE, READ_ONLY, UNAVAILABLE, WRITE_FAILED, CLEANUP_FAILED }
 
     data class StorageInfo(
         val totalBytes: Long,
@@ -50,6 +53,7 @@ class TvStorageManager(private val context: Context) {
 
     /** 仅移除目录配置；下载任务和媒体记录可能仍依赖其授权，不能同时撤销。 */
     fun removeStorageRoot(uri: Uri) {
+        MediaLibraryStorage(context).forget(uri)
         val remaining = storedTargets().filterNot { it.first == uri }
         val stored = JSONArray()
         remaining.forEach { (targetUri, location) ->
@@ -68,7 +72,7 @@ class TvStorageManager(private val context: Context) {
     private fun storageTarget(uri: Uri, location: MediaStorageLocation): StorageTarget {
         val status = getTargetStatus(uri)
         return StorageTarget(uri, location,
-            status == TargetStatus.AVAILABLE || status == TargetStatus.READ_ONLY, status)
+            status in setOf(TargetStatus.AVAILABLE, TargetStatus.READ_ONLY, TargetStatus.WRITE_FAILED), status)
     }
 
     fun getTargetStatus(uri: Uri): TargetStatus = try {
@@ -85,6 +89,7 @@ class TvStorageManager(private val context: Context) {
                 root == null || !root.exists() -> TargetStatus.UNAVAILABLE
                 !root.canRead() -> TargetStatus.PERMISSION_REQUIRED
                 !root.canWrite() -> TargetStatus.READ_ONLY
+                prefs.getBoolean("write_check_failed_$uri", false) -> TargetStatus.WRITE_FAILED
                 else -> TargetStatus.AVAILABLE
             }
         }
@@ -112,6 +117,20 @@ class TvStorageManager(private val context: Context) {
     }
 
     fun getStorageRoot(): String? = prefs.getString(KEY_STORAGE_ROOT, null)
+
+    data class DetectedDevice(val name: String, val initialUri: Uri, val readOnly: Boolean)
+
+    fun getConnectedDevices(): List<DetectedDevice> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return emptyList()
+        val manager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+        return manager.storageVolumes.filter { !it.isPrimary && it.state in
+            setOf(Environment.MEDIA_MOUNTED, Environment.MEDIA_MOUNTED_READ_ONLY) }.mapNotNull { volume ->
+            val id = volume.uuid ?: return@mapNotNull null
+            DetectedDevice(volume.getDescription(context),
+                DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "$id:"),
+                volume.state == Environment.MEDIA_MOUNTED_READ_ONLY)
+        }
+    }
 
     fun getStorageTarget(): StorageTarget? {
         val uri = getStorageRoot()?.let(Uri::parse) ?: return null
@@ -152,9 +171,48 @@ class TvStorageManager(private val context: Context) {
     }
 
     fun isStorageTargetWritable(uri: Uri): Boolean = try {
-        isStorageTargetAvailable(uri) && DocumentFile.fromTreeUri(context, uri)?.canWrite() == true
+        isStorageTargetAvailable(uri) && !prefs.getBoolean("write_check_failed_$uri", false) &&
+            DocumentFile.fromTreeUri(context, uri)?.canWrite() == true
     } catch (_: Exception) {
         false
+    }
+
+    /** 在 IO 线程执行；只操作本次新建的随机测试文件，不能覆盖用户文件。 */
+    fun checkDirectoryWrite(uri: Uri): WriteCheck {
+        if (!isStorageTargetAvailable(uri)) return WriteCheck.UNAVAILABLE
+        val root = runCatching { DocumentFile.fromTreeUri(context, uri) }.getOrNull() ?: return WriteCheck.UNAVAILABLE
+        if (!runCatching { root.canWrite() }.getOrDefault(false)) return WriteCheck.READ_ONLY
+        var probe: DocumentFile? = null
+        var result = WriteCheck.WRITE_FAILED
+        try {
+            probe = root.createFile("application/octet-stream", ".yuanbao-check-${UUID.randomUUID()}")
+                ?: throw IOException("Cannot create probe")
+            val bytes = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
+            context.contentResolver.openOutputStream(probe.uri, "w")?.use { output ->
+                output.write(bytes)
+                output.flush()
+            } ?: throw IOException("Cannot open probe")
+            val actual = context.contentResolver.openInputStream(probe.uri)?.use { input ->
+                // 限制读取量，防止异常 Provider 返回无限数据。
+                val buffer = ByteArray(bytes.size + 1)
+                var count = 0
+                while (count < buffer.size) {
+                    val read = input.read(buffer, count, buffer.size - count)
+                    if (read <= 0) break
+                    count += read
+                }
+                buffer.copyOf(count)
+            }
+            if (actual != null && actual.contentEquals(bytes)) result = WriteCheck.WRITABLE
+        } catch (_: Exception) {
+            result = WriteCheck.WRITE_FAILED
+        } finally {
+            if (probe != null && !runCatching { probe.delete() }.getOrDefault(false)) {
+                result = WriteCheck.CLEANUP_FAILED
+            }
+        }
+        prefs.edit().putBoolean("write_check_failed_$uri", result != WriteCheck.WRITABLE).apply()
+        return result
     }
 
     private fun isStorageTargetReadable(uri: Uri): Boolean {

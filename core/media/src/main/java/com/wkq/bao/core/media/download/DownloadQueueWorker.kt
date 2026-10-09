@@ -40,7 +40,18 @@ class DownloadQueueWorker(
             AppDiagnostics.record(applicationContext, "download", "queue_finished")
             return Result.success()
         }
-        setForeground(createForegroundInfo(0))
+        try {
+            setForeground(createForegroundInfo(0))
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                error is android.app.ForegroundServiceStartNotAllowedException) {
+                // 后台挂载广播不一定有前台服务启动资格，保留队列并交给系统退避重试。
+                AppDiagnostics.record(applicationContext, "download", "foreground_start_deferred")
+                return Result.retry()
+            }
+            throw error
+        }
         try {
             return processQueue()
         } finally {
@@ -50,11 +61,18 @@ class DownloadQueueWorker(
     }
 
     private suspend fun processQueue(): Result {
+        val retryIds = mutableSetOf<Long>()
         while (true) {
             val task = database.downloadDao().getNextTaskByStatus(DownloadTaskStatus.WAITING)
                 ?: run {
+                    // 先处理其他可执行任务，最后重排失败任务；暂停/取消由条件更新保护。
+                    var requeued = false
+                    retryIds.forEach { id ->
+                        requeued = database.downloadDao().transitionTaskStatus(id,
+                            DownloadTaskStatus.FAILED, DownloadTaskStatus.WAITING) > 0 || requeued
+                    }
                     AppDiagnostics.record(applicationContext, "download", "queue_finished")
-                    return Result.success()
+                    return if (requeued) Result.retry() else Result.success()
                 }
             try {
                 TvDownloadEngine(applicationContext, database).executeTask(task) { progress ->
@@ -64,14 +82,12 @@ class DownloadQueueWorker(
                 throw cancelled
             }
             val latest = database.downloadDao().getTaskById(task.id) ?: continue
-            if (task.episodeId < 0L && latest.status == DownloadTaskStatus.SUCCESS) {
+            if ((task.episodeId < 0L || task.targetLibraryId.isNotBlank()) && latest.status == DownloadTaskStatus.SUCCESS) {
                 enqueueLocalIndexing()
             }
             if (latest.status == DownloadTaskStatus.FAILED && DownloadTaskErrorCode.isRetryable(latest.errorCode)) {
                 AppDiagnostics.record(applicationContext, "download", "retry_${latest.errorCode.lowercase()}")
-                if (runAttemptCount >= MAX_RETRY_ATTEMPTS) return Result.failure()
-                database.downloadDao().updateTask(latest.copy(status = DownloadTaskStatus.WAITING))
-                return Result.retry()
+                if (runAttemptCount < MAX_RETRY_ATTEMPTS) retryIds += latest.id
             }
             if (latest.status == DownloadTaskStatus.FAILED) {
                 AppDiagnostics.record(applicationContext, "download", "failed_${latest.errorCode.lowercase()}")

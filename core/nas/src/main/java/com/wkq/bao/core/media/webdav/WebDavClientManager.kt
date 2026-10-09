@@ -29,6 +29,13 @@ import org.xmlpull.v1.XmlPullParserFactory
 
 /** HTTPS WebDAV 的连接、递归扫描与 Range 读取实现。 */
 object WebDavClientManager {
+    /** 隐藏 HTTP 响应类型，供媒体层流式读取附件。 */
+    fun <T> withRemoteStream(source: NasSourceEntity, uri: Uri, action: (java.io.InputStream) -> T): T =
+        openRemoteFile(source, uri).use { response ->
+            if (!response.isSuccessful) throw java.io.IOException("Cannot read remote file")
+            val body = response.body ?: throw java.io.IOException("Empty remote response")
+            body.byteStream().use(action)
+        }
     data class RemoteFileInfo(val length: Long, val lastModifiedAt: Long)
 
     data class RemoteMediaFile(

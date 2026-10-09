@@ -216,7 +216,7 @@
     <string name="nas_file_type_folder">文件夹 · 点击进入，勾选下载整目录</string>
     <string name="nas_file_size">文件 · %1$s</string>
     <string name="nas_file_open">打开</string>
-    <string name="nas_file_download_selected">下载视频与弹幕</string>
+    <string name="nas_file_download_selected">下载视频及关联文件</string>
     <string name="nas_file_action_failed">文件读取或下载入队失败，请检查 NAS 和目标设备</string>
     <string name="download_task_number">下载任务 #%1$d</string>
     <plurals name="nas_file_selected_count"><item quantity="one">已选择 %1$d 项</item><item quantity="other">已选择 %1$d 项</item></plurals>
@@ -257,4 +257,21 @@
     <string name="media_edit_title_required">请输入片名</string>
     <string name="media_edit_year_invalid">请输入 1800–2999 之间的四位年份</string>
     <string name="media_edit_failed">保存失败，请检查年份及媒体类别。多集剧集不能改为电影。</string>
+    <string name="storage_check_write">检测写入权限</string>
+    <string name="storage_write_verified">写入及读回检测通过。大文件兼容性仍取决于设备和磁盘格式。</string>
+    <string name="storage_read_only_notice">此目录只读，可导入和播放视频，不能用于下载。</string>
+    <string name="storage_write_failed_label">写入检测失败</string>
+    <string name="storage_write_failed">无法写入或读回测试文件。请检查剩余空间、目录权限和磁盘格式后重新检测。</string>
+    <string name="storage_check_cleanup_failed">临时 .yuanbao-check- 文件无法删除，请在所选目录删除该文件后重新检测。</string>
+    <string name="storage_picker_missing">系统未提供目录授权功能，此设备暂时无法选择外接下载目录。</string>
+    <string name="download_waiting_storage">等待存储设备</string>
+    <string name="download_library_mismatch">媒体库与任务不一致，请接回原设备。</string>
+    <string name="storage_device_connected">已连接存储设备，请在“下载 → 选择目录”中设置媒体库。</string>
+    <string name="storage_detected_device">已连接设备：%1$s · %2$s</string>
+    <string name="storage_initialize_library">创建或接入媒体库</string>
+    <string name="storage_initialize_description">在所选目录创建 YuanBaoTV/Movies、TVShows 和 Downloads，或接入已有媒体库。保留已有媒体文件。</string>
+    <string name="storage_library_ready">媒体库已就绪，正在扫描本地视频。</string>
+    <string name="storage_library_failed">无法初始化媒体库，请检查写入权限和媒体库标识。已有文件已保留。</string>
+    <string name="storage_scan_now">扫描此目录</string>
+    <string name="media_storage_offline">存储设备离线 · 重新连接后播放</string>
 </resources>

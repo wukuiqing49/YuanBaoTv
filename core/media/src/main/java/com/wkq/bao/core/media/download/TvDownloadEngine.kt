@@ -18,6 +18,9 @@ import com.wkq.bao.core.media.smb.SmbClientManager
 import com.wkq.bao.core.media.webdav.WebDavClientManager
 import com.wkq.bao.core.media.storage.MediaStorageLocation
 import com.wkq.bao.core.media.storage.TvStorageManager
+import com.wkq.bao.core.media.storage.MediaLibraryStorage
+import com.wkq.bao.core.media.parser.MediaFileNameParser
+import com.wkq.bao.core.database.entity.MediaSeriesType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -74,19 +77,43 @@ class TvDownloadEngine(
             if (!TvStorageManager(context).isExternalStorageTarget(storageTarget)) {
                 return@withContext fail(claimedTask, "NAS downloads require external storage", DownloadTaskErrorCode.STORAGE_ACCESS)
             }
+            val libraries = MediaLibraryStorage(context)
+            if (claimedTask.targetLibraryId.isNotBlank() && !libraries.matches(storageTarget.uri, claimedTask.targetLibraryId)) {
+                return@withContext fail(claimedTask, "Library identity does not match", DownloadTaskErrorCode.LIBRARY_MISMATCH)
+            }
             val root = DocumentFile.fromTreeUri(context, storageTarget.uri)
                 ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)
             if (!TvStorageManager(context).isStorageTargetWritable(storageTarget.uri)) {
                 return@withContext fail(claimedTask, "Download storage is not writable", DownloadTaskErrorCode.STORAGE_ACCESS)
             }
-            val downloadRoot = root.findFile(DOWNLOAD_DIRECTORY) ?: root.createDirectory(DOWNLOAD_DIRECTORY)
+            val managed = claimedTask.targetLibraryId.isNotBlank()
+            suspend fun checkDestination() {
+                ensureTaskIsDownloading(claimedTask.id)
+                if (!TvStorageManager(context).isStorageTargetAvailable(storageTarget.uri)) {
+                    throw DownloadFailure(DownloadTaskErrorCode.STORAGE_UNAVAILABLE, "Storage was disconnected")
+                }
+                if (managed && !libraries.matches(storageTarget.uri, claimedTask.targetLibraryId)) {
+                    throw DownloadFailure(DownloadTaskErrorCode.LIBRARY_MISMATCH, "Library identity changed")
+                }
+            }
+            val downloadRoot = if (managed) libraries.read(storageTarget.uri)?.root
+                else root.findFile(DOWNLOAD_DIRECTORY) ?: root.createDirectory(DOWNLOAD_DIRECTORY)
                 ?: return@withContext fail(claimedTask, "Cannot create download directory", DownloadTaskErrorCode.STORAGE_ACCESS)
-            val downloadDirectory = if (isRawFileTask) {
+            checkNotNull(downloadRoot)
+            val downloadDirectory = if (managed) {
+                val category = if (MediaFileNameParser.parse(sourceUri.lastPathSegment.orEmpty()).mediaType == MediaSeriesType.TV) "TVShows" else "Movies"
+                val categoryRoot = MediaLibraryStorage.directory(downloadRoot, category)
+                val sourceRoot = MediaLibraryStorage.directory(categoryRoot, "NAS_${nasSource.id}")
+                if (isRawFileTask) ensureRelativeDirectory(sourceRoot, nasSource, sourceUri)
+                    ?: throw IOException("Cannot create media directory")
+                else MediaLibraryStorage.directory(sourceRoot, "media_${claimedTask.seriesId}_${claimedTask.episodeId}")
+            } else if (isRawFileTask) {
                 ensureRelativeDirectory(downloadRoot, nasSource, sourceUri)
                     ?: return@withContext fail(claimedTask, "Cannot create source directory", DownloadTaskErrorCode.STORAGE_ACCESS)
             } else downloadRoot
-            val partsDirectory = downloadRoot.findFile(PARTS_DIRECTORY)
-                ?: downloadRoot.createDirectory(PARTS_DIRECTORY)
+            val temporaryRoot = if (managed) MediaLibraryStorage.directory(downloadRoot, "Downloads") else downloadRoot
+            val partsDirectory = temporaryRoot.findFile(PARTS_DIRECTORY)
+                ?: temporaryRoot.createDirectory(PARTS_DIRECTORY)
                 ?: return@withContext fail(claimedTask, "Cannot create download part directory", DownloadTaskErrorCode.STORAGE_ACCESS)
 
             val remoteInfo = getRemoteFileInfo(nasSource, sourceUri)
@@ -94,13 +121,15 @@ class TvDownloadEngine(
             val assemblingName = "download_${claimedTask.id}.assembling"
             val displayFileName = mediaFile?.fileName?.ifBlank { "episode_${claimedTask.episodeId}.mp4" }
                 ?: sourceUri.lastPathSegment.orEmpty().ifBlank { "nas_file_${claimedTask.id}" }
-            val finalName = if (mediaFile == null) safeFileName(displayFileName)
+            val finalName = if (mediaFile == null || managed) safeFileName(displayFileName)
             else "media_${mediaFile.id}_${claimedTask.id}_${safeFileName(displayFileName)}"
             val existingFinalFile = downloadDirectory.findFile(finalName)
             if (existingFinalFile != null) {
                 if (existingFinalFile.length() != remoteInfo.length) {
                     throw DownloadFailure(DownloadTaskErrorCode.TARGET_EXISTS, "Completed file name is occupied by a different file")
                 }
+                if (managed) NasCompanionDownloader(context).copy(nasSource, sourceUri, downloadDirectory, finalName) { checkDestination() }
+                checkDestination()
                 if (mediaFile == null) completeRawDownload(claimedTask.id, existingFinalFile, remoteInfo)
                 else completeDownload(
                     claimedTask.id, mediaFile, displayFileName, existingFinalFile,
@@ -130,8 +159,9 @@ class TvDownloadEngine(
             if (chunks.isEmpty()) {
                 // 旧版单临时文件没有分块完整性证明，升级后不再复用。
                 downloadDirectory.findFile("download_${claimedTask.id}.part")?.delete()
-                chunks = DownloadChunkPlanner.create(claimedTask.id, remoteInfo.length)
-                downloadDao.insertChunks(chunks)
+                downloadDao.insertChunks(DownloadChunkPlanner.create(claimedTask.id, remoteInfo.length))
+                // Room 自动生成主键后必须重新读取，否则 id=0 会使状态更新落空及误匹配其他分块。
+                chunks = downloadDao.getChunks(claimedTask.id)
             }
 
             chunks = verifyCompletedChunks(partsDirectory, chunks)
@@ -151,7 +181,7 @@ class TvDownloadEngine(
             try {
                 for (chunk in chunks) {
                     if (chunk.status != DownloadChunkStatus.WAITING) continue
-                    ensureTaskIsDownloading(claimedTask.id)
+                    checkDestination()
                     val currentAssembledBytes = downloadDao.getTaskById(claimedTask.id)?.assembledBytes ?: 0L
                     if (!TvStorageManager(context).isStorageTargetAvailable(storageTarget.uri)) {
                         throw DownloadFailure(DownloadTaskErrorCode.STORAGE_UNAVAILABLE, "Download storage was disconnected")
@@ -211,9 +241,14 @@ class TvDownloadEngine(
             val assemblingFile = downloadDirectory.findFile(assemblingName)
                 ?: throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Cannot locate assembled download")
             if (assemblingFile.length() != remoteInfo.length) throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Assembled file length validation failed")
+            if (managed && !libraries.matches(storageTarget.uri, claimedTask.targetLibraryId)) {
+                throw DownloadFailure(DownloadTaskErrorCode.LIBRARY_MISMATCH, "Library identity changed")
+            }
             if (!assemblingFile.renameTo(finalName)) throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Cannot rename completed download")
             val completedFile = downloadDirectory.findFile(finalName)
                 ?: throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Cannot locate completed download")
+            if (managed) NasCompanionDownloader(context).copy(nasSource, sourceUri, downloadDirectory, finalName) { checkDestination() }
+            checkDestination()
             if (mediaFile == null) completeRawDownload(claimedTask.id, completedFile, remoteInfo)
             else completeDownload(
                 claimedTask.id, mediaFile, displayFileName, completedFile,
@@ -231,7 +266,7 @@ class TvDownloadEngine(
                 error is SecurityException -> DownloadTaskErrorCode.STORAGE_ACCESS
                 generateSequence<Throwable>(error) { it.cause }.take(16)
                     .any { it is ErrnoException && it.errno == OsConstants.ENOSPC } -> DownloadTaskErrorCode.STORAGE_CAPACITY
-                error is IOException && resolveStorageTarget(claimedTask) == null -> DownloadTaskErrorCode.STORAGE_UNAVAILABLE
+                resolveStorageTarget(claimedTask) == null -> DownloadTaskErrorCode.STORAGE_UNAVAILABLE
                 else -> error.toDownloadErrorCode()
             }
             fail(
@@ -588,7 +623,8 @@ class TvDownloadEngine(
     }
 
     private suspend fun fail(task: DownloadTaskEntity, message: String, errorCode: String) {
-        database.downloadDao().failDownloadingTask(task.id, message, errorCode)
+        if (errorCode == DownloadTaskErrorCode.STORAGE_UNAVAILABLE) database.downloadDao().waitForStorage(task.id)
+        else database.downloadDao().failDownloadingTask(task.id, message, errorCode)
     }
 
     private class DownloadInterrupted(val status: String) : IOException()
@@ -627,6 +663,6 @@ class TvDownloadEngine(
         const val RANGE_RETRY_DELAY_MS = 1_000L
 
         fun safeFileName(fileName: String): String =
-            fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(160)
+            DownloadFileName.sanitize(fileName)
     }
 }

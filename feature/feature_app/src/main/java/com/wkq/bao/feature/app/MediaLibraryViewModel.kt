@@ -49,6 +49,7 @@ class MediaLibraryViewModel(
     private val filterDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val savedStateHandle: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
+    val offlineSeriesIds = repository.offlineSeriesIds
     private val visibleLimit = MutableStateFlow((savedStateHandle.get<Int>("library_visible_limit") ?: 60).coerceIn(60, 100000))
 
     private val filters = MutableStateFlow(LibraryFilters(

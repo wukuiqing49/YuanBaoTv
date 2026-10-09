@@ -40,6 +40,7 @@ class LocalMediaScanner(
         onProgress: suspend (importedCount: Int, checkpoint: String) -> Unit = { _, _ -> }
     ): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
+            check(TvStorageManager(context).isStorageTargetAvailable(treeUri)) { "Storage is unavailable" }
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: error("无法读取所选目录")
             val directories = ArrayDeque<LocalDirectory>()
             val pendingFiles = ArrayList<LocalMediaFile>(BATCH_SIZE)
@@ -77,7 +78,12 @@ class LocalMediaScanner(
                 )
                 children.forEach { document ->
                     when {
-                        document.isDirectory -> directories.addLast(LocalDirectory(document, artwork))
+                        document.isDirectory -> {
+                            if (document.name !in setOf(".yuanbao", ".yuanbao_parts") &&
+                                !(directory.document.name == "YuanBaoTV" && document.name == "Downloads")) {
+                                directories.addLast(LocalDirectory(document, artwork))
+                            }
+                        }
                         document.isFile && isVideoFile(document.name.orEmpty()) -> {
                             if (!checkpointReached) {
                                 checkpointReached = document.uri.toString() == resumeAfterUri
@@ -91,6 +97,7 @@ class LocalMediaScanner(
             }
             check(checkpointReached) { "扫描检查点已失效" }
             flushPendingFiles()
+            check(TvStorageManager(context).isStorageTargetAvailable(treeUri)) { "Storage was disconnected" }
             database.withTransaction {
                 database.mediaDao().deleteMediaLocationsNotSeenInTree(
                     treeUri = treeUri.toString().trimEnd('/'),

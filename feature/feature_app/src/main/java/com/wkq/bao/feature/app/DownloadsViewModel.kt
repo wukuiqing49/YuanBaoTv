@@ -47,6 +47,7 @@ class DownloadsViewModel(
                 it.status in setOf(
                     DownloadTaskStatus.DOWNLOADING,
                     DownloadTaskStatus.WAITING,
+                    DownloadTaskStatus.WAITING_STORAGE,
                     DownloadTaskStatus.PAUSED,
                     DownloadTaskStatus.FAILED
                 )

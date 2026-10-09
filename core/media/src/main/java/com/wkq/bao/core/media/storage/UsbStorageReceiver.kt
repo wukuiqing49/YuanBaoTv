@@ -30,6 +30,7 @@ class UsbStorageReceiver : BroadcastReceiver() {
         }
 
         if (isMounted != null) {
+            StorageReconnectWorker.enqueue(context)
             val notifyIntent = Intent(ACTION_USB_STATE_CHANGED).apply {
                 putExtra(EXTRA_IS_MOUNTED, isMounted)
                 setPackage(context.packageName)

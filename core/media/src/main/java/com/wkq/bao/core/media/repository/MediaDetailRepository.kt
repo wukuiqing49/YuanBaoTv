@@ -127,6 +127,9 @@ class RoomMediaDetailRepository private constructor(
     ): Int? {
         val targetUri = Uri.parse(downloadTarget.uri)
         if (!TvStorageManager(appContext).isStorageTargetAvailable(targetUri)) return null
+        val libraryId = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.wkq.bao.core.media.storage.MediaLibraryStorage(appContext).initialize(targetUri).id
+        }
         val enabledNasIds = database.nasDao().getEnabledSources().mapTo(mutableSetOf()) { it.id }
         var queuedCount = 0
         episodes.forEach { episode ->
@@ -146,6 +149,7 @@ class RoomMediaDetailRepository private constructor(
                         sourceUri = remoteSource.uri,
                         sourceNasId = remoteSource.nasSourceId ?: 0L,
                         targetUri = targetUriValue,
+                        targetLibraryId = libraryId,
                         targetStorageType = downloadTarget.location.name,
                         status = DownloadTaskStatus.WAITING
                     )
