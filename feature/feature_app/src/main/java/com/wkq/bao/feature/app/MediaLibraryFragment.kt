@@ -74,6 +74,18 @@ class MediaLibraryFragment : Fragment() {
     }
 
     private fun setupLibraryTools() = with(binding.libraryTools) {
+        btnLibrarySources.backgroundTintList = null
+        btnLibrarySources.setOnClickListener {
+            com.lxj.xpopup.XPopup.Builder(requireContext()).isDarkTheme(true)
+                .asCenterList(getString(com.wkq.bao.feature.res.R.string.library_manage_sources), arrayOf(
+                    getString(com.wkq.bao.feature.res.R.string.btn_add_local_media),
+                    getString(com.wkq.bao.feature.res.R.string.btn_add_nas)
+                )) { index, _ ->
+                    if (index == 0) (requireActivity() as MainPageNavigator).showPage(MainPageNavigator.DOWNLOADS)
+                    else NasBrowserActivity.start(requireContext())
+                }.show()
+        }
+        TvFocusHelper.applyFocusScale(btnLibrarySources, 1.03f)
         val initialState = viewModel.uiState.value
         etLibrarySearch.setText(initialState.query)
         btnClearLibrarySearch.isEnabled = initialState.query.isNotEmpty()

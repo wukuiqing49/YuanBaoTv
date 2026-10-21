@@ -10,4 +10,4 @@
     android:paddingHorizontal="12dp"
     android:paddingVertical="10dp"
     android:textColor="@color/tv_text_primary"
-    android:textSize="14sp" />
+    android:textSize="@dimen/ui_text_body" />

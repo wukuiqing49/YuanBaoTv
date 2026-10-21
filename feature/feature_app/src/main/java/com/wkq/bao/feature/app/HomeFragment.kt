@@ -26,6 +26,7 @@ class HomeFragment : Fragment() {
     private val viewModel: HomeViewModel by viewModels { HomeViewModel.Factory(requireContext()) }
     private lateinit var continueAdapter: ContinueWatchingAdapter
     private lateinit var posterAdapter: PosterCardAdapter
+    private val categoryAdapters = mutableListOf<PosterCardAdapter>()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = ActivityHomeBinding.inflate(inflater, container, false)
@@ -45,13 +46,18 @@ class HomeFragment : Fragment() {
             TvFocusHelper.applyFocusScale(button)
         }
         continueAdapter = ContinueWatchingAdapter { item ->
-            PlayerActivity.start(requireContext(), item.seriesId, item.seasonId, item.episodeId, getString(com.wkq.bao.feature.res.R.string.btn_continue_play))
+            PlayerActivity.start(requireContext(), item.seriesId, item.seasonId, item.episodeId, continueAdapter.currentList.firstOrNull { it.history.episodeId == item.episodeId }?.seriesTitle.orEmpty())
         }
         binding.rvContinueWatching.adapter = continueAdapter
         posterAdapter = PosterCardAdapter { series ->
             startActivity(Intent(requireContext(), DetailActivity::class.java).putExtra("seriesId", series.id))
         }
         binding.rvCartoons.adapter = posterAdapter
+        listOf(binding.homeSections.rvMovies, binding.homeSections.rvSeries, binding.homeSections.rvAnimation).forEach { row ->
+            val adapter = PosterCardAdapter { series -> openDetail(series.id) }
+            categoryAdapters += adapter
+            row.adapter = adapter
+        }
         binding.tvClock.text = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnHeroPlay)
     }
@@ -59,7 +65,10 @@ class HomeFragment : Fragment() {
     private fun observeData() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch { viewModel.offlineSeriesIds.collect(posterAdapter::updateOfflineIds) }
+                launch { viewModel.offlineSeriesIds.collect { ids ->
+                    posterAdapter.updateOfflineIds(ids)
+                    categoryAdapters.forEach { it.updateOfflineIds(ids) }
+                } }
                 launch {
                     viewModel.uiState.collect(::renderState)
                 }
@@ -90,6 +99,12 @@ class HomeFragment : Fragment() {
         val hasCartoons = state.cartoons.isNotEmpty()
         binding.tvLabelCartoons.visibility = if (hasCartoons) View.VISIBLE else View.GONE
         binding.rvCartoons.visibility = if (hasCartoons) View.VISIBLE else View.GONE
+        val categories = listOf(state.movies, state.series, state.animation)
+        val containers = listOf(binding.homeSections.sectionMovies, binding.homeSections.sectionSeries, binding.homeSections.sectionAnimation)
+        categories.forEachIndexed { index, items ->
+            categoryAdapters[index].submitList(items)
+            containers[index].visibility = if (items.isEmpty()) View.GONE else View.VISIBLE
+        }
         val featured = state.featured
         if (featured == null) {
             binding.tvHeroDesc.maxLines = 4
@@ -132,10 +147,10 @@ class HomeFragment : Fragment() {
         }
         binding.tvHeroLastWatch?.apply {
             val progress = state.featuredProgress?.takeIf { it.history.seriesId == featured.id }
-            visibility = if (progress == null) View.GONE else View.VISIBLE
+            visibility = if (progress == null || MediaSeriesType.isMovie(featured.type)) View.GONE else View.VISIBLE
             text = progress?.let {
                 getString(
-                    com.wkq.bao.feature.res.R.string.home_last_watch,
+                    if (it.history.durationMs == 0L) com.wkq.bao.feature.res.R.string.home_next_watch else com.wkq.bao.feature.res.R.string.home_last_watch,
                     it.episodeTitle.ifBlank { getString(com.wkq.bao.feature.res.R.string.episode_default_title) }
                 )
             }.orEmpty()
@@ -156,6 +171,9 @@ class HomeFragment : Fragment() {
     }
 
     private fun renderLoadingState() {
+        categoryAdapters.forEach { it.submitList(emptyList()) }
+        listOf(binding.homeSections.sectionMovies, binding.homeSections.sectionSeries, binding.homeSections.sectionAnimation)
+            .forEach { it.visibility = View.GONE }
         continueAdapter.submitList(emptyList())
         posterAdapter.submitList(emptyList())
         binding.tvLabelContinue.visibility = View.GONE
@@ -170,7 +188,7 @@ class HomeFragment : Fragment() {
         binding.btnHeroDetail.visibility = View.GONE
         binding.ivHeroBackdrop.visibility = View.VISIBLE
         binding.vHeroScrim.visibility = View.VISIBLE
-        binding.ivHeroBackdrop.scaleType = ImageView.ScaleType.FIT_XY
+        binding.ivHeroBackdrop.scaleType = ImageView.ScaleType.CENTER_CROP
         MediaArtwork.load(
             binding.ivHeroBackdrop,
             null,
@@ -185,6 +203,7 @@ class HomeFragment : Fragment() {
     private fun navigator(): MainPageNavigator = requireActivity() as MainPageNavigator
 
     override fun onDestroyView() {
+        categoryAdapters.clear()
         _binding = null
         super.onDestroyView()
     }

@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="@dimen/nas_browser_row_height"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="@dimen/feature_res_spacing_small"
     android:background="@drawable/bg_nas_browser_file_row"
     android:focusable="true"
     android:paddingHorizontal="@dimen/nas_browser_row_horizontal_padding">
@@ -20,6 +20,7 @@
 
     <ImageView
         android:id="@+id/iv_file_type"
+        android:scaleType="fitCenter"
         android:layout_width="@dimen/nas_browser_row_icon_size"
         android:layout_height="@dimen/nas_browser_row_icon_size"
         android:layout_marginStart="12dp"

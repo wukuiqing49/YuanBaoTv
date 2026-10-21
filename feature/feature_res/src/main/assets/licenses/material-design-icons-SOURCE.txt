@@ -1,0 +1,12 @@
+Google Material Design Icons
+https://github.com/google/material-design-icons
+License: Apache-2.0 (see material-design-icons-LICENSE.txt)
+
+Imported filled 24px icons:
+action/home -> ic_tv_home
+av/video_library -> ic_tv_library
+file/folder -> ic_tv_folder
+editor/insert_drive_file -> ic_tv_file
+navigation/close -> ic_tv_close
+
+Changes: SVG paths converted to Android VectorDrawable; fill uses tv_text_primary.

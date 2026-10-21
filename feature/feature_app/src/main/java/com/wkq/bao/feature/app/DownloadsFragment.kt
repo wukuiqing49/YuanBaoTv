@@ -41,6 +41,8 @@ class DownloadsFragment : Fragment() {
     private val storageManager by lazy { TvStorageManager(requireContext()) }
     private lateinit var downloadAdapter: DownloadTaskAdapter
     private var keepScreenRequested = false
+    private var showingCache = true
+    private lateinit var cachedAdapter: com.wkq.bao.feature.app.adapter.CachedSeriesAdapter
     private var storageRenderJob: Job? = null
     private var targetPickerJob: Job? = null
     private var storageAuthorizationJob: Job? = null
@@ -123,7 +125,14 @@ class DownloadsFragment : Fragment() {
             onTogglePause = { viewModel.togglePauseResume(it.id) },
             onCancel = { viewModel.cancel(it.id) }
         )
-        binding.rvDownloadTasks.adapter = downloadAdapter
+        showingCache = savedInstanceState?.getBoolean("showing_cache", true) ?: true
+        cachedAdapter = com.wkq.bao.feature.app.adapter.CachedSeriesAdapter { row ->
+            startActivity(Intent(requireContext(), DetailActivity::class.java).putExtra("seriesId", row.seriesId).putExtra("cachedOnly", true))
+        }
+        binding.tvLabelDownloading.backgroundTintList = null
+        binding.tvLabelDownloading.setOnClickListener { showingCache = !showingCache; renderState(viewModel.uiState.value) }
+        TvFocusHelper.applyFocusScale(binding.tvLabelDownloading)
+        binding.rvDownloadTasks.adapter = cachedAdapter
         renderStorage()
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnSelectStorage)
         viewLifecycleOwner.lifecycleScope.launch {
@@ -135,7 +144,13 @@ class DownloadsFragment : Fragment() {
 
     private fun renderState(state: DownloadsUiState) {
         downloadAdapter.submitList(state.tasks)
-        val isTaskListEmpty = state.tasks.isEmpty()
+        cachedAdapter.submitList(state.cachedMedia)
+        val desiredAdapter = if (showingCache) cachedAdapter else downloadAdapter
+        if (binding.rvDownloadTasks.adapter !== desiredAdapter) binding.rvDownloadTasks.adapter = desiredAdapter
+        binding.tvLabelDownloading.setText(if (showingCache) com.wkq.bao.feature.res.R.string.cache_switch_tasks else com.wkq.bao.feature.res.R.string.cache_switch_library)
+        binding.tvCacheEmptyTitle.setText(if (showingCache) com.wkq.bao.feature.res.R.string.cache_empty_title else com.wkq.bao.feature.res.R.string.downloads_empty_title)
+        binding.tvCacheEmptyMessage.setText(if (showingCache) com.wkq.bao.feature.res.R.string.cache_empty_message else com.wkq.bao.feature.res.R.string.downloads_empty_message)
+        val isTaskListEmpty = if (showingCache) state.cachedMedia.isEmpty() else state.tasks.isEmpty()
         binding.rvDownloadTasks.visibility = if (isTaskListEmpty) View.GONE else View.VISIBLE
         binding.layoutDownloadTasksEmpty?.visibility = if (isTaskListEmpty) View.VISIBLE else View.GONE
         keepScreenRequested = state.keepScreenOn
@@ -339,7 +354,13 @@ class DownloadsFragment : Fragment() {
         super.onPause()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("showing_cache", showingCache)
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onDestroyView() {
+        binding.rvDownloadTasks.adapter = null
         updateKeepScreenOn(false)
         _binding = null
         super.onDestroyView()

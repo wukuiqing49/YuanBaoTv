@@ -19,9 +19,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="@dimen/feature_res_spacing_medium"
         android:paddingTop="12dp"
-        android:paddingBottom="24dp">
+        android:paddingBottom="@dimen/feature_res_spacing_large">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -48,15 +48,15 @@
                 android:minWidth="0dp"
                 android:paddingHorizontal="12dp"
                 android:text="@string/btn_import_nas"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="10sp" />
+                android:textColor="@color/tv_control_text"
+                android:textSize="@dimen/ui_text_caption" />
         </LinearLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/card_storage_info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="@dimen/feature_res_spacing_small"
             android:background="@drawable/bg_glass_card"
             android:padding="10dp">
 
@@ -73,7 +73,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@color/tv_text_primary"
-                android:textSize="13sp"
+                android:textSize="@dimen/ui_text_body"
                 android:textStyle="bold" />
 
             <TextView
@@ -82,7 +82,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:textColor="@color/tv_text_secondary"
-                android:textSize="11sp" />
+                android:textSize="@dimen/ui_text_caption" />
 
             <Button
                 android:id="@+id/btn_select_storage"
@@ -95,8 +95,8 @@
                 android:minWidth="0dp"
                 android:paddingHorizontal="12dp"
                 android:text="@string/storage_select_target"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="11sp" />
+                android:textColor="@color/tv_control_text"
+                android:textSize="@dimen/ui_text_caption" />
 
             <ProgressBar
                 android:id="@+id/pb_storage"
@@ -109,38 +109,38 @@
             </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <TextView
+        <Button
             android:id="@+id/tv_label_downloading"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="@string/section_downloading"
             android:textColor="@color/tv_text_primary"
-            android:textSize="17sp"
-            android:textStyle="bold" />
+            android:textSize="@dimen/ui_text_section"
+            android:textStyle="bold"  android:minHeight="48dp" android:background="@drawable/bg_tv_button_focus" />
 
         <LinearLayout
             android:id="@+id/layout_download_tasks_empty"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="@dimen/feature_res_spacing_small"
             android:orientation="vertical">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/downloads_empty_title"
+                android:id="@+id/tv_cache_empty_title" android:text="@string/downloads_empty_title"
                 android:textColor="@color/tv_text_primary"
-                android:textSize="14sp"
+                android:textSize="@dimen/ui_text_body"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="@string/downloads_empty_message"
+                android:id="@+id/tv_cache_empty_message" android:text="@string/downloads_empty_message"
                 android:textColor="@color/tv_text_secondary"
-                android:textSize="12sp" />
+                android:textSize="@dimen/ui_text_caption" />
         </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView
@@ -148,7 +148,7 @@
             android:layout_width="match_parent"
             android:layout_height="240dp"
             android:clipToPadding="false"
-            android:paddingBottom="16dp"
+            android:paddingBottom="@dimen/feature_res_spacing_medium"
             android:scrollbars="none" />
     </LinearLayout>
     </androidx.core.widget.NestedScrollView>

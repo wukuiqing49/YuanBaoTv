@@ -40,7 +40,7 @@
             android:id="@+id/top_nav_bar"
             android:layout_width="0dp"
             android:layout_height="56dp"
-            android:layout_marginStart="56dp"
+            android:layout_marginStart="@dimen/ui_page_inset"
             android:layout_marginTop="20dp"
             android:layout_marginEnd="56dp"
             app:layout_constraintEnd_toEndOf="parent"
@@ -54,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/app_name"
                 android:textColor="@color/tv_text_primary"
-                android:textSize="22sp"
+                android:textSize="@dimen/ui_text_title"
                 android:textStyle="bold"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -82,10 +82,10 @@
                     android:background="@drawable/bg_nav_link_active"
                     android:focusable="true"
                     android:gravity="center"
-                    android:paddingHorizontal="16dp"
+                    android:paddingHorizontal="@dimen/feature_res_spacing_medium"
                     android:text="@string/nav_home"
                     android:textColor="@color/tv_text_primary"
-                    android:textSize="13sp"
+                    android:textSize="@dimen/ui_text_body"
                     android:textStyle="bold" />
 
                 <TextView
@@ -96,10 +96,10 @@
                     android:background="@drawable/bg_nav_link_active"
                     android:focusable="true"
                     android:gravity="center"
-                    android:paddingHorizontal="16dp"
+                    android:paddingHorizontal="@dimen/feature_res_spacing_medium"
                     android:text="@string/nav_all_media"
                     android:textColor="@color/tv_text_secondary"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/ui_text_body" />
 
                 <TextView
                     android:id="@+id/btn_nav_downloads"
@@ -109,10 +109,10 @@
                     android:background="@drawable/bg_nav_link_active"
                     android:focusable="true"
                     android:gravity="center"
-                    android:paddingHorizontal="16dp"
+                    android:paddingHorizontal="@dimen/feature_res_spacing_medium"
                     android:text="@string/nav_downloads"
                     android:textColor="@color/tv_text_secondary"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/ui_text_body" />
 
                 <TextView
                     android:id="@+id/btn_nav_nas"
@@ -122,10 +122,10 @@
                     android:background="@drawable/bg_nav_link_active"
                     android:focusable="true"
                     android:gravity="center"
-                    android:paddingHorizontal="16dp"
+                    android:paddingHorizontal="@dimen/feature_res_spacing_medium"
                     android:text="@string/nav_nas"
                     android:textColor="@color/tv_text_secondary"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/ui_text_body" />
 
                 <TextView
                     android:id="@+id/btn_nav_settings"
@@ -135,10 +135,10 @@
                     android:background="@drawable/bg_nav_link_active"
                     android:focusable="true"
                     android:gravity="center"
-                    android:paddingHorizontal="16dp"
+                    android:paddingHorizontal="@dimen/feature_res_spacing_medium"
                     android:text="@string/nav_settings"
                     android:textColor="@color/tv_text_secondary"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/ui_text_body" />
             </LinearLayout>
 
             <!-- Trailing Actions (1:19 NAS 状态与时钟) -->
@@ -166,7 +166,7 @@
                     android:paddingHorizontal="12dp"
                     android:text="@string/badge_nas_online"
                     android:textColor="@color/tv_accent_cyan"
-                    android:textSize="11sp"
+                    android:textSize="@dimen/ui_text_caption"
                     android:textStyle="bold" />
 
                 <!-- 系统时钟 (1:25) -->
@@ -181,7 +181,7 @@
                     android:paddingHorizontal="14dp"
                     tools:text="16:08"
                     android:textColor="@color/tv_text_primary"
-                    android:textSize="12sp"
+                    android:textSize="@dimen/ui_text_caption"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -192,7 +192,7 @@
             android:id="@+id/layout_hero_content"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="56dp"
+            android:layout_marginStart="@dimen/ui_page_inset"
             android:layout_marginEnd="56dp"
             android:layout_marginTop="50dp"
             android:orientation="vertical"
@@ -211,7 +211,7 @@
                 android:shadowRadius="8"
                 tools:text="汪汪队立大功"
                 android:textColor="@color/tv_text_primary"
-                android:textSize="36sp"
+                android:textSize="@dimen/ui_text_hero"
                 android:textStyle="bold" />
 
             <!-- 1:32 元数据标签行 (第 3 季 · 动画 + 上次看到：第 5 集) -->
@@ -231,7 +231,7 @@
                     android:paddingVertical="4dp"
                     tools:text="第 3 季 · 动画"
                     android:textColor="@color/tv_accent_gold"
-                    android:textSize="12sp"
+                    android:textSize="@dimen/ui_text_caption"
                     android:textStyle="bold" />
 
                 <TextView
@@ -241,7 +241,7 @@
                     android:layout_marginStart="14dp"
                     tools:text="上次看到：第 5 集"
                     android:textColor="@color/tv_text_secondary"
-                    android:textSize="13sp" />
+                    android:textSize="@dimen/ui_text_body" />
             </LinearLayout>
 
             <TextView
@@ -254,7 +254,7 @@
                 android:maxLines="2"
                 tools:text="精通科技的10岁男孩莱德救了6条小狗，并将它们训练成了高本领的狗狗巡逻队。"
                 android:textColor="@color/tv_text_tertiary"
-                android:textSize="13sp" />
+                android:textSize="@dimen/ui_text_body" />
 
             <!-- 1:37 操作按钮组 (暖金继续播放 + 毛玻璃详情) -->
             <LinearLayout
@@ -273,20 +273,20 @@
                     android:drawablePadding="6dp"
                     android:focusable="true"
                     android:text="@string/btn_continue_play"
-                    android:textColor="@color/tv_hero_btn_text"
-                    android:textSize="14sp"
+                    android:textColor="@color/tv_control_text"
+                    android:textSize="@dimen/ui_text_body"
                     android:textStyle="bold" />
 
                 <Button
                     android:id="@+id/btn_hero_detail"
                     android:layout_width="110dp"
                     android:layout_height="46dp"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="@dimen/feature_res_spacing_medium"
                     android:background="@drawable/bg_hero_detail_btn"
                     android:focusable="true"
                     android:text="@string/btn_view_detail"
-                    android:textColor="@color/tv_text_primary"
-                    android:textSize="14sp" />
+                    android:textColor="@color/tv_control_text"
+                    android:textSize="@dimen/ui_text_body" />
             </LinearLayout>
 
         </LinearLayout>
@@ -296,11 +296,11 @@
             android:id="@+id/tv_label_continue"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="56dp"
+            android:layout_marginStart="@dimen/ui_page_inset"
             android:layout_marginTop="40dp"
             android:text="@string/section_continue_watching"
             android:textColor="@color/tv_text_primary"
-            android:textSize="19sp"
+            android:textSize="@dimen/ui_text_section"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/layout_hero_content" />
@@ -312,8 +312,8 @@
             android:layout_marginTop="14dp"
             android:clipToPadding="false"
             android:orientation="horizontal"
-            android:paddingStart="56dp"
-            android:paddingEnd="56dp"
+            android:paddingStart="@dimen/ui_page_inset"
+            android:paddingEnd="@dimen/ui_page_inset"
             android:scrollbars="none"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             app:layout_constraintEnd_toEndOf="parent"
@@ -326,11 +326,11 @@
             android:id="@+id/tv_label_cartoons"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="56dp"
+            android:layout_marginStart="@dimen/ui_page_inset"
             android:layout_marginTop="32dp"
-            android:text="@string/section_cartoons"
+            android:text="@string/section_recently_added"
             android:textColor="@color/tv_text_primary"
-            android:textSize="19sp"
+            android:textSize="@dimen/ui_text_section"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/rv_continue_watching" />
@@ -338,12 +338,12 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_cartoons"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="@dimen/ui_poster_row_height"
             android:layout_marginTop="14dp"
             android:clipToPadding="false"
             android:orientation="horizontal"
-            android:paddingStart="56dp"
-            android:paddingEnd="56dp"
+            android:paddingStart="@dimen/ui_page_inset"
+            android:paddingEnd="@dimen/ui_page_inset"
             android:scrollbars="none"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             app:layout_constraintEnd_toEndOf="parent"
@@ -351,5 +351,6 @@
             app:layout_constraintTop_toBottomOf="@id/tv_label_cartoons"
             tools:listitem="@layout/item_poster_card" />
 
+        <include android:id="@+id/home_sections" layout="@layout/layout_home_sections" android:layout_width="0dp" android:layout_height="wrap_content" app:layout_constraintTop_toBottomOf="@id/rv_cartoons" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>

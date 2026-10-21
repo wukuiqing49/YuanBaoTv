@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 
 data class DownloadsUiState(
     val tasks: List<DownloadTaskEntity> = emptyList(),
+    val cachedMedia: List<com.wkq.bao.core.media.repository.CachedSeries> = emptyList(),
     val scanSession: ScanSessionEntity? = null
 ) {
     val keepScreenOn: Boolean = tasks.any { it.status == DownloadTaskStatus.DOWNLOADING }
@@ -40,8 +41,9 @@ class DownloadsViewModel(
 
     val uiState: StateFlow<DownloadsUiState> = combine(
         repository.tasks,
+        repository.cachedMedia,
         scanSession
-    ) { tasks, session ->
+    ) { tasks, cached, session ->
         val activeTasks = tasks.filter {
             it.status in setOf(
                 DownloadTaskStatus.DOWNLOADING,
@@ -57,6 +59,7 @@ class DownloadsViewModel(
             .toList()
         DownloadsUiState(
             tasks = activeTasks + recentCompleted,
+            cachedMedia = cached,
             scanSession = session
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), DownloadsUiState())

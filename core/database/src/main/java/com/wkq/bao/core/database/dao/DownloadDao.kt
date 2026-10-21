@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DownloadDao {
+    @Query("UPDATE download_tasks SET status = 'CANCELLED' WHERE episodeId = :episodeId AND status = 'SUCCESS'")
+    suspend fun invalidateCompletedEpisode(episodeId: Long)
+
     @Query("SELECT * FROM download_tasks ORDER BY createdAt DESC")
     fun getAllTasks(): Flow<List<DownloadTaskEntity>>
 

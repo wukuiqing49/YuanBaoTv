@@ -7,8 +7,10 @@ import com.wkq.bao.core.database.entity.DownloadTaskStatus
 import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import com.wkq.bao.core.media.download.DownloadWorkScheduler
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 interface DownloadsRepository {
+    val cachedMedia: Flow<List<CachedSeries>> get() = kotlinx.coroutines.flow.flowOf(emptyList())
     val tasks: Flow<List<DownloadTaskEntity>>
     val downloadedSeries: Flow<List<MediaSeriesEntity>>
 
@@ -21,6 +23,7 @@ class RoomDownloadsRepository private constructor(
     private val database: AppDatabase
 ) : DownloadsRepository {
 
+    override val cachedMedia = database.mediaDao().observeCachedMedia().map(::groupCachedMedia)
     override val tasks: Flow<List<DownloadTaskEntity>> = database.downloadDao().getAllTasks()
     override val downloadedSeries: Flow<List<MediaSeriesEntity>> = database.mediaDao().getDownloadedSeries()
 

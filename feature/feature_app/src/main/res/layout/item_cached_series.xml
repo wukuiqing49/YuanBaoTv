@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="@dimen/ui_item_gap" android:orientation="horizontal" android:gravity="center_vertical" android:padding="@dimen/ui_item_gap" android:background="@drawable/bg_glass_card" android:foreground="@drawable/bg_card_focus_foreground" android:focusable="true" android:clickable="true">
+    <ImageView android:id="@+id/iv_cached_poster" android:layout_width="64dp" android:layout_height="96dp" android:scaleType="centerCrop" android:importantForAccessibility="no" />
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="@dimen/ui_item_gap" android:orientation="vertical">
+        <TextView android:id="@+id/tv_cached_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_section" android:maxLines="2" android:ellipsize="end" />
+        <TextView android:id="@+id/tv_cached_summary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/ui_item_gap" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_body" android:maxLines="3" android:ellipsize="end" />
+    </LinearLayout>
+</LinearLayout>

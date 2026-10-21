@@ -36,7 +36,7 @@
             android:layout_height="wrap_content"
             android:text="@string/app_name"
             android:textColor="@color/tv_text_primary"
-            android:textSize="48sp"
+            android:textSize="@dimen/ui_text_hero"
             android:textStyle="bold" />
 
         <!-- Slogan -->
@@ -44,10 +44,10 @@
             android:id="@+id/tv_splash_slogan"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="@dimen/feature_res_spacing_medium"
             android:text="@string/splash_slogan"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="18sp"
+            android:textSize="@dimen/ui_text_section"
             android:letterSpacing="0.05" />
 
     </LinearLayout>
@@ -75,7 +75,7 @@
             android:layout_marginStart="14dp"
             android:text="@string/splash_loading"
             android:textColor="@color/tv_text_tertiary"
-            android:textSize="14sp" />
+            android:textSize="@dimen/ui_text_body" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

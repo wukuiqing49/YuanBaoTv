@@ -2,13 +2,15 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/card_container"
-    android:layout_width="190dp"
-    android:layout_height="108dp"
+    android:foreground="@drawable/bg_card_focus_foreground"
+    android:clipToOutline="true"
+    android:layout_width="@dimen/ui_continue_width"
+    android:layout_height="@dimen/ui_continue_height"
     android:layout_marginEnd="10dp"
     android:background="@drawable/bg_tv_focus_ring"
     android:focusable="true">
     <ImageView android:id="@+id/iv_backdrop" android:layout_width="0dp" android:layout_height="0dp" android:scaleType="centerCrop" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
     <View android:layout_width="0dp" android:layout_height="48dp" android:background="#CC0A0C10" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
-    <TextView android:id="@+id/tv_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_marginEnd="8dp" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_primary" android:textSize="11sp" android:textStyle="bold" app:layout_constraintBottom_toTopOf="@id/pb_progress" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
-    <ProgressBar android:id="@+id/pb_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="4dp" android:layout_marginStart="8dp" android:layout_marginEnd="8dp" android:layout_marginBottom="8dp" android:max="100" android:progressTint="@color/tv_accent_cyan" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
+    <TextView android:id="@+id/tv_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="@dimen/feature_res_spacing_small" android:layout_marginEnd="@dimen/feature_res_spacing_small" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_caption" android:textStyle="bold" app:layout_constraintBottom_toTopOf="@id/pb_progress" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
+    <ProgressBar android:id="@+id/pb_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="4dp" android:layout_marginStart="@dimen/feature_res_spacing_small" android:layout_marginEnd="@dimen/feature_res_spacing_small" android:layout_marginBottom="@dimen/feature_res_spacing_small" android:max="100" android:progressTint="@color/tv_accent_cyan" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

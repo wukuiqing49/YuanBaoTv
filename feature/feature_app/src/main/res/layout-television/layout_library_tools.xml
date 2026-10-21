@@ -8,13 +8,13 @@
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="48dp"
-        android:layout_weight="2"
+        android:layout_weight="3"
         android:background="@drawable/bg_tv_button_focus"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <EditText
-            android:id="@+id/et_library_search"
+            android:id="@+id/et_library_search" android:nextFocusUp="@id/btn_filter_all"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -27,42 +27,43 @@
             android:singleLine="true"
             android:textColor="@color/tv_text_primary"
             android:textColorHint="@color/tv_text_secondary"
-            android:textSize="16sp" />
+            android:textSize="@dimen/ui_text_body" />
 
         <ImageButton
-            android:id="@+id/btn_clear_library_search"
+            android:id="@+id/btn_clear_library_search" android:nextFocusUp="@id/btn_filter_all"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="@drawable/bg_tv_button_focus"
             android:contentDescription="@string/library_clear_search"
             android:padding="12dp"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:src="@drawable/ic_tv_close"
             android:tint="@color/tv_text_primary" />
     </LinearLayout>
 
     <Spinner
-        android:id="@+id/spinner_library_sort"
+        android:id="@+id/spinner_library_sort" android:nextFocusUp="@id/btn_filter_all"
         android:layout_width="0dp"
         android:layout_height="48dp"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="@dimen/feature_res_spacing_small"
         android:layout_weight="1"
         android:background="@drawable/bg_tv_button_focus"
         android:contentDescription="@string/library_sort"
-        android:paddingHorizontal="8dp"
+        android:paddingHorizontal="@dimen/feature_res_spacing_small"
         android:popupBackground="@color/tv_bg_dark"
         android:spinnerMode="dropdown" />
 
     <CheckBox
-        android:id="@+id/check_library_favorites"
+        android:id="@+id/check_library_favorites" android:nextFocusRight="@id/btn_library_sources" android:nextFocusUp="@id/btn_filter_all"
         android:layout_width="wrap_content"
         android:layout_height="48dp"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="@dimen/feature_res_spacing_small"
         android:background="@drawable/bg_tv_button_focus"
         android:buttonTint="@color/tv_accent_cyan"
         android:maxLines="1"
-        android:paddingEnd="8dp"
+        android:paddingEnd="@dimen/feature_res_spacing_small"
         android:text="@string/library_favorites_only"
         android:textColor="@color/tv_text_primary"
-        android:textSize="14sp" />
+        android:textSize="@dimen/ui_text_body" />
 
+        <Button android:id="@+id/btn_library_sources" android:nextFocusLeft="@id/check_library_favorites" android:nextFocusUp="@id/btn_filter_all" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="@dimen/ui_action_min_height" android:minWidth="0dp" android:paddingHorizontal="12dp" android:backgroundTint="@null" android:background="@drawable/bg_tv_button_focus" android:text="@string/library_manage_sources" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_body" />
 </LinearLayout>

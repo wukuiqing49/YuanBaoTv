@@ -13,8 +13,10 @@ interface WatchHistoryDao {
         FROM watch_histories
         INNER JOIN media_series ON media_series.id = watch_histories.seriesId
         INNER JOIN episodes ON episodes.id = watch_histories.episodeId
-        WHERE watch_histories.completed = 0
-          AND watch_histories.positionMs > 120000
+        WHERE watch_histories.id = (
+              SELECT latest.id FROM watch_histories latest WHERE latest.seriesId = watch_histories.seriesId
+              ORDER BY latest.lastPlayedAt DESC, latest.id DESC LIMIT 1
+          ) AND (watch_histories.completed = 1 OR watch_histories.positionMs > 5000)
           AND EXISTS (
               SELECT 1 FROM media_files
               WHERE media_files.episodeId = watch_histories.episodeId
@@ -35,7 +37,7 @@ interface WatchHistoryDao {
     @Query("SELECT * FROM watch_histories WHERE episodeId = :episodeId LIMIT 1")
     suspend fun getHistoryByEpisodeId(episodeId: Long): WatchHistoryEntity?
 
-    @Query("SELECT * FROM watch_histories WHERE seriesId = :seriesId ORDER BY lastPlayedAt DESC LIMIT 1")
+    @Query("SELECT * FROM watch_histories WHERE seriesId = :seriesId ORDER BY lastPlayedAt DESC, id DESC LIMIT 1")
     suspend fun getLastPlayedForSeries(seriesId: Long): WatchHistoryEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

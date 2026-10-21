@@ -15,7 +15,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
         <ImageView android:id="@+id/iv_splash_logo" android:layout_width="144dp" android:layout_height="144dp" android:src="@drawable/bg_glass_card" />
-        <TextView android:id="@+id/tv_splash_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/app_name" android:textColor="@color/tv_text_primary" android:textSize="30sp" android:textStyle="bold" />
-        <TextView android:id="@+id/tv_splash_slogan" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/splash_slogan" android:textColor="@color/tv_text_secondary" android:textSize="13sp" />
+        <TextView android:id="@+id/tv_splash_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/app_name" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_hero" android:textStyle="bold" />
+        <TextView android:id="@+id/tv_splash_slogan" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/feature_res_spacing_small" android:text="@string/splash_slogan" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_body" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

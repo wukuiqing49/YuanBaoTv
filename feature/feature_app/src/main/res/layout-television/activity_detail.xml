@@ -48,7 +48,7 @@
             android:background="@drawable/bg_tv_focus_ring"
             android:clipToPadding="false"
             android:focusable="true"
-            android:scaleType="fitCenter"
+            android:scaleType="centerCrop"
             android:src="@drawable/bg_glass_card"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -73,7 +73,7 @@
                 android:background="@drawable/bg_badge_nas"
                 android:text="@string/detail_badge_series"
                 android:textColor="@color/tv_text_primary"
-                android:textSize="12sp"
+                android:textSize="@dimen/tv_readable_caption"
                 android:textStyle="bold" />
 
             <!-- 剧集标题 -->
@@ -85,7 +85,7 @@
                 android:ellipsize="end"
                 android:maxLines="2"
                 android:textColor="@color/tv_text_primary"
-                android:textSize="30sp"
+                android:textSize="@dimen/ui_text_hero"
                 android:textStyle="bold"
                 tools:text="汪汪队立大功 (Paw Patrol)" />
 
@@ -94,9 +94,9 @@
                 android:id="@+id/tv_meta_tags"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="@dimen/feature_res_spacing_small"
                 android:textColor="@color/tv_accent_cyan"
-                android:textSize="14sp"
+                android:textSize="@dimen/ui_text_body"
                 android:textStyle="bold"
                 tools:text="2023 • 动画 / 益智 • 7 季" />
 
@@ -110,7 +110,7 @@
                 android:lineSpacingExtra="3dp"
                 android:maxLines="3"
                 android:textColor="@color/tv_text_secondary"
-                android:textSize="13sp"
+                android:textSize="@dimen/tv_readable_body"
                 tools:text="精通科技的10岁男孩莱德救了6条小狗，并将它们训练成了优秀的救援队员。" />
 
             <!-- 主操作按钮组 -->
@@ -128,21 +128,21 @@
                     android:drawableStart="@drawable/ic_tv_play"
                     android:drawablePadding="6dp"
                     android:text="@string/btn_play_now"
-                    android:textColor="@color/tv_hero_btn_text"
-                    android:textSize="14sp"
+                    android:textColor="@color/tv_control_text"
+                    android:textSize="@dimen/ui_text_body"
                     android:textStyle="bold" />
 
                 <Button
                     android:id="@+id/btn_download_season"
                     android:layout_width="130dp"
                     android:layout_height="46dp"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="@dimen/feature_res_spacing_medium"
                     android:background="@drawable/bg_tv_button_focus"
                     android:drawableStart="@drawable/ic_tv_download"
                     android:drawablePadding="6dp"
                     android:text="@string/btn_download_season"
-                    android:textColor="@color/tv_text_primary"
-                    android:textSize="13sp" />
+                    android:textColor="@color/tv_control_text"
+                    android:textSize="@dimen/tv_readable_body" />
 
                 <Button
                     android:id="@+id/btn_favorite"
@@ -150,15 +150,15 @@
                     android:layout_height="48dp"
                     android:minWidth="100dp"
                     android:maxLines="1"
-                    android:paddingHorizontal="16dp"
-                    android:layout_marginStart="16dp"
+                    android:paddingHorizontal="@dimen/feature_res_spacing_medium"
+                    android:layout_marginStart="@dimen/feature_res_spacing_medium"
                     android:background="@drawable/bg_tv_button_focus"
                     android:drawableStart="@drawable/ic_tv_favorite"
                     android:drawablePadding="6dp"
                     android:text="@string/btn_favorite"
-                    android:textColor="@color/tv_text_primary"
-                    android:textSize="13sp" />
-                <Button android:id="@+id/btn_edit_metadata" android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="100dp" android:paddingHorizontal="16dp" android:layout_marginStart="16dp" android:background="@drawable/bg_tv_button_focus" android:maxLines="1" android:text="@string/media_edit_metadata" android:textColor="@color/tv_text_primary" android:textSize="13sp" />
+                    android:textColor="@color/tv_control_text"
+                    android:textSize="@dimen/tv_readable_body" />
+                <Button android:id="@+id/btn_edit_metadata" android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="100dp" android:paddingHorizontal="@dimen/feature_res_spacing_medium" android:layout_marginStart="@dimen/feature_res_spacing_medium" android:background="@drawable/bg_tv_button_focus" android:maxLines="1" android:text="@string/media_edit_metadata" android:textColor="@color/tv_control_text" android:textSize="@dimen/tv_readable_body" />
             </LinearLayout>
 
         </LinearLayout>
@@ -171,7 +171,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="64dp"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="@dimen/feature_res_spacing_large"
         android:layout_marginEnd="64dp"
         android:orientation="vertical"
         app:layout_constraintEnd_toEndOf="parent"
@@ -213,7 +213,7 @@
             android:gravity="center"
             android:text="@string/detail_no_episodes"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="16sp"
+            android:textSize="@dimen/ui_text_body"
             android:visibility="gone" />
 
     </LinearLayout>
@@ -238,9 +238,9 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <ProgressBar android:id="@+id/progress_detail" android:layout_width="48dp" android:layout_height="48dp" android:indeterminateTint="@color/tv_accent_cyan" />
-        <TextView android:id="@+id/tv_detail_state_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:gravity="center" android:text="@string/detail_loading" android:textColor="@color/tv_text_primary" android:textSize="26sp" android:textStyle="bold" />
-        <TextView android:id="@+id/tv_detail_state_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:gravity="center" android:maxLines="3" android:textColor="@color/tv_text_secondary" android:textSize="16sp" />
-        <Button android:id="@+id/btn_detail_state_action" android:layout_width="wrap_content" android:layout_height="52dp" android:layout_marginTop="22dp" android:background="@drawable/bg_hero_play_btn" android:minWidth="152dp" android:text="@string/btn_retry" android:textColor="@color/tv_hero_btn_text" android:visibility="gone" />
+        <TextView android:id="@+id/tv_detail_state_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:gravity="center" android:text="@string/detail_loading" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_title" android:textStyle="bold" />
+        <TextView android:id="@+id/tv_detail_state_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:gravity="center" android:maxLines="3" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_body" />
+        <Button android:id="@+id/btn_detail_state_action" android:layout_width="wrap_content" android:layout_height="52dp" android:layout_marginTop="22dp" android:background="@drawable/bg_hero_play_btn" android:minWidth="152dp" android:text="@string/btn_retry" android:textColor="@color/tv_control_text" android:visibility="gone" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

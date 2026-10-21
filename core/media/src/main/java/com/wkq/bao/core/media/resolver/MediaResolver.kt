@@ -33,7 +33,7 @@ class MediaResolver(private val context: Context) {
         val mediaFile = mediaDao.getMediaFileByEpisodeId(episodeId)
             ?: return@withContext PlaybackSource.Unavailable("Media file not indexed for episode: $episodeId", episodeId)
 
-        val title = episode.title.ifEmpty { "Episode ${episode.episodeNumber}" }
+        val title = com.wkq.bao.core.media.repository.RoomPlaybackNavigationRepository.create(context).episodeTitle(episodeId)
 
         // 1. 按最近使用顺序检查全部本机/外接副本
         if (allowLocal) {

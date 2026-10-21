@@ -2,6 +2,7 @@ package com.wkq.bao.core.media.scanner
 
 import android.net.Uri
 import androidx.room.withTransaction
+import com.wkq.bao.core.database.preservePlaybackState
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.database.entity.EpisodeEntity
 import com.wkq.bao.core.database.entity.MediaFileEntity
@@ -65,7 +66,7 @@ class NasScanner(private val database: AppDatabase) {
 
         val onRemoteFile: suspend (NasRemoteMediaFile) -> Unit = { remoteFile ->
             if (isVideoFile(remoteFile.path.substringAfterLast("/"))) {
-                val isMovie = MediaFileNameParser.parse(remoteFile.path.substringAfterLast('/')).mediaType == MediaSeriesType.MOVIE
+                val isMovie = MediaFileNameParser.parse(remoteFile.path.substringAfterLast('/'), remoteFile.path.substringBeforeLast('/', "")).mediaType == MediaSeriesType.MOVIE
                 val nfo = remoteFile.nfoUri.takeIf { isMovie && it.isNotBlank() }?.let { uri ->
                     if (!nfoCache.containsKey(uri)) nfoCache[uri] = readMovieNfo(nasSource, uri)
                     nfoCache[uri]
@@ -137,7 +138,7 @@ class NasScanner(private val database: AppDatabase) {
     ): Int {
         val mediaDao = database.mediaDao()
         val fileName = remoteFile.path.substringAfterLast("/")
-        val parsed = MediaFileNameParser.parse(fileName)
+        val parsed = MediaFileNameParser.parse(fileName, remoteFile.path.substringBeforeLast('/', ""))
         val nasUri = if (WebDavClientManager.isWebDav(nasSource)) {
             WebDavClientManager.buildUri(nasSource, remoteFile.path)
         } else {
@@ -161,8 +162,10 @@ class NasScanner(private val database: AppDatabase) {
         val resolvedEpisodeThumbnailUri = remoteFile.thumbnailUri.ifBlank { videoFrameUri }
 
         val displayTitle = nfo?.title?.takeIf(String::isNotBlank) ?: parsed.seriesTitle
-        val existingSeries = mediaDao.getSeriesByTitle(parsed.seriesTitle)
-            ?: displayTitle.takeIf { it != parsed.seriesTitle }?.let { mediaDao.getSeriesByTitle(it) }
+        val indexedSeries = (mediaDao.getRemoteSourceByUri(nasSource.id, nasUri)?.mediaFileId)?.let { mediaDao.getMediaFileById(it) }
+            ?.let { mediaDao.getSeriesById(it.seriesId) }?.takeIf { it.metadataEdited }
+        val existingSeries = indexedSeries ?: mediaDao.getSeriesForScan(parsed.seriesTitle, parsed.mediaType, nfo?.year.orEmpty())
+            ?: displayTitle.takeIf { it != parsed.seriesTitle }?.let { mediaDao.getSeriesForScan(it, parsed.mediaType, nfo?.year.orEmpty()) }
         val series = existingSeries?.copy(
             type = existingSeries.type.takeUnless { it in setOf(MediaSeriesType.CARTOON, MediaSeriesType.LOCAL) }
                 ?: parsed.mediaType,
@@ -229,6 +232,7 @@ class NasScanner(private val database: AppDatabase) {
             )
         )
 
+        val oldSource = mediaDao.getRemoteSourceByUri(nasSource.id, nasUri)
         val existingFile = mediaDao.getMediaFileByEpisodeId(episodeId)
         val mediaFile = existingFile?.copy(
             fileName = existingFile.fileName.ifBlank { fileName },
@@ -249,6 +253,7 @@ class NasScanner(private val database: AppDatabase) {
             mediaDao.getMediaFileById(mediaFileId) ?: error("Cannot create NAS media file")
         }
 
+        database.preservePlaybackState(oldSource?.mediaFileId, mediaFile.id, seriesId, seasonId, episodeId)
         val existingRemote = mediaDao.getMediaRemoteSource(mediaFile.id, nasSource.id, nasUri)
         val remoteSource = MediaRemoteSourceEntity(
             id = existingRemote?.id ?: 0L,

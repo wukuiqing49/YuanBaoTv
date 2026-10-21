@@ -136,6 +136,13 @@ class TvPlayerController(
 
         playbackJob = scope.launch {
             try {
+                val indexedEpisode = AppDatabase.getInstance(context).mediaDao().getEpisodeById(episodeId)
+                if (indexedEpisode == null || indexedEpisode.seriesId != seriesId) {
+                    if (requestId == playbackRequestId) onResult?.invoke(false, "Invalid playback target")
+                    return@launch
+                }
+                if (requestId != playbackRequestId) return@launch
+                currentSeasonId = indexedEpisode.seasonId
                 when (val source = mediaResolver.resolve(episodeId)) {
                     is PlaybackSource.Local -> {
                         if (requestId != playbackRequestId) return@launch
@@ -224,15 +231,11 @@ class TvPlayerController(
             .setSubtitleConfigurations(subtitles)
             .build()
 
-        p.setMediaItem(mediaItem)
-
-        // 查找历史进度并恢复
+        // 将内容与起播位置一起提交，避免 MediaController 跨进程准备时覆盖单独的 seek。
         val initialPosition = resumePosition ?: history
             ?.takeIf { !it.completed && it.positionMs > 5000 }
             ?.positionMs
-        if (initialPosition != null && initialPosition > 0L) {
-            p.seekTo(initialPosition)
-        }
+        p.setMediaItem(mediaItem, initialPosition?.coerceAtLeast(0L) ?: 0L)
 
         p.prepare()
         p.play()

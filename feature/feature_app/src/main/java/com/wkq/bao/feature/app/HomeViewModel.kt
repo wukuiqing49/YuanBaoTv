@@ -23,6 +23,9 @@ data class HomeUiState(
     val loading: Boolean = true,
     val continueWatching: List<ContinueWatchingItem> = emptyList(),
     val cartoons: List<MediaSeriesEntity> = emptyList(),
+    val movies: List<MediaSeriesEntity> = emptyList(),
+    val series: List<MediaSeriesEntity> = emptyList(),
+    val animation: List<MediaSeriesEntity> = emptyList(),
     val featured: MediaSeriesEntity? = null,
     val featuredProgress: ContinueWatchingItem? = null
 )
@@ -45,7 +48,10 @@ class HomeViewModel(
         HomeUiState(
             loading = false,
             continueWatching = continueWatching,
-            cartoons = allSeries,
+            cartoons = allSeries.sortedByDescending(MediaSeriesEntity::createdAt),
+            movies = allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.MOVIE },
+            series = allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.TV },
+            animation = allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.CARTOON },
             featured = allSeries.firstOrNull { it.id == featuredProgress?.history?.seriesId }
                 ?: allSeries.maxByOrNull(MediaSeriesEntity::updatedAt),
             featuredProgress = featuredProgress
@@ -63,7 +69,7 @@ class HomeViewModel(
             runCatching {
                 history?.let { repository.getPlayableEpisode(seriesId, it.episodeId) }
                     ?.takeIf { it.seriesId == seriesId && it.id == history.episodeId }
-                    ?: repository.getFirstEpisode(seriesId)
+                    ?: repository.getPlaybackEpisode(seriesId)
             }
                 .onSuccess { episode ->
                     _events.emit(

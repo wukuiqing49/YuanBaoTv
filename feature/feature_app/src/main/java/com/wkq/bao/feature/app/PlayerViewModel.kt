@@ -18,12 +18,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class PlayerUiState(
-    val initialSeasonId: Long? = null
+    val initialSeasonId: Long? = null,
+    val isMovie: Boolean = false,
+    val title: String = ""
 )
 
 sealed interface PlayerEvent {
-    data class PlayNext(val episode: EpisodeEntity) : PlayerEvent
+    data class PlayNext(val episode: EpisodeEntity, val hasGap: Boolean = false, val title: String = "") : PlayerEvent
     data object LastEpisodeReached : PlayerEvent
+    data object PlaybackFinished : PlayerEvent
+    data object NavigationFailed : PlayerEvent
 }
 
 class PlayerViewModel(
@@ -37,26 +41,35 @@ class PlayerViewModel(
     val events: SharedFlow<PlayerEvent> = _events.asSharedFlow()
     private var nextEpisodeJob: Job? = null
 
-    fun initialize(initialSeasonId: Long, episodeId: Long) {
+    fun initialize(initialSeasonId: Long, episodeId: Long, seriesId: Long = 0) {
         if (_uiState.value.initialSeasonId != null) return
         viewModelScope.launch {
-            val resolvedSeasonId = initialSeasonId.takeIf { it > 0L }
-                ?: repository.resolveSeasonId(episodeId)
-            _uiState.value = PlayerUiState(initialSeasonId = resolvedSeasonId)
+            try {
+                val resolvedSeasonId = initialSeasonId.takeIf { it > 0L } ?: repository.resolveSeasonId(episodeId)
+                _uiState.value = PlayerUiState(initialSeasonId = resolvedSeasonId,
+                    isMovie = repository.isMovie(seriesId), title = repository.episodeTitle(episodeId))
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) { _events.emit(PlayerEvent.NavigationFailed) }
         }
     }
 
-    fun playNextEpisode(seriesId: Long, episodeId: Long) {
+    fun setCurrentTitle(title: String) {
+        _uiState.value = _uiState.value.copy(title = title)
+    }
+
+    fun playNextEpisode(seriesId: Long, episodeId: Long, allowCrossSeason: Boolean = true) {
         if (seriesId <= 0L || episodeId <= 0L || nextEpisodeJob?.isActive == true) return
         nextEpisodeJob = viewModelScope.launch {
-            runCatching { repository.findNextEpisode(seriesId, episodeId) }
-                .onSuccess { episode ->
-                    _events.emit(episode?.let(PlayerEvent::PlayNext) ?: PlayerEvent.LastEpisodeReached)
+            try {
+                val event = if (repository.isMovie(seriesId)) PlayerEvent.PlaybackFinished else {
+                    val next = repository.findNextEpisode(seriesId, episodeId)
+                    if (next == null || (!allowCrossSeason && next.seasonId != repository.resolveSeasonId(episodeId))) {
+                        PlayerEvent.LastEpisodeReached
+                    } else PlayerEvent.PlayNext(next, repository.hasEpisodeGap(episodeId, next), repository.episodeTitle(next.id))
                 }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    _events.emit(PlayerEvent.LastEpisodeReached)
-                }
+                _events.emit(event)
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) { _events.emit(PlayerEvent.NavigationFailed) }
         }
     }
 

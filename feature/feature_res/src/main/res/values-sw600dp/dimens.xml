@@ -1,0 +1,13 @@
+<resources>
+    <dimen name="ui_page_inset">32dp</dimen>
+    <dimen name="ui_text_title">26sp</dimen>
+    <dimen name="ui_text_hero">36sp</dimen>
+    <dimen name="ui_poster_width">160dp</dimen>
+    <dimen name="ui_poster_height">240dp</dimen>
+    <dimen name="ui_poster_row_height">256dp</dimen>
+    <dimen name="ui_continue_width">260dp</dimen>
+    <dimen name="ui_continue_height">146dp</dimen>
+    <dimen name="ui_episode_height">100dp</dimen>
+    <dimen name="ui_home_hero_height">380dp</dimen>
+    <dimen name="ui_home_hero_top">32dp</dimen>
+</resources>

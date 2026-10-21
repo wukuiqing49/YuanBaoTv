@@ -86,7 +86,12 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
                 renderProgress()
                 resetOsdTimer()
             }
-            if (playbackState == Player.STATE_ENDED) playNextEpisode()
+            if (playbackState == Player.STATE_ENDED) {
+                val mode = playbackPreferences.getInt("auto_next", 2)
+                if (mode == 0 || viewModel.uiState.value.isMovie) {
+                    Toast.makeText(this@PlayerActivity, com.wkq.bao.feature.res.R.string.player_finished, Toast.LENGTH_SHORT).show()
+                } else viewModel.playNextEpisode(seriesId, episodeId, allowCrossSeason = mode == 2)
+            }
         }
 
         override fun onTracksChanged(tracks: Tracks) {
@@ -157,6 +162,13 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
         binding.btnRewind.setOnClickListener { playerController.seekRewind(); resetOsdTimer() }
         binding.btnFastForward.setOnClickListener { playerController.seekForward(); resetOsdTimer() }
         binding.btnNextEpisode.setOnClickListener { playNextEpisode() }
+        renderAutoNext()
+        binding.btnAutoNext.setOnClickListener {
+            val mode = (playbackPreferences.getInt("auto_next", 2) + 1) % 3
+            playbackPreferences.edit().putInt("auto_next", mode).apply()
+            renderAutoNext()
+            resetOsdTimer()
+        }
         binding.btnSubtitles.setOnClickListener { showTrackPicker(C.TRACK_TYPE_TEXT) }
         binding.btnAudioTracks.setOnClickListener { showTrackPicker(C.TRACK_TYPE_AUDIO) }
         binding.btnPlayerRetry.setOnClickListener { loadEpisode(episodeId) }
@@ -165,6 +177,7 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
             binding.btnRewind,
             binding.btnFastForward,
             binding.btnNextEpisode,
+            binding.btnAutoNext,
             binding.btnSpeed,
             binding.btnSubtitles,
             binding.btnAudioTracks,
@@ -219,6 +232,12 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.uiState.collect { state ->
+                        binding.btnNextEpisode.visibility = if (state.isMovie) View.GONE else View.VISIBLE
+                        binding.btnAutoNext.visibility = if (state.isMovie) View.GONE else View.VISIBLE
+                        if (state.title.isNotBlank()) {
+                            mediaTitle = state.title
+                            binding.tvTitle.text = mediaTitle
+                        }
                         val resolvedSeasonId = state.initialSeasonId ?: return@collect
                         if (!initialEpisodeLoaded) {
                             initialEpisodeLoaded = true
@@ -231,11 +250,16 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
                     viewModel.events.collect { event ->
                         when (event) {
                             is PlayerEvent.PlayNext -> {
-                                seasonId = event.episode.seasonId
-                                mediaTitle = event.episode.title
-                                binding.tvTitle.text = mediaTitle
-                                loadEpisode(event.episode.id)
+                                if (event.hasGap) {
+                                    trackDialog?.dismiss()
+                                    trackDialog = AlertDialog.Builder(this@PlayerActivity)
+                                        .setMessage(getString(com.wkq.bao.feature.res.R.string.player_episode_gap, event.title))
+                                        .setPositiveButton(com.wkq.bao.feature.res.R.string.btn_play_now) { _, _ -> openNextEpisode(event.episode, event.title) }
+                                        .setNegativeButton(android.R.string.cancel, null).show()
+                                } else openNextEpisode(event.episode, event.title)
                             }
+                            PlayerEvent.NavigationFailed -> Toast.makeText(this@PlayerActivity, com.wkq.bao.feature.res.R.string.player_navigation_failed, Toast.LENGTH_SHORT).show()
+                            PlayerEvent.PlaybackFinished -> Toast.makeText(this@PlayerActivity, com.wkq.bao.feature.res.R.string.player_finished, Toast.LENGTH_SHORT).show()
                             PlayerEvent.LastEpisodeReached -> {
                                 Toast.makeText(this@PlayerActivity, com.wkq.bao.feature.res.R.string.player_last_episode, Toast.LENGTH_SHORT).show()
                             }
@@ -244,8 +268,22 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
                 }
             }
         }
-        viewModel.initialize(seasonId, episodeId)
+        viewModel.initialize(seasonId, episodeId, seriesId)
         startProgressTracker()
+    }
+
+    private fun renderAutoNext() {
+        val labels = intArrayOf(com.wkq.bao.feature.res.R.string.player_auto_off,
+            com.wkq.bao.feature.res.R.string.player_auto_season, com.wkq.bao.feature.res.R.string.player_auto_all)
+        binding.btnAutoNext.setText(labels[playbackPreferences.getInt("auto_next", 2).coerceIn(0, 2)])
+    }
+
+    private fun openNextEpisode(episode: com.wkq.bao.core.database.entity.EpisodeEntity, title: String) {
+        seasonId = episode.seasonId
+        mediaTitle = title.ifBlank { mediaTitle }
+        viewModel.setCurrentTitle(mediaTitle)
+        binding.tvTitle.text = mediaTitle
+        loadEpisode(episode.id)
     }
 
     private fun loadEpisode(targetEpisodeId: Long) {
@@ -470,6 +508,7 @@ class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
     }
 
     private fun playNextEpisode() {
+        if (viewModel.uiState.value.isMovie) return
         viewModel.playNextEpisode(seriesId, episodeId)
     }
 

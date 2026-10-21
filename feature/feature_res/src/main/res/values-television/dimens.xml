@@ -1,0 +1,20 @@
+<resources>
+    <dimen name="tv_readable_body">@dimen/ui_text_body</dimen>
+    <dimen name="tv_readable_caption">@dimen/ui_text_caption</dimen>
+    <dimen name="tv_readable_card_title">@dimen/ui_text_body</dimen>
+    <dimen name="ui_page_inset">48dp</dimen>
+    <dimen name="ui_text_title">26sp</dimen>
+    <dimen name="ui_text_section">20sp</dimen>
+    <dimen name="ui_text_body">16sp</dimen>
+    <dimen name="ui_text_caption">14sp</dimen>
+    <dimen name="ui_text_action">16sp</dimen>
+    <dimen name="ui_text_hero">32sp</dimen>
+    <dimen name="ui_poster_width">144dp</dimen>
+    <dimen name="ui_poster_height">216dp</dimen>
+    <dimen name="ui_poster_row_height">232dp</dimen>
+    <dimen name="ui_continue_width">240dp</dimen>
+    <dimen name="ui_continue_height">135dp</dimen>
+    <dimen name="ui_episode_height">102dp</dimen>
+    <dimen name="ui_home_hero_height">300dp</dimen>
+    <dimen name="ui_home_hero_top">16dp</dimen>
+</resources>

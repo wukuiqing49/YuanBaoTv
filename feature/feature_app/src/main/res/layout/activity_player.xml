@@ -39,8 +39,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/player_playback_failed" android:textColor="@color/tv_text_primary" android:textSize="16sp" />
-        <Button android:id="@+id/btn_player_retry" android:layout_width="wrap_content" android:layout_height="42dp" android:layout_marginTop="12dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/btn_retry" android:textColor="@color/tv_text_primary" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/player_playback_failed" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_body" />
+        <Button android:id="@+id/btn_player_retry" android:layout_width="wrap_content" android:layout_height="42dp" android:layout_marginTop="12dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/btn_retry" android:textColor="@color/tv_control_text" />
     </LinearLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -48,14 +48,14 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="#99000000"
-        android:padding="16dp"
+        android:padding="@dimen/feature_res_spacing_medium"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <TextView android:id="@+id/tv_title" android:layout_width="0dp" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_primary" android:textSize="17sp" android:textStyle="bold" app:layout_constraintEnd_toStartOf="@id/tv_source_badge" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
-        <TextView android:id="@+id/tv_source_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_badge_local" android:paddingHorizontal="6dp" android:paddingVertical="3dp" android:textColor="@color/tv_text_primary" android:textSize="10sp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent" />
+        <TextView android:id="@+id/tv_title" android:layout_width="0dp" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_section" android:textStyle="bold" app:layout_constraintEnd_toStartOf="@id/tv_source_badge" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+        <TextView android:id="@+id/tv_source_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_badge_local" android:paddingHorizontal="6dp" android:paddingVertical="3dp" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_caption" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent" />
 
         <LinearLayout
             android:id="@+id/layout_bottom_panel"
@@ -66,21 +66,21 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
-                <TextView android:id="@+id/tv_current_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
-                <SeekBar android:id="@+id/seek_progress" android:layout_width="0dp" android:layout_height="28dp" android:layout_marginHorizontal="8dp" android:layout_weight="1" android:focusable="true" android:max="1000" android:progressBackgroundTint="#55FFFFFF" android:progressTint="@color/tv_accent_cyan" android:thumbTint="@color/tv_accent_cyan" />
-                <TextView android:id="@+id/tv_total_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/tv_text_secondary" android:textSize="11sp" />
+                <TextView android:id="@+id/tv_current_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_caption" />
+                <SeekBar android:id="@+id/seek_progress" android:layout_width="0dp" android:layout_height="28dp" android:layout_marginHorizontal="@dimen/feature_res_spacing_small" android:layout_weight="1" android:focusable="true" android:max="1000" android:progressBackgroundTint="#55FFFFFF" android:progressTint="@color/tv_accent_cyan" android:thumbTint="@color/tv_accent_cyan" />
+                <TextView android:id="@+id/tv_total_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_caption" />
             </LinearLayout>
-            <HorizontalScrollView android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:scrollbars="none">
-                <LinearLayout android:layout_width="wrap_content" android:layout_height="match_parent" android:gravity="center_vertical" android:orientation="horizontal">
-                    <Button android:id="@+id/btn_rewind" android:layout_width="64dp" android:layout_height="38dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_rewind" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
-                    <Button android:id="@+id/btn_play_pause" android:layout_width="78dp" android:layout_height="40dp" android:layout_marginStart="8dp" android:background="@drawable/bg_hero_play_btn" android:textColor="@color/tv_hero_btn_text" android:textSize="11sp" />
-                    <Button android:id="@+id/btn_fast_forward" android:layout_width="64dp" android:layout_height="38dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_fast_forward" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
-                    <Button android:id="@+id/btn_audio_tracks" android:layout_width="wrap_content" android:minWidth="64dp" android:layout_height="wrap_content" android:minHeight="48dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_audio_tracks" android:textColor="@color/tv_text_primary" android:textSize="11sp" android:enabled="false" />
-                    <Button android:id="@+id/btn_speed" android:layout_width="64dp" android:layout_height="38dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_speed_default" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
-                    <Button android:id="@+id/btn_subtitles" android:layout_width="82dp" android:layout_height="38dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_subtitles_none" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
-                    <Button android:id="@+id/btn_next_episode" android:layout_width="82dp" android:layout_height="38dp" android:layout_marginStart="8dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_next_episode" android:textColor="@color/tv_text_primary" android:textSize="11sp" />
-                </LinearLayout>
-            </HorizontalScrollView>
+            <androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/ui_item_gap">
+<Button android:id="@+id/btn_rewind" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_rewind" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
+<Button android:id="@+id/btn_play_pause" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_hero_play_btn" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" android:text="@string/btn_play_now" />
+<Button android:id="@+id/btn_fast_forward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_fast_forward" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
+<Button android:id="@+id/btn_audio_tracks" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_audio_tracks" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:enabled="false" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
+<Button android:id="@+id/btn_speed" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_speed_default" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
+<Button android:id="@+id/btn_subtitles" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_subtitles_none" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
+<Button android:id="@+id/btn_next_episode" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_next_episode" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
+<Button android:id="@+id/btn_auto_next" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_auto_all" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
+<androidx.constraintlayout.helper.widget.Flow android:layout_width="0dp" android:layout_height="wrap_content" app:constraint_referenced_ids="btn_rewind,btn_play_pause,btn_fast_forward,btn_audio_tracks,btn_speed,btn_subtitles,btn_next_episode,btn_auto_next" app:flow_wrapMode="chain" app:flow_maxElementsWrap="3" app:flow_horizontalStyle="packed" app:flow_horizontalGap="8dp" app:flow_verticalGap="4dp" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

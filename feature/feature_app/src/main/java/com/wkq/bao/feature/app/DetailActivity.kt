@@ -36,6 +36,7 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
     private var renderedSeasons: List<SeasonEntity> = emptyList()
     private var editorPopup: MediaEditorPopup? = null
     private var restoredEditor: Bundle? = null
+    private var cachePopup: CacheSelectionPopup? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         restoredEditor = savedInstanceState?.getBundle("metadata_editor")
@@ -61,10 +62,16 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
     }
 
     override fun initView() {
+        // 详情页为深色背景，覆盖基类可能设置的浅色系统栏图标模式。
+        androidx.core.view.WindowCompat.getInsetsController(window, binding.root).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
         seriesId = intent.getLongExtra("seriesId", 0L)
         listOf(
             binding.btnPlay,
             binding.btnFavorite,
+            binding.btnDownloadSeason,
             binding.btnEditMetadata,
             binding.btnDetailStateAction
         ).forEach { button ->
@@ -74,7 +81,7 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
         episodeAdapter = EpisodeAdapter(onItemClick = ::playEpisode)
         binding.rvEpisodes.adapter = episodeAdapter
         binding.btnPlay.setOnClickListener { viewModel.playFirstEpisode() }
-        binding.btnDownloadSeason.visibility = View.GONE
+        binding.btnDownloadSeason.setOnClickListener { showCacheActions() }
         binding.btnFavorite.setOnClickListener { viewModel.toggleFavorite() }
         binding.btnEditMetadata.setOnClickListener { showMetadataEditor() }
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnPlay)
@@ -91,7 +98,12 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
                 launch { viewModel.events.collect(::handleEvent) }
             }
         }
-        viewModel.initialize(seriesId)
+        viewModel.initialize(seriesId, intent.getBooleanExtra("cachedOnly", false))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshPlaybackTarget()
     }
 
     private fun renderState(state: DetailUiState) {
@@ -104,6 +116,19 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
             renderedSeries = series
             renderSeries(series, state.isMovie)
         }
+        binding.btnDownloadSeason.isVisible = true
+        binding.btnDownloadSeason.isEnabled = !state.actionInProgress
+        binding.btnDownloadSeason.setText(if (state.cachedOnly) com.wkq.bao.feature.res.R.string.cache_manage_local else if (state.isMovie) com.wkq.bao.feature.res.R.string.cache_movie else com.wkq.bao.feature.res.R.string.cache_select_episodes)
+        binding.btnPlay.isEnabled = !state.cachedOnly || state.cachedCopies.isNotEmpty()
+        val target = state.playbackTarget
+        binding.btnPlay.text = when {
+            state.cachedOnly -> getString(com.wkq.bao.feature.res.R.string.cache_play_local)
+            target == null -> getString(com.wkq.bao.feature.res.R.string.btn_play_now)
+            state.isMovie -> getString(if (target.resume) com.wkq.bao.feature.res.R.string.btn_continue_play else com.wkq.bao.feature.res.R.string.btn_play_now)
+            else -> getString(if (target.resume) com.wkq.bao.feature.res.R.string.detail_resume_episode else com.wkq.bao.feature.res.R.string.detail_play_episode,
+                target.seasonNumber, target.episode.episodeNumber)
+        }
+        binding.btnFavorite.isSelected = state.isFavorite
         binding.btnFavorite.setText(
             if (state.isFavorite) com.wkq.bao.feature.res.R.string.btn_unfavorite
             else com.wkq.bao.feature.res.R.string.btn_favorite
@@ -118,7 +143,8 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
             val noEpisodes = !noSeasons && state.episodes.isEmpty()
             binding.tvEpisodeEmpty.isVisible = noSeasons || noEpisodes
             binding.tvEpisodeEmpty.setText(
-                if (noSeasons) com.wkq.bao.feature.res.R.string.detail_no_seasons
+                if (state.episodesLoading) com.wkq.bao.feature.res.R.string.detail_loading
+                else if (noSeasons) com.wkq.bao.feature.res.R.string.detail_no_seasons
                 else com.wkq.bao.feature.res.R.string.detail_no_episodes
             )
             binding.rvEpisodes.isVisible = !noSeasons && !noEpisodes
@@ -205,10 +231,12 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
                 val button = android.widget.Button(this).apply {
                     text = getString(com.wkq.bao.feature.res.R.string.season_format, season.seasonNumber)
                     setBackgroundResource(com.wkq.bao.feature.res.R.drawable.bg_tv_button_focus)
-                    setTextColor(getColor(com.wkq.bao.feature.res.R.color.tv_text_primary))
+                    backgroundTintList = null
+                    setTextColor(androidx.core.content.ContextCompat.getColorStateList(context, com.wkq.bao.feature.res.R.color.tv_control_text))
+                    setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, resources.getDimension(com.wkq.bao.feature.res.R.dimen.ui_text_action))
                     if (compact) {
                         isAllCaps = false
-                        textSize = 12f
+
                         minWidth = 0
                         minHeight = 0
                         val horizontalPadding = (16 * resources.displayMetrics.density).toInt()
@@ -216,8 +244,8 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
                     }
                     layoutParams = android.widget.LinearLayout.LayoutParams(
                         android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                        ((if (compact) 40 else 48) * resources.displayMetrics.density).toInt()
-                    ).apply { marginEnd = (12 * resources.displayMetrics.density).toInt() }
+                        resources.getDimensionPixelSize(com.wkq.bao.feature.res.R.dimen.ui_action_min_height)
+                    ).apply { marginEnd = resources.getDimensionPixelSize(com.wkq.bao.feature.res.R.dimen.feature_res_spacing_small) }
                     tag = season.id
                     setOnClickListener { viewModel.selectSeason(season.id) }
                     TvFocusHelper.applyFocusScale(this)
@@ -236,8 +264,9 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
         for (index in 0 until binding.llSeasonTabs.childCount) {
             val tab = binding.llSeasonTabs.getChildAt(index)
             val selected = tab.tag == selectedSeasonId
+            tab.isSelected = selected
             tab.setBackgroundResource(
-                if (selected) com.wkq.bao.feature.res.R.drawable.bg_hero_play_btn
+                if (selected) com.wkq.bao.feature.res.R.drawable.bg_nav_link_active
                 else com.wkq.bao.feature.res.R.drawable.bg_tv_button_focus
             )
             (tab as? TextView)?.setTextColor(
@@ -251,6 +280,10 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
 
     private fun handleEvent(event: DetailEvent) {
         when (event) {
+            DetailEvent.CopyRemoved -> {
+                Toast.makeText(this, com.wkq.bao.feature.res.R.string.cache_removed, Toast.LENGTH_SHORT).show()
+                viewModel.refreshPlaybackTarget()
+            }
             DetailEvent.MetadataSaved -> {
                 editorPopup?.dismiss()
                 editorPopup = null
@@ -269,6 +302,50 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
                     else com.wkq.bao.feature.res.R.string.download_status_failed,
                 Toast.LENGTH_SHORT
             ).show()
+        }
+    }
+
+    private fun showCacheActions() {
+        val state = viewModel.uiState.value
+        if (state.actionInProgress) return
+        if (state.cachedOnly) {
+            val copies = state.cachedCopies.filter { state.isMovie || it.seasonId == state.selectedSeasonId }
+            if (copies.isEmpty()) return
+            val labels = copies.map { "S%02dE%02d · %s · %s".format(it.seasonNumber, it.episodeNumber,
+                it.storageType, android.text.format.Formatter.formatFileSize(this, it.fileSize)) }.toTypedArray()
+            XPopup.Builder(this).isDarkTheme(true).asCenterList(
+                getString(com.wkq.bao.feature.res.R.string.cache_manage_local), labels) { index, _ ->
+                val copy = copies[index]
+                XPopup.Builder(this).isDarkTheme(true).asConfirm(
+                    getString(com.wkq.bao.feature.res.R.string.cache_remove_copy),
+                    getString(com.wkq.bao.feature.res.R.string.cache_remove_confirmation, copy.uri),
+                    { viewModel.removeCopy(copy.episodeId, copy.uri) }).show()
+            }.show()
+            return
+        }
+        if (state.isMovie) { enqueueCache(null); return }
+        if (state.episodesLoading || cachePopup?.isShow == true) return
+        val popup = CacheSelectionPopup(this, state.episodes, emptySet()) { enqueueCache(it) }
+        cachePopup = popup
+        XPopup.Builder(this).isDarkTheme(true).maxWidth((600 * resources.displayMetrics.density).toInt())
+            .maxHeight((resources.displayMetrics.heightPixels * .85f).toInt()).asCustom(popup).show()
+    }
+
+    private fun enqueueCache(episodes: List<Long>?) {
+        lifecycleScope.launch {
+            val target = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.wkq.bao.core.media.storage.TvStorageManager(applicationContext).getAvailableExternalStorageTarget()
+            }
+            if (target == null) {
+                XPopup.Builder(this@DetailActivity).isDarkTheme(true).asConfirm(
+                    getString(com.wkq.bao.feature.res.R.string.storage_select_target),
+                    getString(com.wkq.bao.feature.res.R.string.storage_target_required),
+                    { HomeActivity.open(this@DetailActivity, MainPageNavigator.DOWNLOADS) }).show()
+            } else {
+                val destination = com.wkq.bao.core.media.repository.DownloadTarget(target.uri.toString(), target.location)
+                if (episodes == null) viewModel.enqueueCurrentSelection(destination)
+                else viewModel.enqueueSelection(episodes, destination)
+            }
         }
     }
 
@@ -291,6 +368,8 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
     override fun onDestroy() {
         editorPopup?.dismiss()
         editorPopup = null
+        cachePopup?.dismiss()
+        cachePopup = null
         super.onDestroy()
     }
 

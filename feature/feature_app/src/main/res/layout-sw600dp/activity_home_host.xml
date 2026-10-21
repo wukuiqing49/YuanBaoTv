@@ -10,7 +10,7 @@
         android:layout_width="0dp"
         android:layout_height="56dp"
         android:layout_marginStart="40dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="@dimen/feature_res_spacing_medium"
         android:layout_marginEnd="40dp"
         android:background="@drawable/bg_nav_pill_container"
         android:gravity="center_vertical"
@@ -32,7 +32,7 @@
             android:maxLines="1"
             android:text="@string/nav_home"
             android:textColor="@color/tv_text_primary"
-            android:textSize="13sp" />
+            android:textSize="@dimen/ui_text_body" />
 
         <TextView
             android:id="@+id/tab_library"
@@ -46,7 +46,7 @@
             android:maxLines="1"
             android:text="@string/nav_all_media"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="13sp" />
+            android:textSize="@dimen/ui_text_body" />
 
         <TextView
             android:id="@+id/tab_downloads"
@@ -60,7 +60,7 @@
             android:maxLines="1"
             android:text="@string/nav_downloads"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="13sp" />
+            android:textSize="@dimen/ui_text_body" />
 
         <TextView
             android:id="@+id/tab_nas"
@@ -74,7 +74,7 @@
             android:maxLines="1"
             android:text="@string/nav_nas"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="13sp"
+            android:textSize="@dimen/ui_text_body"
             android:visibility="gone" />
     </LinearLayout>
 

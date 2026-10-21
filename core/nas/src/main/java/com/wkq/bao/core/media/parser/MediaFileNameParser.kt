@@ -18,13 +18,38 @@ object MediaFileNameParser {
     )
 
     // S01E02 或 s1e2
-    private val PATTERN_S_E = Pattern.compile("(?i)(.*?)[.\\s_-]+s(\\d{1,2})[.\\s_-]*e(\\d{1,3})(.*)", Pattern.CASE_INSENSITIVE)
+    private val PATTERN_S_E = Pattern.compile("(?i)(.*?)[.\\s_-]*s(\\d{1,2})[.\\s_-]*e(\\d{1,3})(.*)", Pattern.CASE_INSENSITIVE)
     // 01x02
-    private val PATTERN_X = Pattern.compile("(?i)(.*?)[.\\s_-]+(\\d{1,2})x(\\d{1,3})(.*)", Pattern.CASE_INSENSITIVE)
+    private val PATTERN_X = Pattern.compile("(?i)(.*?)[.\\s_-]*(\\d{1,2})x(\\d{1,3})(.*)", Pattern.CASE_INSENSITIVE)
     // 中文：第1季 第2集
     private val PATTERN_ZH = Pattern.compile("(.*?)[.\\s_-]*第\\s*(\\d{1,2})\\s*季[.\\s_-]*第\\s*(\\d{1,3})\\s*集(.*)")
     // 中文仅单集：第2集
     private val PATTERN_ZH_EP_ONLY = Pattern.compile("(.*?)[.\\s_-]*第\\s*(\\d{1,3})\\s*集(.*)")
+
+    /** 只有明确的季目录才将纯数字文件识别为集，避免把年份电影误识别。 */
+    fun parse(fileNameWithExt: String, parentPath: String): ParsedMediaInfo {
+        val directories = parentPath.replace('\\', '/').trim('/').split('/')
+        val folder = directories.lastOrNull().orEmpty()
+        val seasonMatch = Regex("(?i)^(?:season[ ._-]*|s)([0-9]{1,2})$|^第([0-9]{1,2})季$").matchEntire(folder)
+        val season = seasonMatch?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.toIntOrNull()
+        val base = parse(fileNameWithExt)
+        val stem = fileNameWithExt.substringBeforeLast('.')
+        val ep = Regex("(?i)^(.*?)(?:[ ._-]+|^)(?:episode|ep?|第)[ ._-]*([0-9]{1,3})(?:集)?(?:[ ._-]+(.*))?$").matchEntire(stem)
+        val numeric = if (season != null) Regex("^([0-9]{1,3})(?:[ ._-]+(.*))?$").matchEntire(stem) else null
+        val folderTitle = if (season != null) directories.dropLast(1).lastOrNull().orEmpty() else folder
+        if (base.mediaType == MediaSeriesType.TV) {
+            val title = base.seriesTitle.takeUnless { it == stem || it.isBlank() } ?: folderTitle
+            val explicitSeason = PATTERN_S_E.matcher(stem).find() || PATTERN_X.matcher(stem).find() || PATTERN_ZH.matcher(stem).find()
+            return base.copy(seriesTitle = cleanTitle(title), seasonNumber = if (explicitSeason) base.seasonNumber else season ?: base.seasonNumber)
+        }
+        val number = ep?.groupValues?.get(2)?.toIntOrNull() ?: numeric?.groupValues?.get(1)?.toIntOrNull()
+        if (number != null && (folderTitle.isNotBlank() || !ep?.groupValues?.get(1).isNullOrBlank())) {
+            val title = ep?.groupValues?.get(1)?.let(::cleanTitle)?.takeIf { it.isNotBlank() } ?: cleanTitle(folderTitle)
+            return ParsedMediaInfo(title, season ?: 1, number,
+                ep?.groupValues?.getOrNull(3).orEmpty().ifBlank { numeric?.groupValues?.getOrNull(2).orEmpty() }, MediaSeriesType.TV)
+        }
+        return base
+    }
 
     fun parse(fileNameWithExt: String): ParsedMediaInfo {
         val fileName = fileNameWithExt.substringBeforeLast(".")
@@ -69,7 +94,9 @@ object MediaFileNameParser {
         }
 
         // 默认作为第 1 季第 1 集
-        return ParsedMediaInfo(cleanTitle(fileName), 1, 1, mediaType = MediaSeriesType.MOVIE)
+        val ambiguous = Regex("(?i)^(?:[0-9]{1,3}|(?:ep?|episode)[ ._-]*[0-9]{1,3})$").matches(fileName)
+        return ParsedMediaInfo(cleanTitle(fileName), 1, 1,
+            mediaType = if (ambiguous) MediaSeriesType.LOCAL else MediaSeriesType.MOVIE)
     }
 
     private fun cleanTitle(raw: String): String {

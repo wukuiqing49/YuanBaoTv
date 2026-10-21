@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:minHeight="120dp"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="@dimen/feature_res_spacing_small"
     android:background="@drawable/bg_tv_focus_ring"
     android:padding="12dp">
 
@@ -15,7 +15,7 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:textColor="@color/tv_text_primary"
-        android:textSize="14sp"
+        android:textSize="@dimen/ui_text_body"
         android:textStyle="bold"
         app:layout_constraintEnd_toStartOf="@id/tv_task_status"
         app:layout_constraintStart_toStartOf="parent"
@@ -29,7 +29,7 @@
         android:paddingHorizontal="6dp"
         android:paddingVertical="3dp"
         android:textColor="@color/tv_text_primary"
-        android:textSize="10sp"
+        android:textSize="@dimen/ui_text_caption"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -41,7 +41,7 @@
         android:ellipsize="end"
         android:maxLines="2"
         android:textColor="@color/tv_text_secondary"
-        android:textSize="11sp"
+        android:textSize="@dimen/ui_text_caption"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_task_title" />
@@ -61,7 +61,7 @@
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="@dimen/feature_res_spacing_small"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -76,8 +76,8 @@
             android:paddingHorizontal="12dp"
             android:maxLines="1"
             android:background="@drawable/bg_tv_button_focus"
-            android:textColor="@color/tv_text_primary"
-            android:textSize="11sp" />
+            android:textColor="@color/tv_control_text"
+            android:textSize="@dimen/ui_text_caption" />
 
         <Button
             android:id="@+id/btn_task_cancel"
@@ -87,10 +87,10 @@
             android:minHeight="48dp"
             android:paddingHorizontal="12dp"
             android:maxLines="1"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="@dimen/feature_res_spacing_small"
             android:background="@drawable/bg_tv_button_focus"
             android:text="@string/btn_cancel"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="11sp" />
+            android:textSize="@dimen/ui_text_caption" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

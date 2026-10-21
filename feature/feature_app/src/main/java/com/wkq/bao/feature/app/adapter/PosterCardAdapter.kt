@@ -5,6 +5,8 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.constraintlayout.widget.ConstraintLayout
 import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import com.wkq.bao.core.database.entity.MediaSeriesType
 import com.wkq.bao.feature.app.databinding.ItemPosterCardBinding
@@ -40,6 +42,16 @@ class PosterCardAdapter(
             parent,
             false
         )
+        // 网格占满各自单元格并保持 2:3；首页横向列表保留固定卡片宽度。
+        if ((parent as? RecyclerView)?.layoutManager is GridLayoutManager) {
+            binding.root.layoutParams = binding.root.layoutParams.apply {
+                width = ViewGroup.LayoutParams.MATCH_PARENT
+                height = ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+            binding.ivPoster.layoutParams = (binding.ivPoster.layoutParams as ConstraintLayout.LayoutParams).apply {
+                dimensionRatio = "2:3"
+            }
+        }
         return ViewHolder(binding)
     }
 

@@ -10,7 +10,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="24dp">
+        android:paddingBottom="@dimen/feature_res_spacing_large">
 
         <View android:id="@+id/top_nav_bar" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
         <TextView android:id="@+id/tv_clock" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
@@ -38,21 +38,21 @@
             android:id="@+id/layout_hero_content"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="@dimen/feature_res_spacing_medium"
             android:layout_marginTop="@dimen/phone_home_hero_top_margin"
-            android:layout_marginEnd="16dp"
+            android:layout_marginEnd="@dimen/feature_res_spacing_medium"
             android:orientation="vertical"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
             <TextView android:id="@+id/tv_hero_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_primary" android:textSize="@dimen/phone_home_hero_title_size" android:textStyle="bold" />
-            <TextView android:id="@+id/tv_hero_season_tag" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/bg_tag_pill" android:paddingHorizontal="8dp" android:paddingVertical="3dp" android:textColor="@color/tv_accent_gold" android:textSize="11sp" />
-            <TextView android:id="@+id/tv_hero_desc" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:ellipsize="end" android:maxLines="2" android:textColor="@color/tv_text_secondary" android:textSize="12sp" />
+            <TextView android:id="@+id/tv_hero_season_tag" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/feature_res_spacing_small" android:background="@drawable/bg_tag_pill" android:paddingHorizontal="@dimen/feature_res_spacing_small" android:paddingVertical="3dp" android:textColor="@color/tv_accent_gold" android:textSize="@dimen/ui_text_caption" />
+            <TextView android:id="@+id/tv_hero_desc" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/feature_res_spacing_small" android:ellipsize="end" android:maxLines="2" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_caption" />
 
             <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal">
-                <Button android:id="@+id/btn_hero_play" android:layout_width="wrap_content" android:layout_height="42dp" android:background="@drawable/bg_hero_gold_btn" android:backgroundTint="@null" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/btn_continue_play" android:textColor="@color/tv_hero_btn_text" android:textSize="12sp" />
-                <Button android:id="@+id/btn_hero_detail" android:layout_width="wrap_content" android:layout_height="42dp" android:layout_marginStart="10dp" android:background="@drawable/bg_hero_detail_btn" android:backgroundTint="@null" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/btn_view_detail" android:textColor="@color/tv_text_primary" android:textSize="12sp" />
+                <Button android:id="@+id/btn_hero_play" android:layout_width="wrap_content" android:layout_height="42dp" android:background="@drawable/bg_hero_gold_btn" android:backgroundTint="@null" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/btn_continue_play" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" />
+                <Button android:id="@+id/btn_hero_detail" android:layout_width="wrap_content" android:layout_height="42dp" android:layout_marginStart="10dp" android:background="@drawable/bg_hero_detail_btn" android:backgroundTint="@null" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/btn_view_detail" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" />
             </LinearLayout>
         </LinearLayout>
 
@@ -60,11 +60,11 @@
             android:id="@+id/tv_label_continue"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="@dimen/feature_res_spacing_medium"
             android:layout_marginTop="20dp"
             android:text="@string/section_continue_watching"
             android:textColor="@color/tv_text_primary"
-            android:textSize="17sp"
+            android:textSize="@dimen/ui_text_section"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/iv_hero_backdrop" />
@@ -73,11 +73,11 @@
             android:id="@+id/rv_continue_watching"
             android:layout_width="0dp"
             android:layout_height="@dimen/phone_home_continue_row_height"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="@dimen/feature_res_spacing_small"
             android:clipToPadding="false"
             android:orientation="horizontal"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
+            android:paddingStart="@dimen/feature_res_spacing_medium"
+            android:paddingEnd="@dimen/feature_res_spacing_medium"
             android:scrollbars="none"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             app:layout_constraintEnd_toEndOf="parent"
@@ -88,11 +88,11 @@
             android:id="@+id/tv_label_cartoons"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="@dimen/feature_res_spacing_medium"
             android:layout_marginTop="18dp"
-            android:text="@string/section_cartoons"
+            android:text="@string/section_recently_added"
             android:textColor="@color/tv_text_primary"
-            android:textSize="17sp"
+            android:textSize="@dimen/ui_text_section"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/rv_continue_watching" />
@@ -100,16 +100,17 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_cartoons"
             android:layout_width="0dp"
-            android:layout_height="@dimen/phone_home_poster_row_height"
-            android:layout_marginTop="8dp"
+            android:layout_height="@dimen/ui_poster_row_height"
+            android:layout_marginTop="@dimen/feature_res_spacing_small"
             android:clipToPadding="false"
             android:orientation="horizontal"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
+            android:paddingStart="@dimen/feature_res_spacing_medium"
+            android:paddingEnd="@dimen/feature_res_spacing_medium"
             android:scrollbars="none"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_label_cartoons" />
+        <include android:id="@+id/home_sections" layout="@layout/layout_home_sections" android:layout_width="0dp" android:layout_height="wrap_content" app:layout_constraintTop_toBottomOf="@id/rv_cartoons" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>

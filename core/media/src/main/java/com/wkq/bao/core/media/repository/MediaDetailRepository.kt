@@ -16,11 +16,18 @@ import com.wkq.bao.core.media.storage.MediaStorageLocation
 import kotlinx.coroutines.flow.Flow
 
 interface MediaDetailRepository {
+    val cachedCopies: Flow<List<com.wkq.bao.core.database.entity.CachedMediaRow>> get() = kotlinx.coroutines.flow.flowOf(emptyList())
+    suspend fun localEpisode(seriesId: Long, episodeId: Long): EpisodeEntity? = null
+    suspend fun removeCopy(seriesId: Long, episodeId: Long, uri: String): Boolean = false
+    suspend fun enqueueSelection(seriesId: Long, episodeIds: List<Long>, downloadTarget: DownloadTarget): EnqueueDownloadsResult =
+        EnqueueDownloadsResult.NoItemsQueued
     suspend fun editMetadata(seriesId: Long, update: LocalMetadataUpdate): MediaSeriesEntity
     suspend fun getSeries(seriesId: Long): MediaSeriesEntity?
     fun observeSeasons(seriesId: Long): Flow<List<SeasonEntity>>
     fun observeEpisodes(seriesId: Long, seasonId: Long): Flow<List<EpisodeWithSource>>
     suspend fun getFirstPlayableEpisode(seriesId: Long, seasonId: Long, isMovie: Boolean): EpisodeEntity?
+    suspend fun playbackTarget(seriesId: Long, seasonId: Long = 0): PlaybackTarget? =
+        getFirstPlayableEpisode(seriesId, seasonId, false)?.let { PlaybackTarget(it) }
     suspend fun isFavorite(seriesId: Long): Boolean
     suspend fun toggleFavorite(seriesId: Long): Boolean
     suspend fun enqueueDownloads(
@@ -53,6 +60,25 @@ class RoomMediaDetailRepository private constructor(
     private val database: AppDatabase
 ) : MediaDetailRepository {
 
+    override val cachedCopies = database.mediaDao().observeCachedMedia()
+    override suspend fun localEpisode(seriesId: Long, episodeId: Long): EpisodeEntity? {
+        val episode = database.mediaDao().getEpisodeById(episodeId)?.takeIf { it.seriesId == seriesId } ?: return null
+        val file = database.mediaDao().getMediaFileByEpisodeId(episodeId) ?: return null
+        return episode.takeIf { database.mediaDao().hasMediaLocations(file.id) }
+    }
+    override suspend fun removeCopy(seriesId: Long, episodeId: Long, uri: String): Boolean =
+        removeCachedCopy(appContext, database, seriesId, episodeId, uri)
+
+    override suspend fun enqueueSelection(seriesId: Long, episodeIds: List<Long>, downloadTarget: DownloadTarget): EnqueueDownloadsResult {
+        val ids = episodeIds.toSet()
+        val episodes = database.mediaDao().getEpisodesForSeriesSync(seriesId).filter { it.id in ids }
+        val count = enqueueEpisodeList(seriesId, episodes, downloadTarget)
+            ?: return EnqueueDownloadsResult.StorageTargetRequired
+        if (count == 0) return EnqueueDownloadsResult.NoItemsQueued
+        DownloadWorkScheduler.enqueue(appContext, expedited = true)
+        return EnqueueDownloadsResult.SeasonQueued(count)
+    }
+
     override suspend fun editMetadata(seriesId: Long, update: LocalMetadataUpdate): MediaSeriesEntity =
         database.mediaDao().editSeriesMetadata(seriesId, update.title, update.year, update.genre,
             update.description, update.type, update.posterUri)
@@ -71,6 +97,9 @@ class RoomMediaDetailRepository private constructor(
         seasonId: Long,
         isMovie: Boolean
     ): EpisodeEntity? = database.mediaDao().getFirstPlayableEpisode(seriesId, if (isMovie) 0 else seasonId)
+
+    override suspend fun playbackTarget(seriesId: Long, seasonId: Long): PlaybackTarget? =
+        PlaybackSelection(database).select(seriesId, seasonId)
 
     override suspend fun isFavorite(seriesId: Long): Boolean =
         database.favoriteDao().getBySeriesId(seriesId) != null
@@ -126,7 +155,8 @@ class RoomMediaDetailRepository private constructor(
         downloadTarget: DownloadTarget
     ): Int? {
         val targetUri = Uri.parse(downloadTarget.uri)
-        if (!TvStorageManager(appContext).isStorageTargetAvailable(targetUri)) return null
+        val storage = TvStorageManager(appContext)
+        if (!storage.isExternalStorageTarget(targetUri) || !storage.isStorageTargetWritable(targetUri)) return null
         val libraryId = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             com.wkq.bao.core.media.storage.MediaLibraryStorage(appContext).initialize(targetUri).id
         }

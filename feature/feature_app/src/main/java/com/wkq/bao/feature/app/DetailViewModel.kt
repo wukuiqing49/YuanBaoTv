@@ -36,6 +36,10 @@ data class DetailUiState(
     val seasons: List<SeasonEntity> = emptyList(),
     val selectedSeasonId: Long = 0L,
     val episodes: List<EpisodeWithSource> = emptyList(),
+    val episodesLoading: Boolean = false,
+    val cachedOnly: Boolean = false,
+    val cachedCopies: List<com.wkq.bao.core.database.entity.CachedMediaRow> = emptyList(),
+    val playbackTarget: com.wkq.bao.core.media.repository.PlaybackTarget? = null,
     val actionInProgress: Boolean = false
 )
 
@@ -45,6 +49,7 @@ sealed interface DetailEvent {
     data class DownloadsQueued(val result: EnqueueDownloadsResult) : DetailEvent
     data object ActionFailed : DetailEvent
     data object MetadataSaved : DetailEvent
+    data object CopyRemoved : DetailEvent
 }
 
 class DetailViewModel(
@@ -61,6 +66,8 @@ class DetailViewModel(
     private var initializeJob: Job? = null
     private var seasonsJob: Job? = null
     private var episodesJob: Job? = null
+    private var copiesJob: Job? = null
+    private var cachedOnly = false
 
     fun saveMetadata(update: LocalMetadataUpdate): Boolean {
         if (_uiState.value.series == null || _uiState.value.actionInProgress) return false
@@ -73,6 +80,7 @@ class DetailViewModel(
                 _uiState.update { it.copy(series = updated, isMovie = MediaSeriesType.isMovie(updated.type),
                     seasons = emptyList(), selectedSeasonId = 0L, episodes = emptyList()) }
                 if (!MediaSeriesType.isMovie(updated.type)) observeSeasons()
+                refreshPlaybackTarget()
                 _events.emit(DetailEvent.MetadataSaved)
             } catch (error: CancellationException) {
                 throw error
@@ -85,9 +93,10 @@ class DetailViewModel(
         return true
     }
 
-    fun initialize(targetSeriesId: Long) {
+    fun initialize(targetSeriesId: Long, localOnly: Boolean = false) {
         if (seriesId != 0L || targetSeriesId <= 0L) return
         seriesId = targetSeriesId
+        cachedOnly = localOnly
         loadSeries()
     }
 
@@ -100,7 +109,7 @@ class DetailViewModel(
 
     private fun loadSeries() {
         initializeJob?.cancel()
-        _uiState.value = DetailUiState(loading = true)
+        _uiState.value = DetailUiState(loading = true, cachedOnly = cachedOnly)
         initializeJob = viewModelScope.launch {
             runCatching {
                 val series = repository.getSeries(seriesId)
@@ -108,12 +117,19 @@ class DetailViewModel(
                     _uiState.update { it.copy(loading = false, missing = true) }
                     return@runCatching
                 }
+                copiesJob?.cancel()
+                copiesJob = viewModelScope.launch {
+                    repository.cachedCopies.collectLatest { copies ->
+                        _uiState.update { it.copy(cachedCopies = copies.filter { copy -> copy.seriesId == seriesId }) }
+                    }
+                }
                 val isMovie = MediaSeriesType.isMovie(series.type)
                 _uiState.update {
                     it.copy(
                         loading = false,
                         series = series,
                         isMovie = isMovie,
+                        playbackTarget = repository.playbackTarget(seriesId),
                         isFavorite = repository.isFavorite(seriesId)
                     )
                 }
@@ -131,13 +147,19 @@ class DetailViewModel(
 
     fun selectSeason(seasonId: Long) {
         if (seriesId <= 0L || seasonId <= 0L || _uiState.value.isMovie) return
-        _uiState.update { it.copy(selectedSeasonId = seasonId) }
+        _uiState.update { it.copy(selectedSeasonId = seasonId, episodes = emptyList(), episodesLoading = true) }
         episodesJob?.cancel()
         episodesJob = viewModelScope.launch {
-            repository.observeEpisodes(seriesId, seasonId).collectLatest { episodes ->
-                _uiState.update { current ->
-                    if (current.selectedSeasonId == seasonId) current.copy(episodes = episodes) else current
+            try {
+                repository.observeEpisodes(seriesId, seasonId).collectLatest { episodes ->
+                    _uiState.update { current ->
+                        if (current.selectedSeasonId == seasonId) current.copy(episodes = if (cachedOnly) episodes.filter { !it.localUri.isNullOrBlank() } else episodes, episodesLoading = false) else current
+                    }
                 }
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) {
+                _uiState.update { if (it.selectedSeasonId == seasonId) it.copy(episodesLoading = false) else it }
+                _events.emit(DetailEvent.ActionFailed)
             }
         }
     }
@@ -147,13 +169,53 @@ class DetailViewModel(
         if (state.series == null) return
         viewModelScope.launch {
             runCatching {
-                repository.getFirstPlayableEpisode(seriesId, state.selectedSeasonId, state.isMovie)
+                if (state.cachedOnly) {
+                    val target = repository.playbackTarget(seriesId)?.episode
+                    target?.takeIf { episode -> state.cachedCopies.any { it.episodeId == episode.id } }
+                        ?: state.cachedCopies.sortedWith(compareBy<com.wkq.bao.core.database.entity.CachedMediaRow> { it.seasonNumber }.thenBy { it.episodeNumber })
+                            .firstOrNull()?.let { repository.localEpisode(seriesId, it.episodeId) }
+                } else repository.playbackTarget(seriesId)?.episode
             }.onSuccess { episode ->
                 _events.emit(episode?.let(DetailEvent::Play) ?: DetailEvent.NoPlayableEpisode)
             }.onFailure {
                 if (it is CancellationException) throw it
                 _events.emit(DetailEvent.ActionFailed)
             }
+        }
+    }
+
+    fun refreshPlaybackTarget() {
+        if (seriesId <= 0L) return
+        viewModelScope.launch {
+            try {
+                val target = repository.playbackTarget(seriesId)
+                _uiState.update { it.copy(playbackTarget = target) }
+                if (!cachedOnly && _uiState.value.selectedSeasonId == 0L && target != null) selectSeason(target.episode.seasonId)
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) { _events.emit(DetailEvent.ActionFailed) }
+        }
+    }
+
+    fun enqueueSelection(episodeIds: List<Long>, target: DownloadTarget) {
+        if (_uiState.value.actionInProgress || episodeIds.isEmpty()) return
+        _uiState.update { it.copy(actionInProgress = true) }
+        viewModelScope.launch {
+            try { _events.emit(DetailEvent.DownloadsQueued(repository.enqueueSelection(seriesId, episodeIds, target))) }
+            catch (error: CancellationException) { throw error }
+            catch (_: Exception) { _events.emit(DetailEvent.ActionFailed) }
+            finally { _uiState.update { it.copy(actionInProgress = false) } }
+        }
+    }
+
+    fun removeCopy(episodeId: Long, uri: String) {
+        if (_uiState.value.actionInProgress || _uiState.value.cachedCopies.none { it.episodeId == episodeId && it.uri == uri }) return
+        _uiState.update { it.copy(actionInProgress = true) }
+        viewModelScope.launch {
+            try {
+                _events.emit(if (repository.removeCopy(seriesId, episodeId, uri)) DetailEvent.CopyRemoved else DetailEvent.ActionFailed)
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) { _events.emit(DetailEvent.ActionFailed) }
+            finally { _uiState.update { it.copy(actionInProgress = false) } }
         }
     }
 
@@ -204,9 +266,12 @@ class DetailViewModel(
     private fun observeSeasons() {
         seasonsJob?.cancel()
         seasonsJob = viewModelScope.launch {
-            repository.observeSeasons(seriesId).collectLatest { seasons ->
+            kotlinx.coroutines.flow.combine(repository.observeSeasons(seriesId), repository.cachedCopies) { seasons, copies ->
+                if (cachedOnly) seasons.filter { season -> copies.any { it.seriesId == seriesId && it.seasonId == season.id } } else seasons
+            }.collectLatest { seasons ->
                 val currentSelection = _uiState.value.selectedSeasonId
                 val selectedSeasonId = currentSelection.takeIf { selected -> seasons.any { it.id == selected } }
+                    ?: _uiState.value.playbackTarget?.episode?.seasonId?.takeIf { id -> seasons.any { it.id == id } }
                     ?: seasons.firstOrNull()?.id
                     ?: 0L
                 _uiState.update { it.copy(seasons = seasons, selectedSeasonId = selectedSeasonId) }

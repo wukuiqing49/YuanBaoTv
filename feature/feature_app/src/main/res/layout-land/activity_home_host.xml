@@ -35,7 +35,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:drawableTop="@drawable/ic_tv_play"
+            android:drawableTop="@drawable/ic_tv_home"
             android:drawablePadding="1dp"
             android:ellipsize="end"
             android:focusable="true"
@@ -45,14 +45,14 @@
             android:minHeight="48dp"
             android:text="@string/nav_home"
             android:textColor="@color/tv_text_primary"
-            android:textSize="10sp" />
+            android:textSize="@dimen/ui_text_caption" />
 
         <TextView
             android:id="@+id/tab_library"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:drawableTop="@drawable/ic_tv_search"
+            android:drawableTop="@drawable/ic_tv_library"
             android:drawablePadding="1dp"
             android:ellipsize="end"
             android:focusable="true"
@@ -62,7 +62,7 @@
             android:minHeight="48dp"
             android:text="@string/nav_all_media"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="10sp" />
+            android:textSize="@dimen/ui_text_caption" />
 
         <TextView
             android:id="@+id/tab_downloads"
@@ -79,7 +79,7 @@
             android:minHeight="48dp"
             android:text="@string/nav_downloads"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="10sp" />
+            android:textSize="@dimen/ui_text_caption" />
 
         <TextView
             android:id="@+id/tab_nas"
@@ -96,7 +96,7 @@
             android:minHeight="48dp"
             android:text="@string/nav_nas"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="10sp"
+            android:textSize="@dimen/ui_text_caption"
             android:visibility="gone" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -2,4 +2,27 @@
     <dimen name="feature_res_spacing_small">8dp</dimen>
     <dimen name="feature_res_spacing_medium">16dp</dimen>
     <dimen name="feature_res_spacing_large">24dp</dimen>
+    <dimen name="tv_readable_body">@dimen/ui_text_body</dimen>
+    <dimen name="tv_readable_caption">@dimen/ui_text_caption</dimen>
+    <dimen name="tv_readable_card_title">@dimen/ui_text_body</dimen>
+    <dimen name="ui_action_min_height">48dp</dimen>
+    <dimen name="ui_page_inset">16dp</dimen>
+    <dimen name="ui_section_gap">24dp</dimen>
+    <dimen name="ui_item_gap">8dp</dimen>
+    <dimen name="ui_text_title">22sp</dimen>
+    <dimen name="ui_text_section">18sp</dimen>
+    <dimen name="ui_text_body">14sp</dimen>
+    <dimen name="ui_text_caption">12sp</dimen>
+    <dimen name="ui_text_action">14sp</dimen>
+    <dimen name="ui_text_hero">24sp</dimen>
+    <dimen name="ui_poster_width">132dp</dimen>
+    <dimen name="ui_poster_height">198dp</dimen>
+    <dimen name="ui_poster_row_height">214dp</dimen>
+    <dimen name="ui_continue_width">190dp</dimen>
+    <dimen name="ui_continue_height">108dp</dimen>
+    <dimen name="ui_episode_width">180dp</dimen>
+    <dimen name="ui_episode_height">88dp</dimen>
+    <dimen name="ui_home_hero_height">220dp</dimen>
+    <dimen name="ui_home_hero_top">18dp</dimen>
+    <dimen name="ui_focus_padding">8dp</dimen>
 </resources>

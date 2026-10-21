@@ -78,7 +78,49 @@ class PlayerViewModelTest {
         assertEquals(2, repository.nextEpisodeCalls)
     }
 
+    @Test fun `movie completion does not query next episode`() = runTest {
+        val repository = FakePlaybackNavigationRepository().apply { movie = true }
+        val vm = PlayerViewModel(repository)
+        val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { vm.events.first() }
+        vm.playNextEpisode(2, 1)
+        assertEquals(PlayerEvent.PlaybackFinished, event.await())
+        assertEquals(0, repository.nextEpisodeCalls)
+    }
+
+    @Test fun `query failure is distinct from series completion`() = runTest {
+        val repository = FakePlaybackNavigationRepository().apply { fail = true }
+        val vm = PlayerViewModel(repository)
+        val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { vm.events.first() }
+        vm.playNextEpisode(2, 1)
+        assertEquals(PlayerEvent.NavigationFailed, event.await())
+    }
+
+    @Test fun `season playback stops before next season`() = runTest {
+        val repository = FakePlaybackNavigationRepository()
+        val vm = PlayerViewModel(repository)
+        val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { vm.events.first() }
+        vm.playNextEpisode(2, 1, allowCrossSeason = false)
+        assertEquals(PlayerEvent.LastEpisodeReached, event.await())
+    }
+
+    @Test fun `gap event does not change current title before confirmation`() = runTest {
+        val repository = FakePlaybackNavigationRepository().apply { gap = true; nextTitle = "Show S02E01" }
+        val vm = PlayerViewModel(repository)
+        vm.setCurrentTitle("Show S01E01")
+        val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { vm.events.first() }
+        vm.playNextEpisode(2, 1)
+        assertEquals(PlayerEvent.PlayNext(repository.nextEpisode, true, "Show S02E01"), event.await())
+        assertEquals("Show S01E01", vm.uiState.value.title)
+    }
+
     private class FakePlaybackNavigationRepository : PlaybackNavigationRepository {
+        var movie = false
+        var fail = false
+        var gap = false
+        var nextTitle = ""
+        override suspend fun isMovie(seriesId: Long) = movie
+        override suspend fun episodeTitle(episodeId: Long) = nextTitle
+        override suspend fun hasEpisodeGap(currentId: Long, next: EpisodeEntity) = gap
         val currentEpisode = EpisodeEntity(id = 1L, seriesId = 2L, seasonId = 3L, episodeNumber = 1)
         val nextEpisode = EpisodeEntity(id = 4L, seriesId = 2L, seasonId = 5L, episodeNumber = 1)
         var nextEpisodeResult: EpisodeEntity? = nextEpisode
@@ -92,6 +134,7 @@ class PlayerViewModelTest {
         }
 
         override suspend fun findNextEpisode(seriesId: Long, episodeId: Long): EpisodeEntity? {
+            if (fail) error("Database unavailable")
             nextEpisodeCalls++
             nextEpisodeGate?.await()
             return nextEpisodeResult

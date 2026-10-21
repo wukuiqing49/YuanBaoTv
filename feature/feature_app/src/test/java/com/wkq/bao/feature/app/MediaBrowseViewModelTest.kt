@@ -204,9 +204,31 @@ class MediaBrowseViewModelTest {
         assertEquals(60, viewModel.uiState.value.series.size)
     }
 
+    @Test
+    fun `home categories react to type changes and recently added ignores metadata edits`() = runTest {
+        val repository = FakeMediaBrowseRepository()
+        val olderEdited = repository.movie.copy(createdAt = 1, updatedAt = 999)
+        val newer = repository.cartoon.copy(createdAt = 20, updatedAt = 20)
+        val tv = repository.movie.copy(id = 30, type = MediaSeriesType.TV, createdAt = 10)
+        val local = repository.movie.copy(id = 40, type = MediaSeriesType.LOCAL, createdAt = 5)
+        repository.series.value = listOf(olderEdited, newer, tv, local)
+        val viewModel = HomeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf(2L, 30L, 40L, 1L), viewModel.uiState.value.cartoons.map { it.id })
+        assertEquals(listOf(1L), viewModel.uiState.value.movies.map { it.id })
+        assertEquals(listOf(30L), viewModel.uiState.value.series.map { it.id })
+        assertEquals(listOf(2L), viewModel.uiState.value.animation.map { it.id })
+        repository.series.value = listOf(newer.copy(type = MediaSeriesType.MOVIE))
+        advanceUntilIdle()
+        assertEquals(listOf(2L), viewModel.uiState.value.movies.map { it.id })
+        assertEquals(true, viewModel.uiState.value.animation.isEmpty())
+        assertEquals(true, viewModel.uiState.value.series.isEmpty())
+    }
+
     private class FakeMediaBrowseRepository : MediaBrowseRepository {
-        val movie = MediaSeriesEntity(id = 1L, title = "Movie", type = MediaSeriesType.MOVIE)
-        val cartoon = MediaSeriesEntity(id = 2L, title = "Cartoon", type = MediaSeriesType.CARTOON)
+        val movie = MediaSeriesEntity(id = 1L, title = "Movie", type = MediaSeriesType.MOVIE, createdAt = 20, updatedAt = 20)
+        val cartoon = MediaSeriesEntity(id = 2L, title = "Cartoon", type = MediaSeriesType.CARTOON, createdAt = 10, updatedAt = 10)
         val firstEpisode = EpisodeEntity(id = 3L, seriesId = movie.id, seasonId = 4L, title = "Movie", episodeNumber = 1)
         val continueItem = ContinueWatchingItem(
             history = WatchHistoryEntity(seriesId = movie.id, seasonId = 4L, episodeId = firstEpisode.id, positionMs = 180_000L),

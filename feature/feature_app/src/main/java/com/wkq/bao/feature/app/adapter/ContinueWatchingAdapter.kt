@@ -60,7 +60,7 @@ class ContinueWatchingAdapter(
             val episodeTitle = item.episodeTitle.ifBlank {
                 binding.root.context.getString(com.wkq.bao.feature.res.R.string.episode_default_title)
             }
-            binding.tvTitle.text = binding.root.context.getString(
+            binding.tvTitle.text = if (history.durationMs == 0L) "${item.seriesTitle} · $episodeTitle" else if (item.episodeTitle.isBlank()) binding.root.context.getString(com.wkq.bao.feature.res.R.string.continue_watching_movie, item.seriesTitle, remainMin) else binding.root.context.getString(
                 com.wkq.bao.feature.res.R.string.continue_watching_item,
                 item.seriesTitle,
                 episodeTitle,

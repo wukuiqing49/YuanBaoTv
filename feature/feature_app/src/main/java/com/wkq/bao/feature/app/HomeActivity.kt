@@ -39,6 +39,7 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
     private val tabs by lazy { listOf(binding.tabHome, binding.tabLibrary, binding.tabDownloads) }
     private val navigationTabs by lazy { tabs + binding.tabNas }
     private var restoredPage: Int? = null
+    private val contentFocus = mutableMapOf<Int, java.lang.ref.WeakReference<View>>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         restoredPage = savedInstanceState?.getInt("selected_page")
@@ -84,6 +85,11 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
         }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (TvFocusHelper.isTelevision(binding.root) && currentFocus !in navigationTabs) {
+                    currentFocus?.let { contentFocus[binding.vpMainPages.currentItem] = java.lang.ref.WeakReference(it) }
+                    tabs[binding.vpMainPages.currentItem].requestFocus()
+                    return
+                }
                 if (binding.vpMainPages.currentItem == MainPageNavigator.HOME) {
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
@@ -153,19 +159,47 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
         if (TvFocusHelper.isTelevision(binding.root)) tabs[target].requestFocus()
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (TvFocusHelper.isTelevision(binding.root) && currentFocus?.isShown != true) {
-            tabs[binding.vpMainPages.currentItem].requestFocus()
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (!TvFocusHelper.isTelevision(binding.root) || event.action != KeyEvent.ACTION_DOWN) {
+            return super.dispatchKeyEvent(event)
         }
+        val page = binding.vpMainPages.currentItem
+        if (currentFocus?.isShown != true) tabs[page].requestFocus()
         val focused = currentFocus
-        if (focused in navigationTabs && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
-            val current = navigationTabs.indexOf(focused)
-            val next = (current + if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1).coerceIn(0, navigationTabs.lastIndex)
-            navigationTabs[next].requestFocus()
-            if (next < tabs.size) showPage(next)
-            return true
+        val pageRoot = supportFragmentManager.findFragmentByTag("f$page")?.view
+        if (focused in navigationTabs) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    val visibleTabs = navigationTabs.filter { it.isShown && it.isEnabled }
+                    val current = visibleTabs.indexOf(focused)
+                    val next = (current + if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1)
+                        .coerceIn(0, visibleTabs.lastIndex)
+                    visibleTabs[next].requestFocus()
+                    // 焦点只移动，确认键切页；避免经过页签时意外刷新页面。
+                    return true
+                }
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    val remembered = contentFocus[page]?.get()?.takeIf { it.isAttachedToWindow && it.isShown && it.isEnabled }
+                    val preferredId = when (page) {
+                        MainPageNavigator.HOME -> R.id.btn_hero_play
+                        MainPageNavigator.LIBRARY -> R.id.btn_filter_all
+                        else -> R.id.btn_select_storage
+                    }
+                    val preferred = pageRoot?.findViewById<View>(preferredId)?.takeIf { it.isShown && it.isEnabled }
+                    if (remembered?.requestFocus() != true && preferred?.requestFocus() != true) pageRoot?.requestFocus(View.FOCUS_DOWN)
+                    return true
+                }
+                KeyEvent.KEYCODE_DPAD_UP -> return true
+            }
+        } else if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP && focused != null) {
+            val next = focused.focusSearch(View.FOCUS_UP)
+            if (next == null || next in navigationTabs) {
+                contentFocus[page] = java.lang.ref.WeakReference(focused)
+                tabs[page].requestFocus()
+                return true
+            }
         }
-        return super.onKeyDown(keyCode, event)
+        return super.dispatchKeyEvent(event)
     }
 
     private fun restoreVisibleFocus(alignNavigation: Boolean = false) {
@@ -183,7 +217,7 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
         tabs.forEachIndexed { index, tab ->
             tab.isSelected = index == selected
             tab.setTextColor(getColor(if (index == selected) com.wkq.bao.feature.res.R.color.tv_text_primary else com.wkq.bao.feature.res.R.color.tv_text_secondary))
-            tab.setBackgroundResource(if (index == selected) com.wkq.bao.feature.res.R.drawable.bg_nav_link_active else android.R.color.transparent)
+            tab.setBackgroundResource(com.wkq.bao.feature.res.R.drawable.bg_nav_link_active)
         }
     }
 

@@ -61,8 +61,8 @@ class NasFileAdapter(
         fun bind(entry: NasFileEntry) = with(binding) {
             tvFileName.text = entry.name
             ivFileType.setImageResource(
-                if (entry.isDirectory) com.wkq.bao.feature.res.R.drawable.ic_tv_nas
-                else com.wkq.bao.feature.res.R.drawable.ic_tv_download
+                if (entry.isDirectory) com.wkq.bao.feature.res.R.drawable.ic_tv_folder
+                else com.wkq.bao.feature.res.R.drawable.ic_tv_file
             )
             tvFileInfo.text = if (entry.isDirectory) {
                 root.context.getString(com.wkq.bao.feature.res.R.string.nas_file_type_folder)

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import androidx.room.withTransaction
+import com.wkq.bao.core.database.preservePlaybackState
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.database.entity.EpisodeEntity
 import com.wkq.bao.core.database.entity.MediaFileEntity
@@ -44,7 +45,7 @@ class LocalMediaScanner(
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: error("无法读取所选目录")
             val directories = ArrayDeque<LocalDirectory>()
             val pendingFiles = ArrayList<LocalMediaFile>(BATCH_SIZE)
-            directories.add(LocalDirectory(root, SidecarArtworkResolver.DirectoryArtwork()))
+            directories.add(LocalDirectory(root, SidecarArtworkResolver.DirectoryArtwork(), root.name.orEmpty()))
             var importedCount = initialImportedCount
             var checkpointReached = resumeAfterUri.isBlank()
 
@@ -81,7 +82,7 @@ class LocalMediaScanner(
                         document.isDirectory -> {
                             if (document.name !in setOf(".yuanbao", ".yuanbao_parts") &&
                                 !(directory.document.name == "YuanBaoTV" && document.name == "Downloads")) {
-                                directories.addLast(LocalDirectory(document, artwork))
+                                directories.addLast(LocalDirectory(document, artwork, directory.path + "/" + document.name.orEmpty()))
                             }
                         }
                         document.isFile && isVideoFile(document.name.orEmpty()) -> {
@@ -89,7 +90,7 @@ class LocalMediaScanner(
                                 checkpointReached = document.uri.toString() == resumeAfterUri
                                 return@forEach
                             }
-                            pendingFiles += document.toLocalMediaFile(artwork) ?: return@forEach
+                            pendingFiles += document.toLocalMediaFile(artwork, directory.path) ?: return@forEach
                             if (pendingFiles.size >= BATCH_SIZE) flushPendingFiles()
                         }
                     }
@@ -113,22 +114,24 @@ class LocalMediaScanner(
         fileName.substringAfterLast('.', "").lowercase() in videoExtensions
 
     private fun DocumentFile.toLocalMediaFile(
-        artwork: SidecarArtworkResolver.DirectoryArtwork
+        artwork: SidecarArtworkResolver.DirectoryArtwork,
+        parentPath: String
     ): LocalMediaFile? {
         val fileName = name ?: return null
         val uri = uri
         val mediaArtwork = SidecarArtworkResolver.resolveMedia(fileName, artwork)
-        val isMovie = MediaFileNameParser.parse(fileName).mediaType == MediaSeriesType.MOVIE
+        val isMovie = MediaFileNameParser.parse(fileName, parentPath).mediaType == MediaSeriesType.MOVIE
         val frameUri = if (isMovie) uri.buildUpon()
             .appendQueryParameter("artworkFrame", "1")
             .appendQueryParameter("artworkVersion", lastModified().toString())
             .build().toString() else ""
-        val nfo = mediaArtwork.nfoUri.takeIf { it.isNotBlank() && MediaFileNameParser.parse(fileName).mediaType == MediaSeriesType.MOVIE }
+        val nfo = mediaArtwork.nfoUri.takeIf { it.isNotBlank() && MediaFileNameParser.parse(fileName, parentPath).mediaType == MediaSeriesType.MOVIE }
             ?.let { uri -> runCatching {
                 context.contentResolver.openInputStream(Uri.parse(uri))?.use(MovieNfoParser::parse)
             }.getOrNull() }
         return LocalMediaFile(
             uri = uri,
+            parentPath = parentPath,
             fileName = fileName,
             fileSize = length(),
             mimeType = type ?: "video/*",
@@ -142,13 +145,15 @@ class LocalMediaScanner(
 
     private suspend fun importFile(document: LocalMediaFile, scanStartedAt: Long): Int {
         val fileName = document.fileName
-        val parsed = MediaFileNameParser.parse(fileName)
+        val parsed = MediaFileNameParser.parse(fileName, document.parentPath)
         val mediaDao = database.mediaDao()
 
         val nfo = document.nfo
         val displayTitle = nfo?.title?.takeIf(String::isNotBlank) ?: parsed.seriesTitle
-        val existingSeries = mediaDao.getSeriesByTitle(parsed.seriesTitle)
-            ?: displayTitle.takeIf { it != parsed.seriesTitle }?.let { mediaDao.getSeriesByTitle(it) }
+        val indexedSeries = (mediaDao.getMediaLocationByUri(document.uri.toString())?.mediaFileId)?.let { mediaDao.getMediaFileById(it) }
+            ?.let { mediaDao.getSeriesById(it.seriesId) }?.takeIf { it.metadataEdited }
+        val existingSeries = indexedSeries ?: mediaDao.getSeriesForScan(parsed.seriesTitle, parsed.mediaType, nfo?.year.orEmpty())
+            ?: displayTitle.takeIf { it != parsed.seriesTitle }?.let { mediaDao.getSeriesForScan(it, parsed.mediaType, nfo?.year.orEmpty()) }
         val resolvedPosterUri = document.posterUri.ifBlank {
             document.thumbnailUri.takeIf { parsed.mediaType == MediaSeriesType.MOVIE }.orEmpty()
         }
@@ -230,6 +235,7 @@ class LocalMediaScanner(
 
         val uri = document.uri.toString()
         val existingLocation = mediaDao.getMediaLocationByUri(uri)
+        database.preservePlaybackState(existingLocation?.mediaFileId, mediaFile.id, seriesId, seasonId, episodeId)
         val location = MediaLocationEntity(
             id = existingLocation?.id ?: 0L,
             mediaFileId = mediaFile.id,
@@ -246,6 +252,7 @@ class LocalMediaScanner(
 
     private data class LocalMediaFile(
         val uri: Uri,
+        val parentPath: String,
         val fileName: String,
         val fileSize: Long,
         val mimeType: String,
@@ -266,7 +273,8 @@ class LocalMediaScanner(
 
     private data class LocalDirectory(
         val document: DocumentFile,
-        val inheritedArtwork: SidecarArtworkResolver.DirectoryArtwork
+        val inheritedArtwork: SidecarArtworkResolver.DirectoryArtwork,
+        val path: String
     )
 
     private companion object {

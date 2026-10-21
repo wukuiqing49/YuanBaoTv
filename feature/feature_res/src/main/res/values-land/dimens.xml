@@ -1,0 +1,4 @@
+<resources>
+    <dimen name="ui_home_hero_height">180dp</dimen>
+    <dimen name="ui_home_hero_top">12dp</dimen>
+</resources>

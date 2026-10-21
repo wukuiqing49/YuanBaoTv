@@ -100,13 +100,27 @@ class TvDownloadEngine(
                 else root.findFile(DOWNLOAD_DIRECTORY) ?: root.createDirectory(DOWNLOAD_DIRECTORY)
                 ?: return@withContext fail(claimedTask, "Cannot create download directory", DownloadTaskErrorCode.STORAGE_ACCESS)
             checkNotNull(downloadRoot)
-            val downloadDirectory = if (managed) {
-                val category = if (MediaFileNameParser.parse(sourceUri.lastPathSegment.orEmpty()).mediaType == MediaSeriesType.TV) "TVShows" else "Movies"
-                val categoryRoot = MediaLibraryStorage.directory(downloadRoot, category)
+            val indexedSeries = mediaFile?.let { database.mediaDao().getSeriesById(it.seriesId) }
+            val indexedEpisode = mediaFile?.let { database.mediaDao().getEpisodeById(it.episodeId) }
+            val seasonNumber = indexedSeries?.let { series -> database.mediaDao().getSeasonsSync(series.id)
+                .firstOrNull { it.id == indexedEpisode?.seasonId }?.seasonNumber } ?: 1
+            // 已有旧目录继续原位完成，避免升级中断正在合并的下载。
+            val legacyDirectory = if (managed && !isRawFileTask) listOf("Movies", "TVShows").firstNotNullOfOrNull { category ->
+                downloadRoot.findFile(category)?.findFile("NAS_${nasSource.id}")
+                    ?.findFile("media_${claimedTask.seriesId}_${claimedTask.episodeId}")?.takeIf { it.isDirectory }
+            } else null
+            val downloadDirectory = if (legacyDirectory != null) legacyDirectory else if (managed && indexedSeries != null) {
+                val categoryRoot = MediaLibraryStorage.directory(downloadRoot, MediaDownloadPath.category(indexedSeries))
+                val suffix = " [${indexedSeries.id}]"
+                val seriesRoot = categoryRoot.listFiles().firstOrNull { it.isDirectory && it.name?.endsWith(suffix) == true }
+                    ?: MediaLibraryStorage.directory(categoryRoot, MediaDownloadPath.folder(indexedSeries))
+                if (indexedSeries.type == MediaSeriesType.MOVIE) seriesRoot
+                else MediaLibraryStorage.directory(seriesRoot, MediaDownloadPath.season(seasonNumber))
+            } else if (managed) {
+                val parsed = MediaFileNameParser.parse(sourceUri.lastPathSegment.orEmpty(), sourceUri.path.orEmpty().substringBeforeLast('/', ""))
+                val categoryRoot = MediaLibraryStorage.directory(downloadRoot, if (parsed.mediaType == MediaSeriesType.MOVIE) "Movies" else "TVShows")
                 val sourceRoot = MediaLibraryStorage.directory(categoryRoot, "NAS_${nasSource.id}")
-                if (isRawFileTask) ensureRelativeDirectory(sourceRoot, nasSource, sourceUri)
-                    ?: throw IOException("Cannot create media directory")
-                else MediaLibraryStorage.directory(sourceRoot, "media_${claimedTask.seriesId}_${claimedTask.episodeId}")
+                ensureRelativeDirectory(sourceRoot, nasSource, sourceUri) ?: throw IOException("Cannot create media directory")
             } else if (isRawFileTask) {
                 ensureRelativeDirectory(downloadRoot, nasSource, sourceUri)
                     ?: return@withContext fail(claimedTask, "Cannot create source directory", DownloadTaskErrorCode.STORAGE_ACCESS)
@@ -121,7 +135,9 @@ class TvDownloadEngine(
             val assemblingName = "download_${claimedTask.id}.assembling"
             val displayFileName = mediaFile?.fileName?.ifBlank { "episode_${claimedTask.episodeId}.mp4" }
                 ?: sourceUri.lastPathSegment.orEmpty().ifBlank { "nas_file_${claimedTask.id}" }
-            val finalName = if (mediaFile == null || managed) safeFileName(displayFileName)
+            val finalName = if (managed && indexedSeries != null && indexedEpisode != null && legacyDirectory == null)
+                MediaDownloadPath.fileName(indexedSeries, seasonNumber, indexedEpisode.episodeNumber, displayFileName)
+            else if (mediaFile == null || managed) safeFileName(displayFileName)
             else "media_${mediaFile.id}_${claimedTask.id}_${safeFileName(displayFileName)}"
             val existingFinalFile = downloadDirectory.findFile(finalName)
             if (existingFinalFile != null) {

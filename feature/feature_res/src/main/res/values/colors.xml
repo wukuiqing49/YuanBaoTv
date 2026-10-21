@@ -33,4 +33,14 @@
     <color name="nas_popup_action">#84F5E8</color>
     <color name="nas_popup_action_text">#10211F</color>
     <color name="nas_popup_error">#FFB4AB</color>
+    <!-- 主操作使用深色底配浅色文字，焦点与选中分别表达。 -->
+    <color name="tv_action_surface">#066357</color>
+    <color name="tv_action_focused">#087B6B</color>
+    <color name="tv_action_pressed">#045044</color>
+    <color name="tv_action_disabled">#283C39</color>
+    <color name="tv_control_surface">#2A2D30</color>
+    <color name="tv_control_focused">#344B48</color>
+    <color name="tv_control_disabled">#202526</color>
+    <color name="tv_text_disabled">#7F9290</color>
+    <color name="tv_nav_selected">#25443F</color>
 </resources>

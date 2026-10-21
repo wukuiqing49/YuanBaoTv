@@ -15,7 +15,7 @@
         android:minHeight="48dp"
         android:text="@string/app_name"
         android:textColor="@color/tv_text_primary"
-        android:textSize="22sp"
+        android:textSize="@dimen/ui_text_title"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -43,10 +43,10 @@
             android:includeFontPadding="false"
             android:maxLines="1"
             android:minWidth="96dp"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="@dimen/feature_res_spacing_medium"
             android:text="@string/nav_home"
             android:textColor="@color/tv_text_primary"
-            android:textSize="15sp" />
+            android:textSize="@dimen/ui_text_body" />
 
         <TextView
             android:id="@+id/tab_library"
@@ -58,10 +58,10 @@
             android:includeFontPadding="false"
             android:maxLines="1"
             android:minWidth="96dp"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="@dimen/feature_res_spacing_medium"
             android:text="@string/nav_all_media"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="15sp" />
+            android:textSize="@dimen/ui_text_body" />
 
         <TextView
             android:id="@+id/tab_downloads"
@@ -73,10 +73,10 @@
             android:includeFontPadding="false"
             android:maxLines="1"
             android:minWidth="96dp"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="@dimen/feature_res_spacing_medium"
             android:text="@string/nav_downloads"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="15sp" />
+            android:textSize="@dimen/ui_text_body" />
 
         <TextView
             android:id="@+id/tab_nas"
@@ -89,10 +89,10 @@
             android:includeFontPadding="false"
             android:maxLines="1"
             android:minWidth="96dp"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="@dimen/feature_res_spacing_medium"
             android:text="@string/nav_nas"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="15sp" />
+            android:textSize="@dimen/ui_text_body" />
     </LinearLayout>
 
     <androidx.viewpager2.widget.ViewPager2

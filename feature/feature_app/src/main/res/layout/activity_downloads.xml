@@ -4,12 +4,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/tv_bg_dark"
-    android:paddingStart="16dp"
+    android:paddingStart="@dimen/feature_res_spacing_medium"
     android:paddingTop="12dp"
-    android:paddingEnd="16dp">
+    android:paddingEnd="@dimen/feature_res_spacing_medium">
 
     <TextView android:id="@+id/tv_title" android:layout_width="0dp" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="1" android:text="@string/title_downloads" android:textColor="@color/tv_text_primary" android:textSize="@dimen/phone_download_title_size" android:textStyle="bold" app:layout_constraintEnd_toStartOf="@id/btn_import_nas" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
-    <Button android:id="@+id/btn_import_nas" android:layout_width="wrap_content" android:layout_height="36dp" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:minWidth="0dp" android:paddingHorizontal="10dp" android:text="@string/btn_import_nas" android:textColor="@color/tv_text_primary" android:textSize="10sp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent" />
+    <Button android:id="@+id/btn_import_nas" android:layout_width="wrap_content" android:layout_height="36dp" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:minWidth="0dp" android:paddingHorizontal="10dp" android:text="@string/btn_import_nas" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/card_storage_info"
@@ -22,13 +22,13 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_title">
-        <TextView android:id="@+id/tv_storage_label" android:layout_width="0dp" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="3" android:textColor="@color/tv_text_primary" android:textSize="13sp" android:textStyle="bold" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
-        <TextView android:id="@+id/tv_storage_capacity" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_secondary" android:textSize="11sp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/tv_storage_label" />
-        <Button android:id="@+id/btn_select_storage" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/bg_tv_button_focus" android:minHeight="48dp" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/storage_select_target" android:textColor="@color/tv_text_primary" android:textSize="11sp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toBottomOf="@id/tv_storage_capacity" />
+        <TextView android:id="@+id/tv_storage_label" android:layout_width="0dp" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="3" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_body" android:textStyle="bold" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+        <TextView android:id="@+id/tv_storage_capacity" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_caption" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/tv_storage_label" />
+        <Button android:id="@+id/btn_select_storage" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/feature_res_spacing_small" android:background="@drawable/bg_tv_button_focus" android:minHeight="48dp" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/storage_select_target" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toBottomOf="@id/tv_storage_capacity" />
         <ProgressBar android:id="@+id/pb_storage" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="6dp" android:layout_marginTop="10dp" android:max="100" android:progressTint="@color/tv_accent_cyan" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/btn_select_storage" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <TextView android:id="@+id/tv_label_downloading" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/phone_download_section_margin" android:text="@string/section_downloading" android:textColor="@color/tv_text_primary" android:textSize="17sp" android:textStyle="bold" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/card_storage_info" />
+    <Button android:id="@+id/tv_label_downloading" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/phone_download_section_margin" android:text="@string/section_downloading" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_section" android:textStyle="bold" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/card_storage_info"  android:minHeight="48dp" android:background="@drawable/bg_tv_button_focus" />
 
     <LinearLayout
         android:id="@+id/layout_download_tasks_empty"
@@ -44,9 +44,9 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="@string/downloads_empty_title"
+            android:id="@+id/tv_cache_empty_title" android:text="@string/downloads_empty_title"
             android:textColor="@color/tv_text_primary"
-            android:textSize="14sp"
+            android:textSize="@dimen/ui_text_body"
             android:textStyle="bold" />
         <TextView
             android:layout_width="match_parent"
@@ -54,18 +54,18 @@
             android:layout_marginTop="4dp"
             android:ellipsize="end"
             android:maxLines="2"
-            android:text="@string/downloads_empty_message"
+            android:id="@+id/tv_cache_empty_message" android:text="@string/downloads_empty_message"
             android:textColor="@color/tv_text_secondary"
-            android:textSize="12sp" />
+            android:textSize="@dimen/ui_text_caption" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_download_tasks"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="@dimen/feature_res_spacing_small"
         android:clipToPadding="false"
-        android:paddingBottom="16dp"
+        android:paddingBottom="@dimen/feature_res_spacing_medium"
         android:scrollbars="none"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintBottom_toBottomOf="parent"
