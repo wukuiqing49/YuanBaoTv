@@ -114,7 +114,8 @@ class LocalOnlyMediaQueryTest {
         assertEquals(listOf(remoteEpisodeId, localEpisodeId),
             mediaDao.getPlayableEpisodesWithSource(seriesId, seasonId).first().map { it.episode.id })
         assertEquals(remoteEpisodeId, mediaDao.getFirstPlayableEpisode(seriesId)?.id)
-        assertEquals(listOf(remoteEpisodeId, localEpisodeId),
+        // 首页按作品只展示最近一条可播放记录，选集列表仍保留两集。
+        assertEquals(listOf(remoteEpisodeId),
             database.watchHistoryDao().getContinueWatchingList().first().map { it.history.episodeId })
 
         val nas = database.nasDao().getSourceById(nasId)!!
@@ -131,7 +132,10 @@ class LocalOnlyMediaQueryTest {
             seriesId = seriesId, seasonId = seasonId, episodeId = remoteEpisodeId,
             completed = true, positionMs = 180_000L, lastPlayedAt = 3L
         ))
-        assertEquals(listOf(localEpisodeId),
-            database.watchHistoryDao().getContinueWatchingList().first().map { it.history.episodeId })
+        // 已看完的最新一集仍作为续播锚点，播放器据此选择下一集。
+        val continued = database.watchHistoryDao().getContinueWatchingList().first()
+        assertEquals(listOf(remoteEpisodeId), continued.map { it.history.episodeId })
+        assertEquals(true, continued.single().history.completed)
+        assertEquals(localEpisodeId, database.watchHistoryDao().getHistoryByEpisodeId(localEpisodeId)?.episodeId)
     }
 }

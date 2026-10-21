@@ -15,6 +15,17 @@ interface WatchHistoryDao {
         INNER JOIN episodes ON episodes.id = watch_histories.episodeId
         WHERE watch_histories.id = (
               SELECT latest.id FROM watch_histories latest WHERE latest.seriesId = watch_histories.seriesId
+                AND EXISTS (
+                    SELECT 1 FROM media_files candidate WHERE candidate.episodeId = latest.episodeId
+                      AND (
+                          EXISTS (SELECT 1 FROM media_locations WHERE mediaFileId = candidate.id)
+                          OR EXISTS (
+                              SELECT 1 FROM media_remote_sources remote
+                              INNER JOIN nas_sources nas ON nas.id = remote.nasSourceId AND nas.enabled = 1
+                              WHERE remote.mediaFileId = candidate.id
+                          )
+                      )
+                )
               ORDER BY latest.lastPlayedAt DESC, latest.id DESC LIMIT 1
           ) AND (watch_histories.completed = 1 OR watch_histories.positionMs > 5000)
           AND EXISTS (
