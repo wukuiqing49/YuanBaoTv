@@ -42,16 +42,21 @@ class DownloadsViewModel(
         repository.tasks,
         scanSession
     ) { tasks, session ->
+        val activeTasks = tasks.filter {
+            it.status in setOf(
+                DownloadTaskStatus.DOWNLOADING,
+                DownloadTaskStatus.WAITING,
+                DownloadTaskStatus.WAITING_STORAGE,
+                DownloadTaskStatus.PAUSED,
+                DownloadTaskStatus.FAILED
+            )
+        }
+        val recentCompleted = tasks.asSequence()
+            .filter { it.status == DownloadTaskStatus.SUCCESS }
+            .take(RECENT_COMPLETED_LIMIT)
+            .toList()
         DownloadsUiState(
-            tasks = tasks.filter {
-                it.status in setOf(
-                    DownloadTaskStatus.DOWNLOADING,
-                    DownloadTaskStatus.WAITING,
-                    DownloadTaskStatus.WAITING_STORAGE,
-                    DownloadTaskStatus.PAUSED,
-                    DownloadTaskStatus.FAILED
-                )
-            },
+            tasks = activeTasks + recentCompleted,
             scanSession = session
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), DownloadsUiState())
@@ -95,5 +100,9 @@ class DownloadsViewModel(
             require(modelClass.isAssignableFrom(DownloadsViewModel::class.java))
             return DownloadsViewModel(repository, scanController) as T
         }
+    }
+
+    private companion object {
+        const val RECENT_COMPLETED_LIMIT = 10
     }
 }

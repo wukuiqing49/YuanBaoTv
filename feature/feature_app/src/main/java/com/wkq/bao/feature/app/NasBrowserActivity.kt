@@ -18,6 +18,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.lxj.xpopup.XPopup
 import com.wkq.base.activity.BaseActivity
 import com.wkq.bao.core.database.entity.NasSourceEntity
+import com.wkq.bao.core.database.entity.ScanSessionEntity
+import com.wkq.bao.core.database.entity.ScanSessionStatus
 import com.wkq.bao.core.media.storage.TvStorageManager
 import com.wkq.bao.core.nas.security.NasCredentialVault
 import com.wkq.bao.feature.app.adapter.NasFileAdapter
@@ -77,8 +79,9 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
             onOpenDirectory = { entry -> activeSource?.let { viewModel.openDirectory(it, entry) } }
         )
         binding.rvNasFiles.adapter = fileAdapter
-        binding.btnBack.setOnClickListener { navigateUp() }
+        binding.btnBack.setOnClickListener { finish() }
         binding.btnNasSource.setOnClickListener { showSourcePicker() }
+        binding.btnNasScan.setOnClickListener { viewModel.handleScanAction() }
         binding.btnNasEdit.setOnClickListener { showNasEditor(activeSource) }
         binding.btnRefreshFiles.setOnClickListener { activeSource?.let(viewModel::refreshFiles) }
         binding.tvNasFilesEmpty.setOnClickListener { activeSource?.let(viewModel::refreshFiles) }
@@ -88,6 +91,7 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
         listOf(
             binding.btnBack,
             binding.btnNasSource,
+            binding.btnNasScan,
             binding.btnNasEdit,
             binding.btnRefreshFiles,
             binding.btnFileUp,
@@ -127,6 +131,7 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
                         sources = state.sources
                         activeSource = state.activeSource
                         renderSource(state.activeSource)
+                        renderScan(state.activeSource, state.scanSession)
                         state.activeSource?.let(viewModel::openRoot)
                     }
                 }
@@ -144,7 +149,27 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
             if (source == null) com.wkq.bao.feature.res.R.string.btn_add_nas
             else com.wkq.bao.feature.res.R.string.btn_edit
         )
+        binding.btnNasScan.isVisible = source != null
         binding.btnRefreshFiles.isEnabled = source != null
+    }
+
+    private fun renderScan(source: NasSourceEntity?, session: ScanSessionEntity?) {
+        binding.btnNasScan.isVisible = source != null
+        binding.btnNasScan.isEnabled = source != null
+        binding.btnNasScan.text = when {
+            source == null -> getString(com.wkq.bao.feature.res.R.string.btn_scan_now)
+            ScanSessionStatus.isActive(session?.status.orEmpty()) -> getString(
+                com.wkq.bao.feature.res.R.string.scan_action_cancel,
+                session?.importedCount ?: 0
+            )
+            session?.status in setOf(ScanSessionStatus.FAILED, ScanSessionStatus.CANCELLED) ->
+                getString(com.wkq.bao.feature.res.R.string.scan_action_retry)
+            session?.status == ScanSessionStatus.SUCCEEDED -> getString(
+                com.wkq.bao.feature.res.R.string.scan_action_again,
+                session.importedCount
+            )
+            else -> getString(com.wkq.bao.feature.res.R.string.btn_scan_now)
+        }
     }
 
     private fun renderBrowserState(state: NasBrowserUiState) {

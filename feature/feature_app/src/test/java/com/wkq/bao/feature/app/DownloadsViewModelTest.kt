@@ -36,11 +36,12 @@ class DownloadsViewModelTest {
     }
 
     @Test
-    fun `state exposes only actionable tasks with no storage scan selected`() = runTest {
+    fun `state exposes actionable tasks and limits recent completed tasks`() = runTest {
         val waiting = task(1L, DownloadTaskStatus.WAITING)
-        val completed = task(2L, DownloadTaskStatus.SUCCESS)
+        val completed = (2L..13L).map { task(it, DownloadTaskStatus.SUCCESS) }
+        val cancelled = task(14L, DownloadTaskStatus.CANCELLED)
         val repository = FakeDownloadsRepository(
-            initialTasks = listOf(waiting, completed),
+            initialTasks = listOf(waiting) + completed + cancelled,
             initialSeries = listOf(MediaSeriesEntity(id = 9L, title = "Movie"))
         )
         val viewModel = DownloadsViewModel(repository)
@@ -50,7 +51,7 @@ class DownloadsViewModelTest {
 
         advanceUntilIdle()
 
-        assertEquals(listOf(waiting), viewModel.uiState.value.tasks)
+        assertEquals(listOf(waiting) + completed.take(10), viewModel.uiState.value.tasks)
         assertNull(viewModel.uiState.value.scanSession)
         assertTrue(!viewModel.uiState.value.keepScreenOn)
         collection.cancel()

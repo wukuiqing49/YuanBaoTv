@@ -67,11 +67,10 @@
             android:name="com.wkq.bao.feature.app.DetailActivity"
             android:exported="false" />
 
-        <!-- 全屏流媒体播放器 (强制横屏) -->
+        <!-- 全屏播放器跟随当前窗口尺寸，兼容 Android 16 大屏和分屏方向策略。 -->
         <activity
             android:name="com.wkq.bao.feature.app.PlayerActivity"
-            android:exported="false"
-            android:screenOrientation="landscape" />
+            android:exported="false" />
 
         <activity
             android:name="com.wkq.bao.feature.app.NasBrowserActivity"

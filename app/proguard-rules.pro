@@ -5,23 +5,6 @@
 -dontwarn org.ietf.jgss.**
 -dontwarn com.hierynomus.**
 -dontwarn net.engio.mbassy.**
--keep class com.hierynomus.smbj.** { *; }
--keep class com.hierynomus.mssmb2.** { *; }
--keep class com.hierynomus.protocol.** { *; }
 
-# Media3 & ExoPlayer
--keep class androidx.media3.** { *; }
--dontwarn androidx.media3.**
-
-# Room Database
--keep class androidx.room.** { *; }
--keep class * extends androidx.room.RoomDatabase
--keep @androidx.room.Entity class * { *; }
--keep @androidx.room.Dao class * { *; }
-
-# Coil
--dontwarn coil.**
--keep class coil.** { *; }
-
-# WKQ Core Base
--keep class com.wkq.base.** { *; }
+# Media3、Room、Coil 与应用组件均使用各依赖 consumer rules 或直接引用，
+# 不做整包 keep，避免关闭 R8 的压缩、优化与混淆能力。

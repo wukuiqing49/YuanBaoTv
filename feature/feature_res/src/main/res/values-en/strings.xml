@@ -197,6 +197,7 @@
     <string name="player_playback_failed">Playback failed. Check the NAS or storage device and retry.</string>
     <string name="title_nas_files">NAS Files</string>
     <string name="nas_file_refresh">Refresh</string>
+    <string name="navigation_back">Back</string>
     <string name="nas_file_up">Up</string>
     <string name="nas_file_select_all">Select all</string>
     <string name="nas_file_clear_selection">Clear all</string>

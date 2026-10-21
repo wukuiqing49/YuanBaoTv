@@ -49,10 +49,14 @@ class TvPlaybackService : MediaSessionService() {
             .setTargetBufferBytes(64 * 1024 * 1024)
             .setPrioritizeTimeOverSizeThresholds(false)
             .build()
+        val mediaSourceFactory = DefaultMediaSourceFactory(SchemeDataSource.Factory(this))
+            .setSubtitleParserFactory(
+                PlaybackSubtitleParserFactory(
+                    getSharedPreferences("playback_preferences", MODE_PRIVATE)
+                )
+            )
         val exoPlayer = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(SchemeDataSource.Factory(this))
-                .setSubtitleParserFactory(PlaybackSubtitleParserFactory(getSharedPreferences("playback_preferences", MODE_PRIVATE)))
-                .experimentalParseSubtitlesDuringExtraction(true))
+            .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .setAudioAttributes(AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)

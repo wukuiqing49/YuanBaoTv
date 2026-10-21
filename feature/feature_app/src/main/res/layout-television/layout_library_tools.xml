@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_weight="2"
+        android:background="@drawable/bg_tv_button_focus"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/et_library_search"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="@string/library_search_hint"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:maxLength="120"
+            android:paddingHorizontal="12dp"
+            android:singleLine="true"
+            android:textColor="@color/tv_text_primary"
+            android:textColorHint="@color/tv_text_secondary"
+            android:textSize="16sp" />
+
+        <ImageButton
+            android:id="@+id/btn_clear_library_search"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_tv_button_focus"
+            android:contentDescription="@string/library_clear_search"
+            android:padding="12dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:tint="@color/tv_text_primary" />
+    </LinearLayout>
+
+    <Spinner
+        android:id="@+id/spinner_library_sort"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:background="@drawable/bg_tv_button_focus"
+        android:contentDescription="@string/library_sort"
+        android:paddingHorizontal="8dp"
+        android:popupBackground="@color/tv_bg_dark"
+        android:spinnerMode="dropdown" />
+
+    <CheckBox
+        android:id="@+id/check_library_favorites"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_tv_button_focus"
+        android:buttonTint="@color/tv_accent_cyan"
+        android:maxLines="1"
+        android:paddingEnd="8dp"
+        android:text="@string/library_favorites_only"
+        android:textColor="@color/tv_text_primary"
+        android:textSize="14sp" />
+
+</LinearLayout>

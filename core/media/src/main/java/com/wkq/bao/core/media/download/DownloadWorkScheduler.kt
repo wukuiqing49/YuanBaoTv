@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit
 object DownloadWorkScheduler {
     // v1 使用追加链，异常链可能让 Room 中的 WAITING 任务失去执行者；更名可安全脱离旧链。
     private const val UNIQUE_WORK_NAME = "yuanbao_download_queue_v2"
+    internal val existingWorkPolicy = ExistingWorkPolicy.KEEP
 
     fun enqueue(context: Context, expedited: Boolean = false) {
         val requestBuilder = OneTimeWorkRequestBuilder<DownloadQueueWorker>()
@@ -34,7 +35,7 @@ object DownloadWorkScheduler {
             // 队列内容已持久化在 Room，运行中的 Worker 会继续读取新增任务；无需中断当前分块。
             .enqueueUniqueWork(
                 UNIQUE_WORK_NAME,
-                ExistingWorkPolicy.APPEND_OR_REPLACE,
+                existingWorkPolicy,
                 requestBuilder.build()
             )
     }

@@ -11,10 +11,10 @@
         android:layout_width="@dimen/nas_browser_header_height"
         android:layout_height="@dimen/nas_browser_header_height"
         android:background="@drawable/bg_nas_browser_icon_button"
-        android:contentDescription="@string/nas_file_up"
+        android:contentDescription="@string/navigation_back"
         android:padding="@dimen/nas_browser_icon_padding"
         android:src="@drawable/ic_nas_back"
-        android:tooltipText="@string/nas_file_up"
+        android:tooltipText="@string/navigation_back"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -30,9 +30,25 @@
         android:textSize="@dimen/nas_browser_title_text_size"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="@id/btn_back"
-        app:layout_constraintEnd_toStartOf="@id/btn_nas_edit"
+        app:layout_constraintEnd_toStartOf="@id/btn_nas_scan"
         app:layout_constraintStart_toEndOf="@id/btn_back"
         app:layout_constraintTop_toTopOf="@id/btn_back" />
+
+    <Button
+        android:id="@+id/btn_nas_scan"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/nas_browser_header_height"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/bg_nas_browser_text_button"
+        android:minWidth="0dp"
+        android:paddingHorizontal="12dp"
+        android:text="@string/btn_scan_now"
+        android:textAllCaps="false"
+        android:textColor="@color/tv_text_primary"
+        android:textSize="@dimen/nas_browser_action_text_size"
+        android:visibility="gone"
+        app:layout_constraintEnd_toStartOf="@id/btn_nas_edit"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <Button
         android:id="@+id/btn_nas_edit"
@@ -41,6 +57,7 @@
         android:background="@drawable/bg_nas_browser_text_button"
         android:minWidth="0dp"
         android:paddingHorizontal="12dp"
+        android:textAllCaps="false"
         android:textColor="@color/tv_text_primary"
         android:textSize="@dimen/nas_browser_action_text_size"
         app:layout_constraintEnd_toEndOf="parent"
@@ -86,14 +103,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btn_nas_source">
 
-        <ImageButton
+        <Button
             android:id="@+id/btn_file_up"
-            android:layout_width="@dimen/nas_browser_action_button_height"
+            android:layout_width="@dimen/nas_browser_short_action_width"
             android:layout_height="@dimen/nas_browser_action_button_height"
-            android:background="@drawable/bg_nas_browser_icon_button"
-            android:contentDescription="@string/nas_file_up"
-            android:padding="@dimen/nas_browser_icon_padding"
-            android:src="@drawable/ic_nas_back"
+            android:background="@drawable/bg_nas_browser_text_button"
+            android:minWidth="0dp"
+            android:paddingHorizontal="12dp"
+            android:text="@string/nas_file_up"
+            android:textAllCaps="false"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="@dimen/nas_browser_action_text_size"
             android:tooltipText="@string/nas_file_up" />
 
         <ImageButton
