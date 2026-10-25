@@ -37,21 +37,24 @@ object TvFocusHelper {
             if (hasFocus) {
                 allowFocusOverflow(v)
                 if (v.id == com.wkq.bao.feature.app.R.id.card_container) v.post {
+                    if (!v.isAttachedToWindow || !v.hasFocus()) return@post
                     // ViewPager 会同时保留首页和媒体库；只能滚动当前卡片的祖先。
                     // 从 rootView 查找会拿到兄弟页面的首页，坐标转换因此抛异常。
                     val scroll = generateSequence(v.parent) { it.parent }
                         .filterIsInstance<androidx.core.widget.NestedScrollView>()
                         .firstOrNull { it.id == com.wkq.bao.feature.app.R.id.home_scroll ||
                             it.id == com.wkq.bao.feature.app.R.id.detail_scroll }
-                    if (scroll != null && v.isAttachedToWindow && v.hasFocus()) {
-                        val rect = android.graphics.Rect()
-                        v.getDrawingRect(rect)
-                        scroll.offsetDescendantRectToMyCoords(v, rect)
-                        val margin = (16 * v.resources.displayMetrics.density).toInt()
-                        val bottom = scroll.scrollY + scroll.height - scroll.paddingBottom - margin
-                        val top = scroll.scrollY + scroll.paddingTop + margin
-                        val delta = if (rect.bottom > bottom) rect.bottom - bottom else if (rect.top < top) rect.top - top else 0
-                        if (delta != 0) scroll.smoothScrollBy(0, delta)
+                    if (scroll != null && scroll.isAttachedToWindow) {
+                        runCatching {
+                            val rect = android.graphics.Rect()
+                            v.getDrawingRect(rect)
+                            scroll.offsetDescendantRectToMyCoords(v, rect)
+                            val margin = (16 * v.resources.displayMetrics.density).toInt()
+                            val bottom = scroll.scrollY + scroll.height - scroll.paddingBottom - margin
+                            val top = scroll.scrollY + scroll.paddingTop + margin
+                            val delta = if (rect.bottom > bottom) rect.bottom - bottom else if (rect.top < top) rect.top - top else 0
+                            if (delta != 0) scroll.smoothScrollBy(0, delta)
+                        }
                     }
                 }
                 v.animate()

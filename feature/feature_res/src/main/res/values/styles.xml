@@ -1,15 +1,13 @@
 <resources>
     <style name="FeatureRes_TextAppearance_Title" />
 
-    <style name="Widget.YuanBaoTv.Button" parent="Widget.AppCompat.Button">
+    <style name="Widget.YuanBaoTv.Button" parent="android:Widget.Button">
         <item name="android:backgroundTint">@null</item>
-        <item name="backgroundTint">@null</item>
         <item name="android:textAllCaps">false</item>
         <item name="android:minHeight">@dimen/ui_action_min_height</item>
         <item name="android:paddingStart">20dp</item>
         <item name="android:paddingEnd">20dp</item>
         <item name="android:drawablePadding">8dp</item>
-        <item name="iconTint">@color/tv_button_text</item>
         <item name="android:textColor">@color/tv_button_text</item>
         <item name="android:textSize">@dimen/ui_text_action</item>
         <item name="android:fontFamily">sans-serif-medium</item>

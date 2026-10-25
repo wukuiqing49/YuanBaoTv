@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.annotation.OptIn
@@ -356,15 +357,46 @@ class TvPlaybackService : MediaSessionService() {
         mediaSession = sessionBuilder.build()
     }
 
+    private fun ensureForegroundNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId = "playback_service_channel"
+            val channel = android.app.NotificationChannel(
+                channelId,
+                "Playback Service",
+                android.app.NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
+            val notification = androidx.core.app.NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(android.R.drawable.ic_media_play)
+                .setContentTitle("YuanBaoTv")
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_LOW)
+                .build()
+            startForeground(1001, notification)
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // 旧的系统媒体按键 PendingIntent 可能在应用重装/会话销毁后再次唤起空服务。
-        // 没有可恢复媒体时立即停止，避免 startForegroundService 的超时崩溃。
-        if (intent?.action == Intent.ACTION_MEDIA_BUTTON && player?.mediaItemCount == 0) {
-            Log.d(TAG, "Ignore stale media button: no loaded media")
+        // 电视系统唤醒服务保护：当没有加载媒体时，安全完成前台通知挂载并立即停用，
+        // 彻底杜绝 Android 8+ 的 Context.startForegroundService() 5秒超时 ANR。
+        if (player?.mediaItemCount == 0) {
+            Log.d(TAG, "Empty playback session onStartCommand: action=${intent?.action}")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ensureForegroundNotification()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            }
             stopSelf(startId)
             return START_NOT_STICKY
         }
         return super.onStartCommand(intent, flags, startId)
+    }
+
+    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        if (startInForegroundRequired && (player?.mediaItemCount == 0 || player?.playWhenReady != true)) {
+            ensureForegroundNotification()
+            return
+        }
+        super.onUpdateNotification(session, startInForegroundRequired)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {

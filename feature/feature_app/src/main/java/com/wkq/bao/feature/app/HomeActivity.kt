@@ -42,6 +42,7 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
     var pendingSearchQuery: String? = null
     private var restoredPage: Int? = null
     private val contentFocus = mutableMapOf<Int, java.lang.ref.WeakReference<View>>()
+    private var lastNasLaunchTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         restoredPage = savedInstanceState?.getInt("selected_page")
@@ -165,7 +166,11 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
 
     override fun showPage(page: Int) {
         if (page == MainPageNavigator.NAS) {
-            NasBrowserActivity.start(this)
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now - lastNasLaunchTime > 600L) {
+                lastNasLaunchTime = now
+                NasBrowserActivity.start(this)
+            }
             return
         }
         val target = page.coerceIn(0, tabs.lastIndex)

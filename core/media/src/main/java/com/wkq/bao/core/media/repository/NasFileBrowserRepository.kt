@@ -221,22 +221,37 @@ class NasFileBrowserRepository private constructor(
     private suspend fun containsVideo(source: NasSourceEntity, path: String): Boolean {
         val cacheKey = "${source.id}|${source.type}|${source.host}|${source.port}|${source.shareName}|${source.rootPath}|$path"
         synchronized(directoryVideoCache) { directoryVideoCache[cacheKey] }?.let { return it }
-        val directories = ArrayDeque<String>()
+        val ignoredDirNames = setOf(
+            "@eadir", "#recycle", "#snapshot", "\$recycle.bin",
+            "system volume information", "lost.dir", ".git", ".idea", ".svn", ".thumbnails"
+        )
+        val directories = ArrayDeque<Pair<String, Int>>()
         val visited = mutableSetOf<String>()
-        directories += path
+        directories += (path to 0)
+        val maxDepth = 1
+        var found = false
         while (directories.isNotEmpty()) {
             currentCoroutineContext().ensureActive()
-            val directory = directories.removeFirst()
+            val (directory, depth) = directories.removeFirst()
+            val dirName = directory.substringAfterLast('/').lowercase()
+            if (dirName in ignoredDirNames) continue
             if (!visited.add(directory)) continue
-            val entries = listDirectory(source, directory).getOrThrow()
+            val entries = listDirectory(source, directory).getOrNull() ?: emptyList()
             if (entries.any(NasMediaFileClassifier::isVideo)) {
-                synchronized(directoryVideoCache) { directoryVideoCache[cacheKey] = true }
-                return true
+                found = true
+                break
             }
-            entries.filter(NasFileEntry::isDirectory).forEach { directories += it.path }
+            if (depth < maxDepth) {
+                entries.filter(NasFileEntry::isDirectory).forEach { child ->
+                    val childName = child.name.lowercase()
+                    if (childName !in ignoredDirNames && !childName.startsWith(".")) {
+                        directories += (child.path to depth + 1)
+                    }
+                }
+            }
         }
-        synchronized(directoryVideoCache) { directoryVideoCache[cacheKey] = false }
-        return false
+        synchronized(directoryVideoCache) { directoryVideoCache[cacheKey] = found }
+        return found
     }
 
     private fun register(source: NasSourceEntity) {

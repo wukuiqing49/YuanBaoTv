@@ -104,6 +104,7 @@
 
         <activity
             android:name="com.wkq.bao.feature.app.NasBrowserActivity"
+            android:launchMode="singleTop"
             android:exported="false" />
 
         <activity

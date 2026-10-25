@@ -34,7 +34,10 @@ import kotlin.math.roundToInt
 class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
     companion object {
         fun start(context: android.content.Context) {
-            context.startActivity(Intent(context, NasBrowserActivity::class.java))
+            context.startActivity(
+                Intent(context, NasBrowserActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            )
         }
     }
 
