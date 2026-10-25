@@ -26,30 +26,30 @@ class SplashActivity : BaseActivity<ActivitySplashBinding>() {
 
     companion object {
         private const val REQUEST_NOTIFICATIONS = 1001
-        private const val MIN_SPLASH_DURATION_MS = 1800L
+        private const val MIN_SPLASH_DURATION_MS = 600L
     }
 
     override fun initView() {
         requestNotificationPermissionIfNeeded()
         // 品牌标题淡入与微缩放动效
         binding.llBrand.alpha = 0f
-        binding.llBrand.scaleX = 0.92f
-        binding.llBrand.scaleY = 0.92f
+        binding.llBrand.scaleX = 0.94f
+        binding.llBrand.scaleY = 0.94f
 
         binding.llBrand.animate()
             .alpha(1f)
             .scaleX(1f)
             .scaleY(1f)
-            .setDuration(900)
+            .setDuration(450)
             .start()
 
         // 背景插画微缩放镜头推入动效 (Ken Burns 沉浸式电影质感)
-        binding.ivSplashBg.scaleX = 1.05f
-        binding.ivSplashBg.scaleY = 1.05f
+        binding.ivSplashBg.scaleX = 1.04f
+        binding.ivSplashBg.scaleY = 1.04f
         binding.ivSplashBg.animate()
             .scaleX(1.0f)
             .scaleY(1.0f)
-            .setDuration(1800)
+            .setDuration(600)
             .start()
     }
 

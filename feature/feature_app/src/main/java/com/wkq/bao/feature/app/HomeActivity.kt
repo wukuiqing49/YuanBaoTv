@@ -63,7 +63,12 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
         capTabFontScale()
         binding.vpMainPages.apply {
             adapter = MainPagerAdapter()
-            offscreenPageLimit = 1
+            offscreenPageLimit = ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT
+            postDelayed({
+                if (!isFinishing && !isDestroyed) {
+                    offscreenPageLimit = 1
+                }
+            }, 1200)
             isUserInputEnabled = false
             // ViewPager2 内部列表只负责承载页面，不应成为电视遥控器的停留焦点。
             (getChildAt(0) as? RecyclerView)?.isFocusable = false

@@ -3,7 +3,12 @@ package com.wkq.bao.core.media.repository
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.database.entity.EpisodeEntity
 
-data class PlaybackTarget(val episode: EpisodeEntity, val resume: Boolean = false, val seasonNumber: Int = 1)
+data class PlaybackTarget(
+    val episode: EpisodeEntity,
+    val resume: Boolean = false,
+    val seasonNumber: Int = 1,
+    val isMovie: Boolean = false
+)
 
 /** 所有入口共用的续播规则，不把数据库自增 ID 当成季序。 */
 internal class PlaybackSelection(private val database: AppDatabase) {
@@ -36,6 +41,10 @@ internal fun choosePlaybackTarget(
             previous != null && !isMovie -> ordered.dropWhile { it.id != previous.id }.drop(1).firstOrNull() ?: previous
             else -> ordered.first()
         }
-        return PlaybackTarget(selected, history?.episodeId == selected.id && !history.completed && history.positionMs > 5000,
-            seasons.firstOrNull { it.id == selected.seasonId }?.seasonNumber ?: 1)
+        return PlaybackTarget(
+            episode = selected,
+            resume = history?.episodeId == selected.id && !history.completed && history.positionMs > 5000,
+            seasonNumber = seasons.firstOrNull { it.id == selected.seasonId }?.seasonNumber ?: 1,
+            isMovie = isMovie
+        )
 }

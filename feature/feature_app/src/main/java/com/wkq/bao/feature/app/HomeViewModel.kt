@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class HomeUiState(
-    val loading: Boolean = true,
+    val loading: Boolean = false,
     val continueWatching: List<ContinueWatchingItem> = emptyList(),
     val cartoons: List<MediaSeriesEntity> = emptyList(),
     val movies: List<MediaSeriesEntity> = emptyList(),

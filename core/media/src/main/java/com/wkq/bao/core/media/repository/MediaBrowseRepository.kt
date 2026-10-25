@@ -30,13 +30,13 @@ class RoomMediaBrowseRepository private constructor(
 
     override val continueWatching: Flow<List<ContinueWatchingItem>> =
         database.watchHistoryDao().getContinueWatchingList().map { items ->
-            items.mapNotNull { item ->
+            items.take(8).mapNotNull { item ->
                 val target = PlaybackSelection(database).select(item.history.seriesId) ?: return@mapNotNull null
                 if (item.history.completed && target.episode.id == item.history.episodeId) return@mapNotNull null
                 val history = if (target.episode.id == item.history.episodeId) item.history else
                     item.history.copy(episodeId = target.episode.id, seasonId = target.episode.seasonId,
                         positionMs = 0, durationMs = 0, completed = false)
-                val title = if (database.mediaDao().getSeriesById(history.seriesId)?.type == "MOVIE") "" else
+                val title = if (target.isMovie) "" else
                     "S${target.seasonNumber.toString().padStart(2, '0')}E${target.episode.episodeNumber.toString().padStart(2, '0')}"
                 item.copy(history = history, episodeTitle = title)
             }
