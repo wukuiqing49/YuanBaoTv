@@ -1,5 +1,6 @@
 package com.wkq.bao.feature.app
 
+import android.content.Context
 import android.content.Intent
 import android.content.ActivityNotFoundException
 import android.os.Bundle
@@ -104,7 +105,11 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
             TvFocusHelper.applyFocusScale(control)
         }
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnNasSource)
-        Toast.makeText(this, com.wkq.bao.feature.res.R.string.nas_browser_long_click_hint, Toast.LENGTH_SHORT).show()
+        val uiPrefs = getSharedPreferences("ui_hints", Context.MODE_PRIVATE)
+        if (!uiPrefs.getBoolean("nas_long_click_hint_shown", false)) {
+            Toast.makeText(this, com.wkq.bao.feature.res.R.string.nas_browser_long_click_hint, Toast.LENGTH_SHORT).show()
+            uiPrefs.edit().putBoolean("nas_long_click_hint_shown", true).apply()
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = navigateUp()
         })

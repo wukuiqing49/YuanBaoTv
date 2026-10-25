@@ -25,6 +25,11 @@ class NasFileAdapter(
         }
     }
 
+    override fun onViewRecycled(holder: ViewHolder) {
+        TvFocusHelper.resetRecycledFocus(holder.itemView)
+        super.onViewRecycled(holder)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder = ViewHolder(
         ItemNasFileBinding.inflate(LayoutInflater.from(parent.context), parent, false)
     )

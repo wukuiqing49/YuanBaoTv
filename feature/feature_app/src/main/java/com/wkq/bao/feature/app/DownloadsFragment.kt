@@ -428,6 +428,9 @@ class DownloadsFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        storageRenderJob?.cancel()
+        targetPickerJob?.cancel()
+        storageAuthorizationJob?.cancel()
         binding.rvDownloadTasks.adapter = null
         updateKeepScreenOn(false)
         _binding = null

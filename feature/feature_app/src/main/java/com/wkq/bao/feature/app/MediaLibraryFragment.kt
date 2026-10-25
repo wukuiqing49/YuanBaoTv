@@ -238,6 +238,7 @@ class MediaLibraryFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        binding.rvMediaGrid.adapter = null
         _binding = null
         super.onDestroyView()
     }
