@@ -25,4 +25,4 @@
     <dimen name="ui_home_hero_height">220dp</dimen>
     <dimen name="ui_home_hero_top">18dp</dimen>
     <dimen name="ui_focus_padding">8dp</dimen>
-</resources>
+<dimen name="ui_home_hero_compact_height">220dp</dimen><dimen name="ui_home_hero_resume_height">240dp</dimen><dimen name="ui_card_title_block_height">44sp</dimen><dimen name="ui_card_title_line_height">22sp</dimen><dimen name="home_backdrop_height">340dp</dimen><dimen name="home_hero_content_top">88dp</dimen><dimen name="ui_card_corner_radius">16dp</dimen><dimen name="ui_artwork_corner_radius">12dp</dimen></resources>

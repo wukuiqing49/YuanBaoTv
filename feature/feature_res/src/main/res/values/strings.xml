@@ -12,7 +12,7 @@
     <string name="nav_all_media">全部媒体</string>
     <string name="nav_search">搜索</string>
     <string name="nav_settings">设置</string>
-    <string name="nav_downloads">下载管理</string>
+    <string name="nav_downloads">下载与本地</string>
     
     <!-- 首页模块 -->
     <string name="section_continue_watching">继续观看</string>
@@ -53,7 +53,7 @@
     <string name="status_disabled">已停用</string>
     
     <!-- 下载管理 -->
-    <string name="title_downloads">下载管理</string>
+    <string name="title_downloads">下载与本地媒体</string>
     <string name="section_downloading">下载任务</string>
     <string name="downloads_empty_title">暂无下载任务</string>
     <string name="downloads_empty_message">从媒体详情加入下载后，进度会显示在这里</string>
@@ -303,4 +303,46 @@
     <string name="cache_switch_library">下载任务 · 切换本地媒体</string>
     <string name="cache_empty_title">暂无本地媒体</string>
     <string name="cache_empty_message">从 NAS 导入媒体后，可在详情页缓存电影或选集；已有文件也可通过存储扫描加入。</string>
+    <string name="media_metadata_separator">\u0020·\u0020</string>
+    <string name="continue_remaining_time">剩余 %1$d 分钟</string>
+    <string name="player_more">更多</string>
+    <string name="player_more_settings">播放设置</string>
+    <string name="player_auto_next_setting">自动连播</string>
+    <string name="player_switch_source">切换播放源</string>
+    <string name="player_single_source_hint">当前仅有单个可用播放源</string>
+    <string name="player_source_local_format">本地存储 (%s)</string>
+    <string name="player_source_nas_format">NAS 局域网串流</string>
+    <string name="player_switch_source_success">已切换为: %s</string>
+    <string name="episode_long_click_cache_prompt">将 第 %1$d 集 (%2$s) 缓存到本地存储？</string>
+    <string name="episode_long_click_manage_prompt">该集已下载到本地，是否删除本地副本？</string>
+    <string name="nas_browser_long_click_hint">提示：长按确定键可快速勾选/取消整目录</string>
+    <string name="player_aspect_ratio">画面比例</string>
+    <string name="player_aspect_fit">默认自适应</string>
+    <string name="player_aspect_zoom">全屏裁剪</string>
+    <string name="player_aspect_fill">拉伸铺满</string>
+    <string name="player_select_episode">选集播放</string>
+    <string name="player_current_playing_tag">正在播放</string>
+    <string name="player_skip_intro">跳过片头</string>
+    <string name="player_skip_intro_off">关闭</string>
+    <string name="player_skip_intro_format">%d 秒</string>
+    <string name="player_skip_intro_toast">已自动跳过片头 %d 秒</string>
+    <string name="nas_sync_to_storage">⚡ 同步到本地/外接存储</string>
+    <string name="nas_sync_target_title">选择同步存储目标</string>
+    <string name="nas_sync_queued_prompt">已创建 %1$d 个同步任务，正于后台高速缓存</string>
+    <string name="nas_sync_add_new_target">➕ 授权新外部存储 / U盘目录</string>
+    <string name="player_failover_toast">原播放源异常，已自动为您平滑切换至: %s</string>
+    <string name="downloads_tab_cached">本地影视 (%1$d 部)</string>
+    <string name="downloads_tab_tasks">同步任务 (%1$d 个)</string>
+    <string name="detail_episode_hint">按确认键播放 · 长按管理本地缓存</string>
+    <string name="player_external_preparing">正在准备小米系统播放器…</string>
+    <string name="player_external_open">使用小米系统播放器</string>
+    <string name="player_use_internal">使用内置播放器</string>
+    <string name="player_external_back">返回媒体库</string>
+    <string name="player_external_failed">未能打开系统播放器，请重试或使用内置播放器。</string>
+    <string name="player_external_returned">已返回 YuanBaoTv。需要原有字幕设置、自动下一集或同步播放进度时，请使用内置播放器。</string>
+    <string name="player_mode_button">播放方式</string>
+    <string name="player_mode_auto_other">自动：使用此设备可用的播放器</string>
+    <string name="player_mode_title">选择播放方式</string>
+    <string name="player_mode_auto">自动：小米系统播放器（电视小爱控制）</string>
+    <string name="player_mode_internal">内置播放器（连续播放、字幕与进度同步）</string>
 </resources>

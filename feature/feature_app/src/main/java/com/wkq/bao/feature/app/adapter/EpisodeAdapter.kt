@@ -13,7 +13,8 @@ import com.wkq.bao.feature.app.utils.MediaArtwork
 import com.wkq.bao.feature.app.utils.TvFocusHelper
 
 class EpisodeAdapter(
-    private val onItemClick: (EpisodeEntity) -> Unit
+    private val onItemClick: (EpisodeEntity) -> Unit,
+    private val onItemLongClick: ((EpisodeWithSource) -> Unit)? = null
 ) : ListAdapter<EpisodeWithSource, EpisodeAdapter.ViewHolder>(DIFF_CALLBACK) {
 
     init {
@@ -51,6 +52,13 @@ class EpisodeAdapter(
                 if (pos != RecyclerView.NO_POSITION) {
                     onItemClick(getItem(pos).episode)
                 }
+            }
+            binding.root.setOnLongClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    onItemLongClick?.invoke(getItem(pos))
+                    true
+                } else false
             }
         }
 

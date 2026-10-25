@@ -156,7 +156,7 @@ class RoomMediaDetailRepository private constructor(
     ): Int? {
         val targetUri = Uri.parse(downloadTarget.uri)
         val storage = TvStorageManager(appContext)
-        if (!storage.isExternalStorageTarget(targetUri) || !storage.isStorageTargetWritable(targetUri)) return null
+        if (!storage.isStorageTargetAvailable(targetUri) || !storage.isStorageTargetWritable(targetUri)) return null
         val libraryId = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             com.wkq.bao.core.media.storage.MediaLibraryStorage(appContext).initialize(targetUri).id
         }

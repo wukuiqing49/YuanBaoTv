@@ -92,7 +92,7 @@ class NasFileBrowserRepository private constructor(
         selected: Collection<NasFileEntry>,
         target: TvStorageManager.StorageTarget
     ): Result<Int> = mediaOperation {
-        require(TvStorageManager(context).isExternalStorageTarget(target)) {
+        require(target.isAvailable) {
             "NAS downloads require external storage"
         }
         require(target.isAvailable && TvStorageManager(context).isStorageTargetWritable(target.uri)) {
@@ -137,7 +137,7 @@ class NasFileBrowserRepository private constructor(
         selected: Collection<NasFileEntry>,
         target: TvStorageManager.StorageTarget
     ): Result<EnqueueNasMediaResult> = mediaOperation {
-        require(TvStorageManager(context).isExternalStorageTarget(target)) {
+        require(target.isAvailable) {
             "NAS downloads require external storage"
         }
         require(target.isAvailable && TvStorageManager(context).isStorageTargetWritable(target.uri)) {

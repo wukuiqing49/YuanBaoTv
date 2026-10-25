@@ -74,14 +74,11 @@ class TvDownloadEngine(
 
             val storageTarget = resolveStorageTarget(claimedTask)
                 ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)
-            if (!TvStorageManager(context).isExternalStorageTarget(storageTarget)) {
-                return@withContext fail(claimedTask, "NAS downloads require external storage", DownloadTaskErrorCode.STORAGE_ACCESS)
-            }
             val libraries = MediaLibraryStorage(context)
             if (claimedTask.targetLibraryId.isNotBlank() && !libraries.matches(storageTarget.uri, claimedTask.targetLibraryId)) {
                 return@withContext fail(claimedTask, "Library identity does not match", DownloadTaskErrorCode.LIBRARY_MISMATCH)
             }
-            val root = DocumentFile.fromTreeUri(context, storageTarget.uri)
+            val root = TvStorageManager.getDocumentFile(context, storageTarget.uri)
                 ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)
             if (!TvStorageManager(context).isStorageTargetWritable(storageTarget.uri)) {
                 return@withContext fail(claimedTask, "Download storage is not writable", DownloadTaskErrorCode.STORAGE_ACCESS)
@@ -165,7 +162,7 @@ class TvDownloadEngine(
                 )
             if (sourceChanged) {
                 deletePartFiles(partsDirectory, chunks)
-                downloadDirectory.findFile(assemblingName)?.delete()
+                downloadDirectory.deleteAssemblingFile(assemblingName)
                 downloadDao.deleteChunks(claimedTask.id)
                 if (downloadDao.updateAssembledBytesWhileDownloading(claimedTask.id, 0L) == 0) {
                     ensureTaskIsDownloading(claimedTask.id)
@@ -254,7 +251,7 @@ class TvDownloadEngine(
                 throw DownloadFailure(DownloadTaskErrorCode.SOURCE_CHANGED, "NAS source changed during download")
             }
 
-            val assemblingFile = downloadDirectory.findFile(assemblingName)
+            val assemblingFile = downloadDirectory.findAssemblingFile(assemblingName)
                 ?: throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Cannot locate assembled download")
             if (assemblingFile.length() != remoteInfo.length) throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Assembled file length validation failed")
             if (managed && !libraries.matches(storageTarget.uri, claimedTask.targetLibraryId)) {
@@ -278,6 +275,7 @@ class TvDownloadEngine(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
+            android.util.Log.e("TvDownloadEngine", "executeTask error for task " + claimedTask.id, error)
             val errorCode = when {
                 error is SecurityException -> DownloadTaskErrorCode.STORAGE_ACCESS
                 generateSequence<Throwable>(error) { it.cause }.take(16)
@@ -304,7 +302,7 @@ class TvDownloadEngine(
                 isAvailable = storageManager.isStorageTargetAvailable(targetUri)
             ).takeIf { it.isAvailable }
         }
-        return storageManager.getAvailableExternalStorageTarget()
+        return storageManager.getAvailableStorageTarget()
     }
 
     /**
@@ -422,7 +420,7 @@ class TvDownloadEngine(
     ): DownloadedPart {
         var lastError: Throwable? = null
         repeat(MAX_RANGE_ATTEMPTS) { attempt ->
-            partsDirectory.findFile(chunk.partName)?.delete()
+            partsDirectory.deletePartFile(chunk.partName)
             val part = partsDirectory.createFile("application/octet-stream", chunk.partName)
                 ?: throw DownloadFailure(DownloadTaskErrorCode.STORAGE_ACCESS, "Cannot create download part")
             try {
@@ -471,7 +469,7 @@ class TvDownloadEngine(
         val assembled = ordered.takeWhile { it.status == DownloadChunkStatus.ASSEMBLED }
         val expectedBytes = assembled.sumOf { it.byteCount }
         val hasOnlyLeadingAssembled = ordered.drop(assembled.size).none { it.status == DownloadChunkStatus.ASSEMBLED }
-        val assemblingFile = downloadDirectory.findFile(assemblingName)
+        val assemblingFile = downloadDirectory.findAssemblingFile(assemblingName)
         val valid = hasOnlyLeadingAssembled &&
             task.assembledBytes == expectedBytes &&
             when {
@@ -480,11 +478,11 @@ class TvDownloadEngine(
                 else -> isAssembledPrefixValid(assemblingFile, assembled)
             }
         if (valid) {
-            assembled.forEach { partsDirectory.findFile(it.partName)?.delete() }
+            assembled.forEach { partsDirectory.deletePartFile(it.partName) }
             return ordered
         }
 
-        assemblingFile?.delete()
+        downloadDirectory.deleteAssemblingFile(assemblingName)
         val reset = ordered.map { chunk ->
             if (chunk.status != DownloadChunkStatus.ASSEMBLED) chunk else chunk.copy(
                 status = DownloadChunkStatus.WAITING,
@@ -536,8 +534,8 @@ class TvDownloadEngine(
         while (true) {
             val next = updatedChunks.firstOrNull { it.status != DownloadChunkStatus.ASSEMBLED } ?: break
             if (next.status != DownloadChunkStatus.COMPLETED) break
-            val part = partsDirectory.findFile(next.partName) ?: throw IOException("Download part is missing")
-            val assemblingFile = downloadDirectory.findFile(assemblingName)
+            val part = partsDirectory.findPartFile(next.partName) ?: throw IOException("Download part is missing")
+            val assemblingFile = downloadDirectory.findAssemblingFile(assemblingName)
                 ?: downloadDirectory.createFile("application/octet-stream", assemblingName)
                 ?: throw IOException("Cannot create assembly file")
             appendPart(assemblingFile, part)
@@ -576,7 +574,7 @@ class TvDownloadEngine(
         val downloadDao = database.downloadDao()
         return chunks.map { chunk ->
             if (chunk.status != DownloadChunkStatus.COMPLETED) return@map chunk
-            val part = partsDirectory.findFile(chunk.partName)
+            val part = partsDirectory.findPartFile(chunk.partName)
             val valid = part != null &&
                 part.length() == chunk.byteCount &&
                 chunk.sha256.isNotBlank() &&
@@ -613,7 +611,7 @@ class TvDownloadEngine(
     }
 
     private fun deletePartFiles(partsDirectory: DocumentFile, chunks: List<DownloadChunkEntity>) {
-        chunks.forEach { partsDirectory.findFile(it.partName)?.delete() }
+        chunks.forEach { partsDirectory.deletePartFile(it.partName) }
     }
 
     private fun sha256(file: DocumentFile): String {
@@ -669,6 +667,23 @@ class TvDownloadEngine(
 
     private data class AssembledFile(val length: Long, val sha256: String)
     private data class DownloadedPart(val part: DocumentFile, val checksum: String)
+
+
+    private fun DocumentFile.findPartFile(name: String): DocumentFile? =
+        findFile(name) ?: findFile("$name.bin")
+
+    private fun DocumentFile.deletePartFile(name: String) {
+        findFile(name)?.delete()
+        findFile("$name.bin")?.delete()
+    }
+
+    private fun DocumentFile.findAssemblingFile(name: String): DocumentFile? =
+        findFile(name) ?: findFile("$name.bin")
+
+    private fun DocumentFile.deleteAssemblingFile(name: String) {
+        findFile(name)?.delete()
+        findFile("$name.bin")?.delete()
+    }
 
     private companion object {
         const val DOWNLOAD_DIRECTORY = "YuanBaoTV"

@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.wkq.base.activity.BaseActivity
 import com.wkq.bao.core.database.entity.EpisodeEntity
+import com.wkq.bao.core.database.entity.EpisodeWithSource
 import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import com.wkq.bao.core.database.entity.SeasonEntity
 import com.wkq.bao.core.media.repository.EnqueueDownloadsResult
@@ -68,6 +69,8 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
             isAppearanceLightNavigationBars = false
         }
         seriesId = intent.getLongExtra("seriesId", 0L)
+        binding.btnPlaybackMode.visibility = android.view.View.GONE
+        binding.btnPlaybackMode.isFocusable = false
         listOf(
             binding.btnPlay,
             binding.btnFavorite,
@@ -78,7 +81,7 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
             button.backgroundTintList = null
             TvFocusHelper.applyFocusScale(button)
         }
-        episodeAdapter = EpisodeAdapter(onItemClick = ::playEpisode)
+        episodeAdapter = EpisodeAdapter(onItemClick = ::playEpisode, onItemLongClick = ::handleEpisodeLongClick)
         binding.rvEpisodes.adapter = episodeAdapter
         binding.btnPlay.setOnClickListener { viewModel.playFirstEpisode() }
         binding.btnDownloadSeason.setOnClickListener { showCacheActions() }
@@ -121,13 +124,13 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
         binding.btnDownloadSeason.setText(if (state.cachedOnly) com.wkq.bao.feature.res.R.string.cache_manage_local else if (state.isMovie) com.wkq.bao.feature.res.R.string.cache_movie else com.wkq.bao.feature.res.R.string.cache_select_episodes)
         binding.btnPlay.isEnabled = !state.cachedOnly || state.cachedCopies.isNotEmpty()
         val target = state.playbackTarget
-        binding.btnPlay.text = when {
-            state.cachedOnly -> getString(com.wkq.bao.feature.res.R.string.cache_play_local)
-            target == null -> getString(com.wkq.bao.feature.res.R.string.btn_play_now)
-            state.isMovie -> getString(if (target.resume) com.wkq.bao.feature.res.R.string.btn_continue_play else com.wkq.bao.feature.res.R.string.btn_play_now)
-            else -> getString(if (target.resume) com.wkq.bao.feature.res.R.string.detail_resume_episode else com.wkq.bao.feature.res.R.string.detail_play_episode,
-                target.seasonNumber, target.episode.episodeNumber)
-        }
+        binding.btnPlay.setText(if (target?.resume == true) com.wkq.bao.feature.res.R.string.btn_continue_play
+            else com.wkq.bao.feature.res.R.string.btn_play_now)
+        binding.tvPlaybackHint.isVisible = target != null && !state.isMovie
+        binding.tvPlaybackHint.text = target?.takeIf { !state.isMovie }?.let {
+            getString(if (it.resume) com.wkq.bao.feature.res.R.string.detail_resume_episode else com.wkq.bao.feature.res.R.string.detail_play_episode,
+                it.seasonNumber, it.episode.episodeNumber)
+        }.orEmpty()
         binding.btnFavorite.isSelected = state.isFavorite
         binding.btnFavorite.setText(
             if (state.isFavorite) com.wkq.bao.feature.res.R.string.btn_unfavorite
@@ -184,31 +187,21 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
     }
 
     private fun renderSeries(series: MediaSeriesEntity, isMovie: Boolean) {
-        val year = series.year.ifBlank { "-" }
-        val genre = MediaLabels.genreOrType(this, series.genre, series.type)
-        binding.tvTitle.text = series.title
+        binding.tvTitle.text = if (TvFocusHelper.isTelevision(binding.root)) MediaLabels.displayTitle(series.title) else series.title
         binding.tvNasBadge.setText(
             if (isMovie) com.wkq.bao.feature.res.R.string.detail_badge_movie
             else com.wkq.bao.feature.res.R.string.detail_badge_series
         )
-        binding.tvMetaTags.text = if (isMovie) {
-            getString(com.wkq.bao.feature.res.R.string.detail_movie_meta, year, genre)
-        } else {
-            getString(com.wkq.bao.feature.res.R.string.detail_series_meta, year, genre, series.totalSeasons)
-        }
+        binding.tvMetaTags.text = MediaLabels.metadata(this, series.year, series.genre, series.type, series.totalSeasons)
         binding.tvDesc.text = series.description.ifBlank {
             getString(com.wkq.bao.feature.res.R.string.media_description_unavailable)
         }
-        MediaArtwork.load(
-            binding.ivSeriesPoster,
-            series.posterUri.ifBlank { series.backdropUri },
-            com.wkq.bao.feature.res.R.drawable.bg_media_placeholder_poster
-        )
+        MediaArtwork.loadPoster(binding.ivSeriesPoster, series.posterUri.ifBlank { series.backdropUri })
         binding.ivSeriesPoster.contentDescription = series.title
         MediaArtwork.load(
             binding.ivBackdrop,
-            series.backdropUri.ifBlank { series.posterUri },
-            com.wkq.bao.feature.res.R.drawable.bg_media_placeholder_landscape
+            series.backdropUri.takeIf { it.isNotBlank() },
+            com.wkq.bao.feature.res.R.drawable.bg_home_artwork_placeholder
         )
         binding.ivBackdrop.contentDescription = null
     }
@@ -267,13 +260,10 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
             tab.isSelected = selected
             tab.setBackgroundResource(
                 if (selected) com.wkq.bao.feature.res.R.drawable.bg_nav_link_active
-                else com.wkq.bao.feature.res.R.drawable.bg_tv_button_focus
+                else com.wkq.bao.feature.res.R.drawable.bg_tv_light_button
             )
             (tab as? TextView)?.setTextColor(
-                getColor(
-                    if (selected) com.wkq.bao.feature.res.R.color.tv_hero_btn_text
-                    else com.wkq.bao.feature.res.R.color.tv_text_primary
-                )
+                androidx.appcompat.content.res.AppCompatResources.getColorStateList(this, com.wkq.bao.feature.res.R.color.tv_navigation_text)
             )
         }
     }
@@ -327,20 +317,22 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
         if (state.episodesLoading || cachePopup?.isShow == true) return
         val popup = CacheSelectionPopup(this, state.episodes, emptySet()) { enqueueCache(it) }
         cachePopup = popup
-        XPopup.Builder(this).isDarkTheme(true).maxWidth((600 * resources.displayMetrics.density).toInt())
+        XPopup.Builder(this).isDarkTheme(true).maxWidth((780 * resources.displayMetrics.density).toInt())
             .maxHeight((resources.displayMetrics.heightPixels * .85f).toInt()).asCustom(popup).show()
     }
 
     private fun enqueueCache(episodes: List<Long>?) {
         lifecycleScope.launch {
             val target = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                com.wkq.bao.core.media.storage.TvStorageManager(applicationContext).getAvailableExternalStorageTarget()
+                com.wkq.bao.core.media.storage.TvStorageManager(applicationContext).getAvailableStorageTarget()
             }
             if (target == null) {
-                XPopup.Builder(this@DetailActivity).isDarkTheme(true).asConfirm(
-                    getString(com.wkq.bao.feature.res.R.string.storage_select_target),
-                    getString(com.wkq.bao.feature.res.R.string.storage_target_required),
-                    { HomeActivity.open(this@DetailActivity, MainPageNavigator.DOWNLOADS) }).show()
+                XPopup.Builder(this@DetailActivity).isDarkTheme(true)
+                    .maxWidth((460 * resources.displayMetrics.density).toInt())
+                    .asConfirm(
+                        getString(com.wkq.bao.feature.res.R.string.storage_select_target),
+                        getString(com.wkq.bao.feature.res.R.string.storage_target_required),
+                        { HomeActivity.open(this@DetailActivity, MainPageNavigator.DOWNLOADS) }).show()
             } else {
                 val destination = com.wkq.bao.core.media.repository.DownloadTarget(target.uri.toString(), target.location)
                 if (episodes == null) viewModel.enqueueCurrentSelection(destination)
@@ -394,4 +386,29 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
     private fun playEpisode(episode: EpisodeEntity) {
         PlayerActivity.start(this, seriesId, episode.seasonId, episode.id, episode.title)
     }
+
+    private fun handleEpisodeLongClick(item: EpisodeWithSource) {
+        val hasLocal = !item.localUri.isNullOrBlank()
+        if (hasLocal) {
+            val copyUri = item.localUri.orEmpty()
+            XPopup.Builder(this).isDarkTheme(true)
+                .maxWidth((460 * resources.displayMetrics.density).toInt())
+                .asConfirm(
+                    getString(com.wkq.bao.feature.res.R.string.cache_manage_local),
+                    getString(com.wkq.bao.feature.res.R.string.episode_long_click_manage_prompt),
+                    { viewModel.removeCopy(item.episode.id, copyUri) }
+                ).show()
+        } else if (!item.nasUri.isNullOrBlank()) {
+            val epNum = item.episode.episodeNumber
+            val epTitle = item.episode.title.ifBlank { getString(com.wkq.bao.feature.res.R.string.episode_default_title) }
+            XPopup.Builder(this).isDarkTheme(true)
+                .maxWidth((460 * resources.displayMetrics.density).toInt())
+                .asConfirm(
+                    getString(com.wkq.bao.feature.res.R.string.cache_select_episodes),
+                    getString(com.wkq.bao.feature.res.R.string.episode_long_click_cache_prompt, epNum, epTitle),
+                    { enqueueCache(listOf(item.episode.id)) }
+                ).show()
+        }
+    }
+
 }

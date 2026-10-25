@@ -48,7 +48,7 @@ class MediaBrowseViewModelTest {
         }
         advanceUntilIdle()
 
-        assertEquals(listOf(repository.movie.id, repository.cartoon.id), viewModel.uiState.value.cartoons.map { it.id })
+        assertEquals(listOf(repository.cartoon.id), viewModel.uiState.value.cartoons.map { it.id })
         assertEquals(repository.movie.id, viewModel.uiState.value.featured?.id)
         assertEquals(repository.continueItem.history.episodeId, viewModel.uiState.value.continueWatching.single().history.episodeId)
 
@@ -56,6 +56,24 @@ class MediaBrowseViewModelTest {
         viewModel.playFeatured()
         assertEquals(HomeEvent.Play(repository.movie.id, repository.firstEpisode), event.await())
         stateCollection.cancel()
+    }
+
+    @Test
+    fun `continue watching groups reindexed copies and keeps the latest progress`() = runTest {
+        val repository = FakeMediaBrowseRepository()
+        val old = repository.continueItem.copy(seriesTitle = "小猪佩奇第四季 Peppa Pig Season 4",
+            history = repository.continueItem.history.copy(seriesId = 1, lastPlayedAt = 100, positionMs = 39_000))
+        val corrected = old.copy(seriesTitle = "小猪佩奇第四季 Peppa Pig",
+            history = old.history.copy(seriesId = 20))
+        repository.continueWatching.value = listOf(old, corrected)
+        val viewModel = HomeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf(20L), viewModel.uiState.value.continueWatching.map { it.history.seriesId })
+        assertEquals(39_000L, viewModel.uiState.value.continueWatching.single().history.positionMs)
+        repository.continueWatching.value = listOf(old.copy(history = old.history.copy(lastPlayedAt = 101)), corrected)
+        advanceUntilIdle()
+        assertEquals(1L, viewModel.uiState.value.continueWatching.single().history.seriesId)
     }
 
     @Test
@@ -209,21 +227,65 @@ class MediaBrowseViewModelTest {
         val repository = FakeMediaBrowseRepository()
         val olderEdited = repository.movie.copy(createdAt = 1, updatedAt = 999)
         val newer = repository.cartoon.copy(createdAt = 20, updatedAt = 20)
-        val tv = repository.movie.copy(id = 30, type = MediaSeriesType.TV, createdAt = 10)
+        val tv = repository.movie.copy(id = 30, title = "TV series", type = MediaSeriesType.TV, createdAt = 10)
         val local = repository.movie.copy(id = 40, type = MediaSeriesType.LOCAL, createdAt = 5)
-        repository.series.value = listOf(olderEdited, newer, tv, local)
+        repository.continueWatching.value = emptyList()
+        val recent = (100L..107L).map { repository.movie.copy(id = it, title = "Recent $it", createdAt = it) }
+        repository.series.value = recent + listOf(olderEdited, newer, tv, local)
         val viewModel = HomeViewModel(repository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
         advanceUntilIdle()
-        assertEquals(listOf(2L, 30L, 40L, 1L), viewModel.uiState.value.cartoons.map { it.id })
+        assertEquals((107L downTo 100L).toList(), viewModel.uiState.value.cartoons.map { it.id })
+        val categoryIds = (viewModel.uiState.value.movies + viewModel.uiState.value.series + viewModel.uiState.value.animation).map { it.id }.toSet()
+        assertEquals(true, viewModel.uiState.value.cartoons.none { it.id in categoryIds })
         assertEquals(listOf(1L), viewModel.uiState.value.movies.map { it.id })
         assertEquals(listOf(30L), viewModel.uiState.value.series.map { it.id })
         assertEquals(listOf(2L), viewModel.uiState.value.animation.map { it.id })
-        repository.series.value = listOf(newer.copy(type = MediaSeriesType.MOVIE))
+        repository.series.value = recent + listOf(newer.copy(type = MediaSeriesType.MOVIE))
         advanceUntilIdle()
         assertEquals(listOf(2L), viewModel.uiState.value.movies.map { it.id })
         assertEquals(true, viewModel.uiState.value.animation.isEmpty())
         assertEquals(true, viewModel.uiState.value.series.isEmpty())
+    }
+
+    @Test
+    fun `preview changes playback target and falls back when media disappears`() = runTest {
+        val repository = FakeMediaBrowseRepository()
+        val viewModel = HomeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+        viewModel.previewSeries(repository.cartoon.id)
+        advanceUntilIdle()
+        assertEquals(repository.cartoon.id, viewModel.uiState.value.featured?.id)
+        assertEquals(null, viewModel.uiState.value.featuredProgress)
+        val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }
+        viewModel.playFeatured()
+        assertEquals(HomeEvent.OpenDetail(repository.cartoon.id), event.await())
+        repository.series.value = listOf(repository.movie)
+        advanceUntilIdle()
+        assertEquals(repository.movie.id, viewModel.uiState.value.featured?.id)
+        assertEquals(repository.continueItem, viewModel.uiState.value.featuredProgress)
+    }
+
+    @Test
+    fun `small library does not repeat rows and split episodes do not fill the home page`() = runTest {
+        val repository = FakeMediaBrowseRepository()
+        val viewModel = HomeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf(repository.cartoon.id), viewModel.uiState.value.cartoons.map { it.id })
+        assertEquals(true, viewModel.uiState.value.movies.isEmpty())
+        assertEquals(true, viewModel.uiState.value.animation.isEmpty())
+        repository.continueWatching.value = emptyList()
+        repository.series.value = (1L..30L).map { repository.movie.copy(id = it, title = "Movie $it", createdAt = it) }
+        advanceUntilIdle()
+        assertEquals(8, viewModel.uiState.value.cartoons.size)
+        assertEquals(8, viewModel.uiState.value.movies.size)
+        assertEquals(true, viewModel.uiState.value.movies.none { it in viewModel.uiState.value.cartoons })
+        repository.series.value = (1L..30L).map { repository.movie.copy(id = it, title = "动画第二季 第${it}话 (超高清SDR)") }
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.cartoons.size)
+        assertEquals(true, viewModel.uiState.value.movies.isEmpty())
     }
 
     private class FakeMediaBrowseRepository : MediaBrowseRepository {

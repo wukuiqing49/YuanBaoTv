@@ -190,7 +190,7 @@
         <!-- 4. Hero 浮动内容区 (直接悬浮在大背景暗部上, Figma Node 1:28) -->
         <LinearLayout
             android:id="@+id/layout_hero_content"
-            android:layout_width="0dp"
+            android:layout_width="0dp" app:layout_constraintWidth_max="540dp" app:layout_constraintHorizontal_bias="0"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/ui_page_inset"
             android:layout_marginEnd="56dp"
@@ -240,7 +240,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="14dp"
                     tools:text="上次看到：第 5 集"
-                    android:textColor="@color/tv_text_secondary"
+                    android:textColor="@color/tv_text_tertiary"
                     android:textSize="@dimen/ui_text_body" />
             </LinearLayout>
 
@@ -263,17 +263,17 @@
                 android:layout_marginTop="20dp"
                 android:orientation="horizontal">
 
-                <Button
+                <Button app:iconSize="20dp" app:iconTint="@color/home_primary_text" app:iconGravity="textStart"
                     android:id="@+id/btn_hero_play"
                     android:layout_width="wrap_content"
                     android:minWidth="144dp"
                     android:layout_height="46dp"
                     android:background="@drawable/bg_hero_gold_btn"
-                    android:drawableStart="@drawable/ic_tv_play"
-                    android:drawablePadding="6dp"
+                    app:icon="@drawable/ic_tv_play"
+                    app:iconPadding="6dp"
                     android:focusable="true"
                     android:text="@string/btn_continue_play"
-                    android:textColor="@color/tv_control_text"
+                    android:textColor="@color/home_primary_text"
                     android:textSize="@dimen/ui_text_body"
                     android:textStyle="bold" />
 
@@ -285,13 +285,14 @@
                     android:background="@drawable/bg_hero_detail_btn"
                     android:focusable="true"
                     android:text="@string/btn_view_detail"
-                    android:textColor="@color/tv_control_text"
+                    android:textColor="@color/tv_button_text"
                     android:textSize="@dimen/ui_text_body" />
             </LinearLayout>
 
         </LinearLayout>
 
         <!-- 5. Section 1: 继续观看 (Figma Node 1:48) -->
+        <androidx.constraintlayout.widget.Barrier android:id="@+id/home_hero_bottom" android:layout_width="wrap_content" android:layout_height="wrap_content" app:barrierDirection="bottom" app:constraint_referenced_ids="iv_hero_backdrop,layout_hero_content" />
         <TextView
             android:id="@+id/tv_label_continue"
             android:layout_width="wrap_content"
@@ -303,14 +304,14 @@
             android:textSize="@dimen/ui_text_section"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/layout_hero_content" />
+            app:layout_constraintTop_toBottomOf="@id/home_hero_bottom" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_continue_watching"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:clipToPadding="false"
+            android:clipToPadding="false" android:paddingTop="@dimen/ui_focus_padding" android:paddingBottom="@dimen/ui_focus_padding"
             android:orientation="horizontal"
             android:paddingStart="@dimen/ui_page_inset"
             android:paddingEnd="@dimen/ui_page_inset"
@@ -338,9 +339,9 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_cartoons"
             android:layout_width="0dp"
-            android:layout_height="@dimen/ui_poster_row_height"
+            android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:clipToPadding="false"
+            android:clipToPadding="false" android:paddingTop="@dimen/ui_focus_padding" android:paddingBottom="@dimen/ui_focus_padding"
             android:orientation="horizontal"
             android:paddingStart="@dimen/ui_page_inset"
             android:paddingEnd="@dimen/ui_page_inset"

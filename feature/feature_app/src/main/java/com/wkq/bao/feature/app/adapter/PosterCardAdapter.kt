@@ -17,6 +17,7 @@ import com.wkq.bao.feature.app.utils.TvFocusHelper
 class PosterCardAdapter(
     private val onItemClick: (MediaSeriesEntity) -> Unit
 ) : ListAdapter<MediaSeriesEntity, PosterCardAdapter.ViewHolder>(DIFF_CALLBACK) {
+    var onItemFocusChanged: ((MediaSeriesEntity?) -> Unit)? = null
     private var offlineIds: Set<Long> = emptySet()
     fun updateOfflineIds(ids: Set<Long>) {
         val changed = (offlineIds - ids) + (ids - offlineIds)
@@ -49,7 +50,7 @@ class PosterCardAdapter(
                 height = ViewGroup.LayoutParams.WRAP_CONTENT
             }
             binding.ivPoster.layoutParams = (binding.ivPoster.layoutParams as ConstraintLayout.LayoutParams).apply {
-                dimensionRatio = "2:3"
+                dimensionRatio = if (TvFocusHelper.isTelevision(binding.root)) "16:9" else "2:3"
             }
         }
         return ViewHolder(binding)
@@ -63,7 +64,10 @@ class PosterCardAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         init {
-            TvFocusHelper.applyFocusScale(binding.root)
+            TvFocusHelper.applyFocusScale(binding.root, onFocusChanged = { focused ->
+                val position = bindingAdapterPosition
+                onItemFocusChanged?.invoke(if (focused && position != RecyclerView.NO_POSITION) getItem(position) else null)
+            })
             binding.root.setOnClickListener {
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) onItemClick(getItem(pos))
@@ -72,20 +76,20 @@ class PosterCardAdapter(
 
         fun bind(item: MediaSeriesEntity) {
             val context = binding.root.context
-            val genre = MediaLabels.genreOrType(context, item.genre, item.type)
-            binding.tvTitle.text = item.title
+            binding.tvTitle.text = MediaLabels.displayTitle(item.title)
+            binding.tvArtworkFallback?.text = MediaLabels.displayTitle(item.title)
             binding.tvSubtitle.text = if (item.id in offlineIds) {
                 context.getString(com.wkq.bao.feature.res.R.string.media_storage_offline)
-            } else if (MediaSeriesType.isMovie(item.type)) {
-                context.getString(com.wkq.bao.feature.res.R.string.poster_movie_subtitle, genre)
             } else {
-                context.getString(com.wkq.bao.feature.res.R.string.poster_series_subtitle, item.totalSeasons, genre)
+                MediaLabels.metadata(context, item.year, item.genre, item.type, item.totalSeasons)
             }
-            MediaArtwork.load(
+            MediaArtwork.loadPoster(
                 binding.ivPoster,
-                item.posterUri,
-                com.wkq.bao.feature.res.R.drawable.bg_media_placeholder_poster
-            )
+                if (TvFocusHelper.isTelevision(binding.root)) item.backdropUri.ifBlank { item.posterUri }
+                else item.posterUri.ifBlank { item.backdropUri }
+            ) { unavailable ->
+                binding.tvArtworkFallback?.visibility = if (unavailable) android.view.View.VISIBLE else android.view.View.GONE
+            }
             binding.ivPoster.contentDescription = item.title
         }
     }

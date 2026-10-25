@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -27,6 +28,29 @@ class HomeFragment : Fragment() {
     private lateinit var continueAdapter: ContinueWatchingAdapter
     private lateinit var posterAdapter: PosterCardAdapter
     private val categoryAdapters = mutableListOf<PosterCardAdapter>()
+    private var previewJob: kotlinx.coroutines.Job? = null
+
+    /** 主视觉标题被滚出导航下方后，不再更新用户看不到的预览。 */
+    private fun canPreviewHero(): Boolean {
+        val title = binding.tvHeroTitle
+        val visible = android.graphics.Rect()
+        if (binding.layoutHeroContent.alpha < 1f || !title.getGlobalVisibleRect(visible) || visible.height() < title.height) return false
+        val rootLocation = IntArray(2)
+        binding.root.getLocationOnScreen(rootLocation)
+        return visible.top >= rootLocation[1] + (68 * resources.displayMetrics.density).toInt()
+    }
+
+    private fun enablePreview(adapter: PosterCardAdapter) {
+        adapter.onItemFocusChanged = { series ->
+            previewJob?.cancel()
+            if (series != null && TvFocusHelper.isTelevision(binding.root) && canPreviewHero()) {
+                previewJob = viewLifecycleOwner.lifecycleScope.launch {
+                    kotlinx.coroutines.delay(250)
+                    if (canPreviewHero()) viewModel.previewSeries(series.id)
+                }
+            }
+        }
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = ActivityHomeBinding.inflate(inflater, container, false)
@@ -37,12 +61,30 @@ class HomeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.topNavBar.visibility = View.GONE
         setupViews()
+        binding.root.findViewById<androidx.core.widget.NestedScrollView>(R.id.home_scroll)?.setOnScrollChangeListener(
+            androidx.core.widget.NestedScrollView.OnScrollChangeListener { _, _, scrollY, _, _ ->
+                val density = resources.displayMetrics.density
+                binding.layoutHeroContent.alpha = (1f - scrollY / (24f * density)).coerceIn(0f, 1f)
+                binding.ivHeroBackdrop.alpha = (1f - scrollY / (360f * density)).coerceIn(0.18f, 1f)
+                if (scrollY > 0) previewJob?.cancel()
+            }
+        )
         observeData()
     }
 
     private fun setupViews() {
+        if (TvFocusHelper.isTelevision(binding.root)) {
+            // 电视横排在滚动容器内须给出高度，避免首次测量时列表被压成零高。
+            (listOf(binding.rvContinueWatching, binding.rvCartoons) + listOf(
+                binding.homeSections.rvMovies, binding.homeSections.rvSeries, binding.homeSections.rvAnimation
+            )).forEach { row ->
+                row.layoutParams = row.layoutParams.apply { height = (220 * resources.displayMetrics.density).toInt() }
+            }
+        }
         listOf(binding.btnHeroPlay, binding.btnHeroDetail).forEach { button ->
             button.backgroundTintList = null
+            (button as? com.google.android.material.button.MaterialButton)?.iconTint =
+                androidx.appcompat.content.res.AppCompatResources.getColorStateList(requireContext(), if (button == binding.btnHeroPlay) com.wkq.bao.feature.res.R.color.home_primary_text else com.wkq.bao.feature.res.R.color.tv_button_text)
             TvFocusHelper.applyFocusScale(button)
         }
         continueAdapter = ContinueWatchingAdapter { item ->
@@ -53,10 +95,21 @@ class HomeFragment : Fragment() {
             startActivity(Intent(requireContext(), DetailActivity::class.java).putExtra("seriesId", series.id))
         }
         binding.rvCartoons.adapter = posterAdapter
+        enablePreview(posterAdapter)
         listOf(binding.homeSections.rvMovies, binding.homeSections.rvSeries, binding.homeSections.rvAnimation).forEach { row ->
             val adapter = PosterCardAdapter { series -> openDetail(series.id) }
             categoryAdapters += adapter
             row.adapter = adapter
+        }
+        listOf(
+            binding.rvContinueWatching,
+            binding.rvCartoons,
+            binding.homeSections.rvMovies,
+            binding.homeSections.rvSeries,
+            binding.homeSections.rvAnimation
+        ).forEach { rv ->
+            rv.itemAnimator = null
+            rv.setHasFixedSize(true)
         }
         binding.tvClock.text = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnHeroPlay)
@@ -94,6 +147,11 @@ class HomeFragment : Fragment() {
         continueAdapter.submitList(state.continueWatching)
         posterAdapter.submitList(state.cartoons)
         val hasContinueWatching = state.continueWatching.isNotEmpty()
+        if (TvFocusHelper.isTelevision(binding.root)) {
+            val height = resources.getDimensionPixelSize(com.wkq.bao.feature.res.R.dimen.home_backdrop_height)
+            binding.ivHeroBackdrop.updateLayoutParams { this.height = height }
+            binding.vHeroScrim.updateLayoutParams { this.height = height }
+        }
         binding.tvLabelContinue.visibility = if (hasContinueWatching) View.VISIBLE else View.GONE
         binding.rvContinueWatching.visibility = if (hasContinueWatching) View.VISIBLE else View.GONE
         val hasCartoons = state.cartoons.isNotEmpty()
@@ -108,6 +166,7 @@ class HomeFragment : Fragment() {
         val featured = state.featured
         if (featured == null) {
             binding.tvHeroDesc.maxLines = 4
+            binding.tvHeroDesc.visibility = View.VISIBLE
             binding.ivHeroBackdrop.visibility = View.GONE
             binding.vHeroScrim.visibility = View.GONE
             binding.tvHeroTitle.setText(com.wkq.bao.feature.res.R.string.library_empty_title)
@@ -117,6 +176,7 @@ class HomeFragment : Fragment() {
             binding.tvHeroDesc.setText(com.wkq.bao.feature.res.R.string.library_empty_message)
             binding.btnHeroPlay.setText(com.wkq.bao.feature.res.R.string.btn_add_local_media)
             binding.btnHeroPlay.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            (binding.btnHeroPlay as? com.google.android.material.button.MaterialButton)?.icon = null
             binding.btnHeroPlay.isEnabled = true
             binding.btnHeroPlay.visibility = View.VISIBLE
             binding.btnHeroDetail.setText(com.wkq.bao.feature.res.R.string.btn_add_nas)
@@ -133,18 +193,14 @@ class HomeFragment : Fragment() {
                 it.seriesId == featured.id && !it.completed
             } == true) com.wkq.bao.feature.res.R.string.btn_continue_play
             else com.wkq.bao.feature.res.R.string.btn_play_now)
-        binding.btnHeroPlay.setCompoundDrawablesWithIntrinsicBounds(com.wkq.bao.feature.res.R.drawable.ic_tv_play, 0, 0, 0)
+        (binding.btnHeroPlay as? com.google.android.material.button.MaterialButton)?.setIconResource(com.wkq.bao.feature.res.R.drawable.ic_tv_play)
         binding.btnHeroPlay.isEnabled = true
         binding.btnHeroPlay.visibility = View.VISIBLE
         binding.btnHeroDetail.visibility = View.VISIBLE
         binding.btnHeroDetail.setText(com.wkq.bao.feature.res.R.string.btn_view_detail)
         binding.tvHeroSeasonTag.visibility = View.VISIBLE
-        binding.tvHeroTitle.text = featured.title
-        binding.tvHeroSeasonTag.text = if (MediaSeriesType.isMovie(featured.type)) {
-            getString(com.wkq.bao.feature.res.R.string.nav_movie)
-        } else {
-            getString(com.wkq.bao.feature.res.R.string.label_seasons_count, featured.totalSeasons)
-        }
+        binding.tvHeroTitle.text = com.wkq.bao.feature.app.utils.MediaLabels.displayTitle(featured.title)
+        binding.tvHeroSeasonTag.text = com.wkq.bao.feature.app.utils.MediaLabels.metadata(requireContext(), featured.year, featured.genre, featured.type, featured.totalSeasons)
         binding.tvHeroLastWatch?.apply {
             val progress = state.featuredProgress?.takeIf { it.history.seriesId == featured.id }
             visibility = if (progress == null || MediaSeriesType.isMovie(featured.type)) View.GONE else View.VISIBLE
@@ -158,11 +214,15 @@ class HomeFragment : Fragment() {
         binding.tvHeroDesc.text = featured.description.ifBlank {
             getString(com.wkq.bao.feature.res.R.string.media_description_unavailable)
         }
+        binding.tvHeroDesc.visibility = if (featured.description.isBlank()) View.GONE else View.VISIBLE
+        if (TvFocusHelper.isTelevision(binding.root)) binding.tvHeroDesc.maxLines = 1
         binding.ivHeroBackdrop.scaleType = ImageView.ScaleType.CENTER_CROP
+        val heroArt = featured.backdropUri.takeIf(String::isNotBlank)
+            ?: featured.posterUri.takeIf(String::isNotBlank)
         MediaArtwork.load(
             binding.ivHeroBackdrop,
-            featured.backdropUri.ifBlank { featured.posterUri },
-            com.wkq.bao.feature.res.R.drawable.bg_media_placeholder_landscape
+            heroArt,
+            com.wkq.bao.feature.res.R.drawable.bg_home_artwork_placeholder
         )
         binding.ivHeroBackdrop.contentDescription = null
         binding.btnHeroPlay.setOnClickListener { viewModel.playFeatured() }
@@ -192,7 +252,7 @@ class HomeFragment : Fragment() {
         MediaArtwork.load(
             binding.ivHeroBackdrop,
             null,
-            com.wkq.bao.feature.res.R.drawable.bg_media_placeholder_landscape
+            com.wkq.bao.feature.res.R.drawable.bg_home_artwork_placeholder
         )
     }
 
@@ -203,6 +263,9 @@ class HomeFragment : Fragment() {
     private fun navigator(): MainPageNavigator = requireActivity() as MainPageNavigator
 
     override fun onDestroyView() {
+        previewJob?.cancel()
+        posterAdapter.onItemFocusChanged = null
+        categoryAdapters.forEach { it.onItemFocusChanged = null }
         categoryAdapters.clear()
         _binding = null
         super.onDestroyView()

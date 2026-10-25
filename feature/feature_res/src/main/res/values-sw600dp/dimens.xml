@@ -10,4 +10,4 @@
     <dimen name="ui_episode_height">100dp</dimen>
     <dimen name="ui_home_hero_height">380dp</dimen>
     <dimen name="ui_home_hero_top">32dp</dimen>
-</resources>
+<dimen name="ui_card_title_block_height">44sp</dimen><dimen name="ui_card_title_line_height">22sp</dimen></resources>

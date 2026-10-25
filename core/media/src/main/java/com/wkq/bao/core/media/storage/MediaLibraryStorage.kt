@@ -5,6 +5,11 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import org.json.JSONObject
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.io.IOException
 import java.util.UUID
 
@@ -13,10 +18,10 @@ class MediaLibraryStorage(private val context: Context) {
     data class Library(val id: String, val root: DocumentFile)
 
     fun read(tree: Uri): Library? {
-        val parent = DocumentFile.fromTreeUri(context, tree) ?: return null
+        val parent = TvStorageManager.getDocumentFile(context, tree) ?: return null
         val root = if (parent.name == DIRECTORY) parent else parent.findFile(DIRECTORY) ?: return null
         val marker = root.findFile(".yuanbao")?.findFile("library.json") ?: return null
-        val bytes = context.contentResolver.openInputStream(marker.uri)?.use { input ->
+        val bytes = openInput(marker.uri)?.use { input ->
             val buffer = ByteArray(4097)
             var count = 0
             while (count < buffer.size) {
@@ -44,7 +49,7 @@ class MediaLibraryStorage(private val context: Context) {
         check(TvStorageManager(context).checkDirectoryWrite(tree) == TvStorageManager.WriteCheck.WRITABLE) {
             "Storage is not writable"
         }
-        val parent = DocumentFile.fromTreeUri(context, tree) ?: throw IOException("Missing storage")
+        val parent = TvStorageManager.getDocumentFile(context, tree) ?: throw IOException("Missing storage")
         val root = if (parent.name == DIRECTORY) parent else directory(parent, DIRECTORY)
         ensureFolders(root)
         val metadata = directory(root, ".yuanbao")
@@ -52,7 +57,7 @@ class MediaLibraryStorage(private val context: Context) {
         val marker = metadata.createFile("application/json", "library-$id.pending")
             ?: throw IOException("Cannot create library marker")
         try {
-            context.contentResolver.openOutputStream(marker.uri, "w")?.use {
+            openOutput(marker.uri)?.use {
                 it.write(JSONObject().put("version", 1).put("id", id).toString().toByteArray(Charsets.UTF_8))
             } ?: throw IOException("Cannot write library marker")
             check(marker.renameTo("library.json")) { "Cannot finalize library marker" }
@@ -72,16 +77,38 @@ class MediaLibraryStorage(private val context: Context) {
     /** 卷标识与库编号同时绑定，复制到另一设备的标识文件不会自动接管原下载。 */
     fun matches(tree: Uri, id: String): Boolean = runCatching {
         id.isNotBlank() && expectedId(tree) == id && read(tree)?.id == id &&
-            preferences.getString("volume_$tree", "") == DocumentsContract.getTreeDocumentId(tree).substringBefore(':')
+            preferences.getString("volume_$tree", "") == (TvStorageManager.volumeId(tree) ?: "")
     }.getOrDefault(false)
 
     private val preferences get() = context.getSharedPreferences("media_library_identity", Context.MODE_PRIVATE)
-    private fun remember(tree: Uri, id: String) {
+        private fun remember(tree: Uri, id: String) {
         val previous = expectedId(tree)
-        // 已绑定目录的标识发生变化时必须由用户明确移除旧配置，不能自动重绑任务。
         check(previous.isBlank() || previous == id) { "Library identity changed" }
+        val volId = TvStorageManager.volumeId(tree) ?: if (tree.scheme == "file") "primary" else runCatching {
+            DocumentsContract.getTreeDocumentId(tree).substringBefore(':')
+        }.getOrDefault("")
         preferences.edit().putString("id_$tree", id)
-            .putString("volume_$tree", DocumentsContract.getTreeDocumentId(tree).substringBefore(':')).apply()
+            .putString("volume_$tree", volId).apply()
+    }
+
+    private fun openInput(uri: Uri): InputStream? {
+        return if (uri.scheme == "file") {
+            val path = uri.path ?: return null
+            FileInputStream(File(path))
+        } else {
+            context.contentResolver.openInputStream(uri)
+        }
+    }
+
+    private fun openOutput(uri: Uri): OutputStream? {
+        return if (uri.scheme == "file") {
+            val path = uri.path ?: return null
+            val file = File(path)
+            file.parentFile?.mkdirs()
+            FileOutputStream(file)
+        } else {
+            context.contentResolver.openOutputStream(uri, "w")
+        }
     }
 
     private fun ensureFolders(root: DocumentFile) {

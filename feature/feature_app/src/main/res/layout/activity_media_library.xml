@@ -20,10 +20,10 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
         <LinearLayout android:id="@+id/ll_filter_tabs" android:layout_width="wrap_content" android:layout_height="match_parent" android:orientation="horizontal">
-            <Button android:id="@+id/btn_filter_all" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_all_media" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" />
-            <Button android:id="@+id/btn_filter_cartoon" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:layout_marginStart="@dimen/feature_res_spacing_small" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_cartoon" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_caption" />
-            <Button android:id="@+id/btn_filter_tv" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:layout_marginStart="@dimen/feature_res_spacing_small" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_tv" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_caption" />
-            <Button android:id="@+id/btn_filter_movie" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:layout_marginStart="@dimen/feature_res_spacing_small" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_movie" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_caption" />
+            <Button android:id="@+id/btn_filter_all" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_all_media" android:textColor="@color/tv_button_text" android:textSize="@dimen/ui_text_caption" />
+            <Button android:id="@+id/btn_filter_cartoon" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:layout_marginStart="@dimen/feature_res_spacing_small" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_cartoon" android:textColor="@color/tv_button_text" android:textSize="@dimen/ui_text_caption" />
+            <Button android:id="@+id/btn_filter_tv" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:layout_marginStart="@dimen/feature_res_spacing_small" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_tv" android:textColor="@color/tv_button_text" android:textSize="@dimen/ui_text_caption" />
+            <Button android:id="@+id/btn_filter_movie" android:layout_width="wrap_content" android:layout_height="@dimen/phone_library_filter_button_height" android:layout_marginStart="@dimen/feature_res_spacing_small" android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null" android:text="@string/nav_movie" android:textColor="@color/tv_button_text" android:textSize="@dimen/ui_text_caption" />
         </LinearLayout>
     </HorizontalScrollView>
 
@@ -50,7 +50,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/library_tools"
-        app:spanCount="3" />
+        app:spanCount="3"  android:paddingTop="@dimen/ui_focus_padding" />
 
     <LinearLayout
         android:id="@+id/layout_empty_library"
@@ -108,6 +108,6 @@
             android:backgroundTint="@null"
             android:minWidth="128dp"
             android:text="@string/btn_add_nas"
-            android:textColor="@color/tv_control_text" />
+            android:textColor="@color/home_primary_text" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

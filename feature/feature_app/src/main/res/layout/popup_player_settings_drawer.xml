@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="380dp"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_player_drawer_surface"
+    android:orientation="vertical"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:paddingStart="20dp"
+    android:paddingTop="36dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="24dp">
+
+    <!-- 顶部标题 -->
+    <TextView
+        android:id="@+id/tv_drawer_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="20dp"
+        android:text="@string/player_more_settings"
+        android:textColor="@color/tv_text_primary"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="8dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/layout_settings_items"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical">
+
+            <!-- 1. 选集播放 -->
+            <Button
+                android:id="@+id/item_select_episode"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:gravity="start|center_vertical"
+                android:paddingHorizontal="16dp"
+                android:text="@string/player_select_episode"
+                android:textColor="@color/tv_button_text"
+                android:textSize="15sp" />
+
+            <!-- 2. 画面比例 -->
+            <Button
+                android:id="@+id/item_aspect_ratio"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:gravity="start|center_vertical"
+                android:paddingHorizontal="16dp"
+                android:textColor="@color/tv_button_text"
+                android:textSize="15sp"
+                tools:text="画面比例 (默认自适应)" />
+
+            <!-- 3. 切换播放源 -->
+            <Button
+                android:id="@+id/item_switch_source"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:gravity="start|center_vertical"
+                android:paddingHorizontal="16dp"
+                android:textColor="@color/tv_button_text"
+                android:textSize="15sp"
+                tools:text="切换播放源 (NAS)" />
+
+            <!-- 4. 跳过片头 -->
+            <Button
+                android:id="@+id/item_skip_intro"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:gravity="start|center_vertical"
+                android:paddingHorizontal="16dp"
+                android:textColor="@color/tv_button_text"
+                android:textSize="15sp"
+                tools:text="跳过片头 (关闭)" />
+
+            <!-- 5. 播放倍速 -->
+            <Button
+                android:id="@+id/item_speed"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:gravity="start|center_vertical"
+                android:paddingHorizontal="16dp"
+                android:textColor="@color/tv_button_text"
+                android:textSize="15sp"
+                tools:text="播放倍速: 1.00x" />
+
+            <!-- 6. 字幕轨与设置 -->
+            <Button
+                android:id="@+id/item_subtitles"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:gravity="start|center_vertical"
+                android:paddingHorizontal="16dp"
+                android:textColor="@color/tv_button_text"
+                android:textSize="15sp"
+                tools:text="字幕轨与延迟设置" />
+
+            <!-- 7. 音轨切换 -->
+            <Button
+                android:id="@+id/item_audio_tracks"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:gravity="start|center_vertical"
+                android:paddingHorizontal="16dp"
+                android:text="@string/player_audio_tracks"
+                android:textColor="@color/tv_button_text"
+                android:textSize="15sp" />
+
+            <!-- 8. 自动连播 -->
+            <Button
+                android:id="@+id/item_auto_next"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_tv_button_focus"
+                android:gravity="start|center_vertical"
+                android:paddingHorizontal="16dp"
+                android:textColor="@color/tv_button_text"
+                android:textSize="15sp"
+                tools:text="自动连播 (本季)" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

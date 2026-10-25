@@ -39,22 +39,49 @@ class HomeViewModel(
     private val repository: MediaBrowseRepository
 ) : ViewModel() {
     val offlineSeriesIds = repository.offlineSeriesIds
+    private val previewSeriesId = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+
+    fun previewSeries(seriesId: Long) {
+        previewSeriesId.value = seriesId
+    }
 
     val uiState: StateFlow<HomeUiState> = combine(
         repository.continueWatching,
-        repository.allSeries
-    ) { continueWatching, allSeries ->
-        val featuredProgress = continueWatching.firstOrNull()
+        repository.allSeries,
+        previewSeriesId
+    ) { continueWatching, allSeries, previewId ->
+        // 重建索引期间旧副本仍可能可播，同一展示集合只保留最近一条历史。
+        val visibleContinueWatching = continueWatching.sortedWith(
+            compareByDescending<ContinueWatchingItem> { it.history.lastPlayedAt }
+                .thenByDescending { it.history.seriesId }
+        ).distinctBy { com.wkq.bao.feature.app.utils.MediaLabels.homeCollectionKey(it.seriesTitle) }.take(8)
+        val featuredProgress = visibleContinueWatching.firstOrNull()
+        val featured = allSeries.firstOrNull { it.id == previewId }
+            ?: allSeries.firstOrNull { it.id == featuredProgress?.history?.seriesId }
+            ?: allSeries.maxByOrNull(MediaSeriesEntity::updatedAt)
+        val usedCollections = visibleContinueWatching.mapTo(hashSetOf()) {
+            com.wkq.bao.feature.app.utils.MediaLabels.homeCollectionKey(it.seriesTitle)
+        }
+        fun pick(items: List<MediaSeriesEntity>): List<MediaSeriesEntity> {
+            val selected = items.filterNot {
+                com.wkq.bao.feature.app.utils.MediaLabels.homeCollectionKey(it.title) in usedCollections
+            }.distinctBy { com.wkq.bao.feature.app.utils.MediaLabels.homeCollectionKey(it.title) }.take(8)
+            selected.forEach { usedCollections += com.wkq.bao.feature.app.utils.MediaLabels.homeCollectionKey(it.title) }
+            return selected
+        }
+        val recent = pick(allSeries.sortedByDescending(MediaSeriesEntity::createdAt))
+        val movies = pick(allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.MOVIE })
+        val series = pick(allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.TV })
+        val animation = pick(allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.CARTOON })
         HomeUiState(
             loading = false,
-            continueWatching = continueWatching,
-            cartoons = allSeries.sortedByDescending(MediaSeriesEntity::createdAt),
-            movies = allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.MOVIE },
-            series = allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.TV },
-            animation = allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.CARTOON },
-            featured = allSeries.firstOrNull { it.id == featuredProgress?.history?.seriesId }
-                ?: allSeries.maxByOrNull(MediaSeriesEntity::updatedAt),
-            featuredProgress = featuredProgress
+            continueWatching = visibleContinueWatching,
+            cartoons = recent,
+            movies = movies,
+            series = series,
+            animation = animation,
+            featured = featured,
+            featuredProgress = visibleContinueWatching.firstOrNull { it.history.seriesId == featured?.id }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), HomeUiState())
 

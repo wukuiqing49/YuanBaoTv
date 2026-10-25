@@ -6,7 +6,9 @@
     android:minHeight="120dp"
     android:layout_marginBottom="@dimen/feature_res_spacing_small"
     android:background="@drawable/bg_tv_focus_ring"
-    android:padding="12dp">
+    android:foreground="@drawable/bg_card_focus_foreground"
+    android:clipToOutline="true"
+    android:padding="14dp">
 
     <TextView
         android:id="@+id/tv_task_title"
@@ -26,7 +28,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_badge_local"
-        android:paddingHorizontal="6dp"
+        android:paddingHorizontal="8dp"
         android:paddingVertical="3dp"
         android:textColor="@color/tv_text_primary"
         android:textSize="@dimen/ui_text_caption"
@@ -37,7 +39,7 @@
         android:id="@+id/tv_task_detail"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
+        android:layout_marginTop="6dp"
         android:ellipsize="end"
         android:maxLines="2"
         android:textColor="@color/tv_text_secondary"
@@ -50,10 +52,10 @@
         android:id="@+id/pb_task"
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="0dp"
-        android:layout_height="5dp"
-        android:layout_marginTop="7dp"
+        android:layout_height="6dp"
+        android:layout_marginTop="8dp"
         android:max="100"
-        android:progressTint="@color/tv_accent_blue"
+        android:progressTint="@color/tv_accent_cyan"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_task_detail" />
@@ -76,7 +78,7 @@
             android:paddingHorizontal="12dp"
             android:maxLines="1"
             android:background="@drawable/bg_tv_button_focus"
-            android:textColor="@color/tv_control_text"
+            android:textColor="@color/tv_button_text"
             android:textSize="@dimen/ui_text_caption" />
 
         <Button
@@ -90,7 +92,7 @@
             android:layout_marginStart="@dimen/feature_res_spacing_small"
             android:background="@drawable/bg_tv_button_focus"
             android:text="@string/btn_cancel"
-            android:textColor="@color/tv_text_secondary"
+            android:textColor="@color/tv_button_text"
             android:textSize="@dimen/ui_text_caption" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

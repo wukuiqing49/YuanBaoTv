@@ -9,8 +9,10 @@ import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
+import java.util.UUID
 
 /** 管理用户授权的本机、TF 卡、USB 或移动硬盘目录，并识别本地媒体所在卷。 */
 class TvStorageManager(private val context: Context) {
@@ -30,6 +32,19 @@ class TvStorageManager(private val context: Context) {
         val isAvailable: Boolean,
         val status: TargetStatus = if (isAvailable) TargetStatus.AVAILABLE else TargetStatus.UNAVAILABLE
     )
+
+    data class TvMountDevice(
+        val name: String,
+        val rootFile: File,
+        val uri: Uri,
+        val location: MediaStorageLocation,
+        val freeBytes: Long,
+        val totalBytes: Long,
+        val isReadOnly: Boolean
+    ) {
+        val formattedFree: String get() = formatSize(freeBytes)
+        val formattedTotal: String get() = formatSize(totalBytes)
+    }
 
     private val prefs by lazy { context.getSharedPreferences("tv_storage_prefs", Context.MODE_PRIVATE) }
 
@@ -76,21 +91,32 @@ class TvStorageManager(private val context: Context) {
     }
 
     fun getTargetStatus(uri: Uri): TargetStatus = try {
-        val id = volumeId(uri)
-        if (id == null) TargetStatus.UNAVAILABLE
-        else if (!id.equals("primary", true) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
-            findStorageVolume(id)?.state !in listOf(Environment.MEDIA_MOUNTED, Environment.MEDIA_MOUNTED_READ_ONLY)) {
-            TargetStatus.OFFLINE
-        } else if (context.contentResolver.persistedUriPermissions.none { it.uri == uri && it.isReadPermission }) {
-            TargetStatus.PERMISSION_REQUIRED
-        } else {
-            val root = DocumentFile.fromTreeUri(context, uri)
+        if (uri.scheme == "file") {
+            val file = File(uri.path ?: return TargetStatus.UNAVAILABLE)
             when {
-                root == null || !root.exists() -> TargetStatus.UNAVAILABLE
-                !root.canRead() -> TargetStatus.PERMISSION_REQUIRED
-                !root.canWrite() -> TargetStatus.READ_ONLY
+                !file.exists() -> TargetStatus.UNAVAILABLE
+                !file.canRead() -> TargetStatus.PERMISSION_REQUIRED
+                !file.canWrite() -> TargetStatus.READ_ONLY
                 prefs.getBoolean("write_check_failed_$uri", false) -> TargetStatus.WRITE_FAILED
                 else -> TargetStatus.AVAILABLE
+            }
+        } else {
+            val id = volumeId(uri)
+            if (id == null) TargetStatus.UNAVAILABLE
+            else if (!id.equals("primary", true) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
+                findStorageVolume(id)?.state !in listOf(Environment.MEDIA_MOUNTED, Environment.MEDIA_MOUNTED_READ_ONLY)) {
+                TargetStatus.OFFLINE
+            } else if (context.contentResolver.persistedUriPermissions.none { it.uri == uri && it.isReadPermission }) {
+                TargetStatus.PERMISSION_REQUIRED
+            } else {
+                val root = getDocumentFile(context, uri)
+                when {
+                    root == null || !root.exists() -> TargetStatus.UNAVAILABLE
+                    !root.canRead() -> TargetStatus.PERMISSION_REQUIRED
+                    !root.canWrite() -> TargetStatus.READ_ONLY
+                    prefs.getBoolean("write_check_failed_$uri", false) -> TargetStatus.WRITE_FAILED
+                    else -> TargetStatus.AVAILABLE
+                }
             }
         }
     } catch (_: SecurityException) {
@@ -121,15 +147,92 @@ class TvStorageManager(private val context: Context) {
     data class DetectedDevice(val name: String, val initialUri: Uri, val readOnly: Boolean)
 
     fun getConnectedDevices(): List<DetectedDevice> {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return emptyList()
-        val manager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
-        return manager.storageVolumes.filter { !it.isPrimary && it.state in
-            setOf(Environment.MEDIA_MOUNTED, Environment.MEDIA_MOUNTED_READ_ONLY) }.mapNotNull { volume ->
-            val id = volume.uuid ?: return@mapNotNull null
-            DetectedDevice(volume.getDescription(context),
-                DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "$id:"),
-                volume.state == Environment.MEDIA_MOUNTED_READ_ONLY)
+        val list = mutableListOf<DetectedDevice>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val manager = context.getSystemService(Context.STORAGE_SERVICE) as? StorageManager
+            manager?.storageVolumes?.filter { !it.isPrimary && it.state in
+                setOf(Environment.MEDIA_MOUNTED, Environment.MEDIA_MOUNTED_READ_ONLY) }?.forEach { volume ->
+                val id = volume.uuid ?: return@forEach
+                list.add(
+                    DetectedDevice(
+                        volume.getDescription(context),
+                        DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "$id:"),
+                        volume.state == Environment.MEDIA_MOUNTED_READ_ONLY
+                    )
+                )
+            }
         }
+        return list
+    }
+
+    /** 专为电视端适配：无 SAF 授权界面时直接返回当前挂载的真实物理设备。 */
+    fun getTvPhysicalStorageDevices(): List<TvMountDevice> {
+        val results = mutableListOf<TvMountDevice>()
+
+        // 1. 机身内部存储 (有权限用根目录，无权限用专属私有目录保底)
+        val internalFile = Environment.getExternalStorageDirectory()
+        val targetInternal = if (internalFile.exists() && internalFile.canRead()) internalFile
+                             else context.getExternalFilesDir(null) ?: context.filesDir
+        results.add(
+            TvMountDevice(
+                name = "机身内部存储",
+                rootFile = targetInternal,
+                uri = Uri.fromFile(targetInternal),
+                location = MediaStorageLocation.INTERNAL_STORAGE,
+                freeBytes = targetInternal.usableSpace,
+                totalBytes = targetInternal.totalSpace,
+                isReadOnly = !targetInternal.canWrite()
+            )
+        )
+
+        // 2. 外部挂载驱动器 (U 盘 / TF 卡 / 移动硬盘)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val manager = context.getSystemService(Context.STORAGE_SERVICE) as? StorageManager
+            manager?.storageVolumes?.filter { !it.isPrimary && it.state in
+                setOf(Environment.MEDIA_MOUNTED, Environment.MEDIA_MOUNTED_READ_ONLY) }?.forEach { volume ->
+                val id = volume.uuid ?: return@forEach
+                val mountDir = File("/storage/$id")
+                val extAppDir = context.getExternalFilesDirs(null).firstOrNull { it?.absolutePath?.contains(id, true) == true }
+                val targetDir = if (mountDir.exists() && mountDir.canRead()) mountDir else extAppDir
+                if (targetDir != null && targetDir.exists()) {
+                    val desc = volume.getDescription(context).takeIf { it.isNotBlank() } ?: "外接存储设备 ($id)"
+                    results.add(
+                        TvMountDevice(
+                            name = desc,
+                            rootFile = targetDir,
+                            uri = Uri.fromFile(targetDir),
+                            location = if (desc.contains("tf", true) || desc.contains("sd", true)) MediaStorageLocation.TF_CARD else MediaStorageLocation.USB_DRIVE,
+                            freeBytes = targetDir.usableSpace,
+                            totalBytes = targetDir.totalSpace,
+                            isReadOnly = !targetDir.canWrite() || volume.state == Environment.MEDIA_MOUNTED_READ_ONLY
+                        )
+                    )
+                }
+            }
+        }
+
+        // 3. Fallback: 检查 /storage 挂载目录
+        val storageDir = File("/storage")
+        if (storageDir.exists() && storageDir.isDirectory) {
+            storageDir.listFiles()?.filter { it.isDirectory && it.name != "emulated" && it.name != "self" && it.canRead() }
+                ?.forEach { extDir ->
+                    if (results.none { it.rootFile.absolutePath == extDir.absolutePath }) {
+                        results.add(
+                            TvMountDevice(
+                                name = "U盘 / 移动存储 (${extDir.name})",
+                                rootFile = extDir,
+                                uri = Uri.fromFile(extDir),
+                                location = MediaStorageLocation.USB_DRIVE,
+                                freeBytes = extDir.usableSpace,
+                                totalBytes = extDir.totalSpace,
+                                isReadOnly = !extDir.canWrite()
+                            )
+                        )
+                    }
+                }
+        }
+
+        return results.distinctBy { it.rootFile.absolutePath }
     }
 
     fun getStorageTarget(): StorageTarget? {
@@ -140,10 +243,8 @@ class TvStorageManager(private val context: Context) {
 
     fun getAvailableStorageTarget(): StorageTarget? = getStorageTarget()?.takeIf { it.isAvailable }
 
-    /** NAS 下载只允许写入可移除介质，避免占用设备内部存储。 */
     fun getAvailableExternalStorageTarget(): StorageTarget? =
-        getAvailableStorageTarget()?.takeIf(::isExternalStorageTarget)
-            ?.takeIf { isStorageTargetWritable(it.uri) }
+        getAvailableStorageTarget()?.takeIf { isStorageTargetWritable(it.uri) }
 
     fun isExternalStorageTarget(target: StorageTarget): Boolean =
         target.location != MediaStorageLocation.INTERNAL_STORAGE && isExternalStorageTarget(target.uri)
@@ -156,14 +257,12 @@ class TvStorageManager(private val context: Context) {
         return storageInfoFor(target.uri)
     }
 
-    /** 可识别卷空间不足时提前拒绝下载；无法识别容量的文档提供方保留实际写入校验。 */
     fun hasAvailableBytes(target: StorageTarget, requiredBytes: Long): Boolean {
         if (requiredBytes < 0L || !target.isAvailable) return false
         val storageInfo = getStorageInfo(target)
         return storageInfo.totalBytes <= 0L || storageInfo.freeBytes >= requiredBytes
     }
 
-    /** 允许系统文件选择器授予的本机或已挂载外接卷，拒绝无法识别的文档提供方。 */
     fun isStorageTargetAvailable(uri: Uri): Boolean = try {
         isStorageTargetReadable(uri)
     } catch (_: Exception) {
@@ -171,16 +270,20 @@ class TvStorageManager(private val context: Context) {
     }
 
     fun isStorageTargetWritable(uri: Uri): Boolean = try {
-        isStorageTargetAvailable(uri) && !prefs.getBoolean("write_check_failed_$uri", false) &&
-            DocumentFile.fromTreeUri(context, uri)?.canWrite() == true
+        if (uri.scheme == "file") {
+            val file = File(uri.path ?: return false)
+            file.exists() && file.canWrite() && !prefs.getBoolean("write_check_failed_$uri", false)
+        } else {
+            isStorageTargetAvailable(uri) && !prefs.getBoolean("write_check_failed_$uri", false) &&
+                getDocumentFile(context, uri)?.canWrite() == true
+        }
     } catch (_: Exception) {
         false
     }
 
-    /** 在 IO 线程执行；只操作本次新建的随机测试文件，不能覆盖用户文件。 */
     fun checkDirectoryWrite(uri: Uri): WriteCheck {
         if (!isStorageTargetAvailable(uri)) return WriteCheck.UNAVAILABLE
-        val root = runCatching { DocumentFile.fromTreeUri(context, uri) }.getOrNull() ?: return WriteCheck.UNAVAILABLE
+        val root = getDocumentFile(context, uri) ?: return WriteCheck.UNAVAILABLE
         if (!runCatching { root.canWrite() }.getOrDefault(false)) return WriteCheck.READ_ONLY
         var probe: DocumentFile? = null
         var result = WriteCheck.WRITE_FAILED
@@ -188,12 +291,22 @@ class TvStorageManager(private val context: Context) {
             probe = root.createFile("application/octet-stream", ".yuanbao-check-${UUID.randomUUID()}")
                 ?: throw IOException("Cannot create probe")
             val bytes = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
-            context.contentResolver.openOutputStream(probe.uri, "w")?.use { output ->
+            val outputStream = if (probe.uri.scheme == "file") {
+                FileOutputStream(File(probe.uri.path!!))
+            } else {
+                context.contentResolver.openOutputStream(probe.uri, "w")
+            }
+            outputStream?.use { output ->
                 output.write(bytes)
                 output.flush()
             } ?: throw IOException("Cannot open probe")
-            val actual = context.contentResolver.openInputStream(probe.uri)?.use { input ->
-                // 限制读取量，防止异常 Provider 返回无限数据。
+
+            val inputStream = if (probe.uri.scheme == "file") {
+                File(probe.uri.path!!).inputStream()
+            } else {
+                context.contentResolver.openInputStream(probe.uri)
+            }
+            val actual = inputStream?.use { input ->
                 val buffer = ByteArray(bytes.size + 1)
                 var count = 0
                 while (count < buffer.size) {
@@ -216,8 +329,12 @@ class TvStorageManager(private val context: Context) {
     }
 
     private fun isStorageTargetReadable(uri: Uri): Boolean {
+        if (uri.scheme == "file") {
+            val file = File(uri.path ?: return false)
+            return file.exists() && file.canRead()
+        }
         val volumeId = volumeId(uri) ?: return false
-        val root = DocumentFile.fromTreeUri(context, uri) ?: return false
+        val root = getDocumentFile(context, uri) ?: return false
         if (!root.exists() || !root.canRead()) return false
         if (volumeId.equals("primary", ignoreCase = true)) return true
 
@@ -233,17 +350,13 @@ class TvStorageManager(private val context: Context) {
     }
 
     fun createLocalMediaFile(treeUri: Uri, relativeName: String): DocumentFile? {
-        val root = DocumentFile.fromTreeUri(context, treeUri) ?: return null
+        val root = getDocumentFile(context, treeUri) ?: return null
         return root.createFile("video/*", relativeName)
     }
 
-    /**
-     * 已下载文件优先使用写入时保存的类型；旧记录则通过 SAF 卷 ID 推断。
-     */
     fun resolveLocalLocation(uri: Uri): MediaStorageLocation {
         val configured = getStorageTarget()
         if (configured != null && sameVolume(uri, configured.uri)) return configured.location
-
         return inferLocation(uri)
     }
 
@@ -251,7 +364,8 @@ class TvStorageManager(private val context: Context) {
         val volumeId = volumeId(uri) ?: return MediaStorageLocation.EXTERNAL_STORAGE
         if (volumeId.equals("primary", ignoreCase = true)) return MediaStorageLocation.INTERNAL_STORAGE
 
-        val description = findStorageVolume(volumeId)?.getDescription(context).orEmpty().lowercase()
+        val description = if (uri.scheme == "file") uri.path.orEmpty().lowercase()
+                          else findStorageVolume(volumeId)?.getDescription(context).orEmpty().lowercase()
 
         return if (description.contains("usb") || description.contains("disk") || description.contains("hard") || description.contains("移动")) {
             MediaStorageLocation.USB_DRIVE
@@ -266,16 +380,6 @@ class TvStorageManager(private val context: Context) {
         return firstVolume != null && firstVolume.equals(secondVolume, ignoreCase = true)
     }
 
-    private fun volumeId(uri: Uri): String? = runCatching {
-        if (uri.authority != "com.android.externalstorage.documents") return null
-        val documentId = if (DocumentsContract.isTreeUri(uri)) {
-            DocumentsContract.getTreeDocumentId(uri)
-        } else {
-            DocumentsContract.getDocumentId(uri)
-        }
-        documentId.substringBefore(':').takeIf { it.isNotBlank() }
-    }.getOrNull()
-
     private fun findStorageVolume(volumeId: String) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         runCatching {
             val manager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
@@ -286,6 +390,12 @@ class TvStorageManager(private val context: Context) {
     }
 
     private fun storageInfoFor(treeUri: Uri?): StorageInfo {
+        if (treeUri?.scheme == "file") {
+            val file = File(treeUri.path ?: return StorageInfo(0L, 0L, "--", "--"))
+            val total = file.totalSpace
+            val free = file.usableSpace
+            return StorageInfo(total, free, formatSize(free), formatSize(total))
+        }
         val volumeId = treeUri?.let(::volumeId)
         val fileDir = when {
             volumeId.isNullOrBlank() || volumeId.equals("primary", ignoreCase = true) -> {
@@ -299,19 +409,47 @@ class TvStorageManager(private val context: Context) {
         return StorageInfo(total, free, formatSize(free), formatSize(total))
     }
 
-    private fun formatSize(bytes: Long): String {
-        val gb = bytes.toDouble() / (1024 * 1024 * 1024)
-        return if (gb >= 1.0) String.format("%.1f GB", gb)
-        else String.format("%.1f MB", bytes.toDouble() / (1024 * 1024))
-    }
-
     private fun findExternalFilesDirectory(volumeId: String) = context.getExternalFilesDirs(null).firstOrNull { directory ->
         directory?.absolutePath?.contains(volumeId, ignoreCase = true) == true
     }
 
-    private companion object {
+    companion object {
         const val KEY_STORAGE_ROOT = "key_storage_root"
         const val KEY_STORAGE_LOCATION = "key_storage_location"
         const val KEY_STORAGE_TARGETS = "key_storage_targets"
+
+        fun getDocumentFile(context: Context, uri: Uri): DocumentFile? = runCatching {
+            if (uri.scheme == "file") {
+                val path = uri.path ?: return null
+                val file = File(path)
+                if (file.exists()) DocumentFile.fromFile(file) else null
+            } else {
+                DocumentFile.fromTreeUri(context, uri)
+            }
+        }.getOrNull()
+
+        fun volumeId(uri: Uri): String? = runCatching {
+            if (uri.scheme == "file") {
+                val path = uri.path.orEmpty()
+                return when {
+                    path.contains("/storage/emulated", true) || path.contains("/sdcard", true) -> "primary"
+                    path.contains("/storage/") -> path.substringAfter("/storage/").substringBefore('/')
+                    else -> "primary"
+                }
+            }
+            if (uri.authority != "com.android.externalstorage.documents") return null
+            val documentId = if (DocumentsContract.isTreeUri(uri)) {
+                DocumentsContract.getTreeDocumentId(uri)
+            } else {
+                DocumentsContract.getDocumentId(uri)
+            }
+            documentId.substringBefore(':').takeIf { it.isNotBlank() }
+        }.getOrNull()
+
+        fun formatSize(bytes: Long): String {
+            val gb = bytes.toDouble() / (1024 * 1024 * 1024)
+            return if (gb >= 1.0) String.format("%.1f GB", gb)
+            else String.format("%.1f MB", bytes.toDouble() / (1024 * 1024))
+        }
     }
 }

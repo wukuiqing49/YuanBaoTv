@@ -5,17 +5,35 @@
     android:layout_height="match_parent"
     android:background="@color/tv_bg_dark">
 
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/vp_main_pages"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        android:overScrollMode="never"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_page_tabs" />
+
+    <View android:layout_width="0dp" android:layout_height="72dp"
+        android:background="@drawable/bg_tv_header_scrim"
+        android:importantForAccessibility="no"
+        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <TextView
         android:id="@+id/tv_app_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="48dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="12dp"
         android:gravity="center_vertical"
-        android:minHeight="48dp"
+        android:minHeight="44dp"
         android:text="@string/app_name"
         android:textColor="@color/tv_text_primary"
-        android:textSize="@dimen/ui_text_title"
+        android:textSize="20sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -23,9 +41,9 @@
     <LinearLayout
         android:id="@+id/layout_page_tabs"
         android:layout_width="wrap_content"
-        android:layout_height="48dp"
+        android:layout_height="44dp"
         android:layout_marginStart="36dp"
-        android:background="@drawable/bg_nav_pill_container"
+        android:background="@android:color/transparent"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="4dp"
@@ -95,16 +113,6 @@
             android:textSize="@dimen/ui_text_body" />
     </LinearLayout>
 
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/vp_main_pages"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="12dp"
-        android:overScrollMode="never"
-        android:scrollbars="none"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_page_tabs" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -76,7 +76,9 @@ class MediaLibraryFragment : Fragment() {
     private fun setupLibraryTools() = with(binding.libraryTools) {
         btnLibrarySources.backgroundTintList = null
         btnLibrarySources.setOnClickListener {
-            com.lxj.xpopup.XPopup.Builder(requireContext()).isDarkTheme(true)
+            com.lxj.xpopup.XPopup.Builder(requireContext())
+                .isDarkTheme(true)
+                .maxWidth((460 * resources.displayMetrics.density).toInt())
                 .asCenterList(getString(com.wkq.bao.feature.res.R.string.library_manage_sources), arrayOf(
                     getString(com.wkq.bao.feature.res.R.string.btn_add_local_media),
                     getString(com.wkq.bao.feature.res.R.string.btn_add_nas)
@@ -87,8 +89,19 @@ class MediaLibraryFragment : Fragment() {
         }
         TvFocusHelper.applyFocusScale(btnLibrarySources, 1.03f)
         val initialState = viewModel.uiState.value
-        etLibrarySearch.setText(initialState.query)
-        btnClearLibrarySearch.isEnabled = initialState.query.isNotEmpty()
+        val homeActivity = activity as? HomeActivity
+        val pendingQuery = homeActivity?.pendingSearchQuery
+        val queryToApply = if (!pendingQuery.isNullOrBlank()) {
+            homeActivity.pendingSearchQuery = null
+            pendingQuery
+        } else {
+            initialState.query
+        }
+        etLibrarySearch.setText(queryToApply)
+        btnClearLibrarySearch.isEnabled = queryToApply.isNotEmpty()
+        if (queryToApply != initialState.query) {
+            viewModel.search(queryToApply)
+        }
         etLibrarySearch.doAfterTextChanged {
             btnClearLibrarySearch.isEnabled = !it.isNullOrEmpty()
             viewModel.search(it?.toString().orEmpty())
@@ -103,24 +116,41 @@ class MediaLibraryFragment : Fragment() {
         btnClearLibrarySearch.setOnClickListener { etLibrarySearch.setText("") }
         checkLibraryFavorites.isChecked = initialState.favoritesOnly
         checkLibraryFavorites.setOnCheckedChangeListener { _, checked -> viewModel.showFavorites(checked) }
-        spinnerLibrarySort.adapter = ArrayAdapter(
-            requireContext(), R.layout.item_library_sort,
-            listOf(
-                getString(com.wkq.bao.feature.res.R.string.library_sort_recent),
-                getString(com.wkq.bao.feature.res.R.string.library_sort_title),
-                getString(com.wkq.bao.feature.res.R.string.library_sort_year)
-            )
+        val sortOptions = listOf(
+            getString(com.wkq.bao.feature.res.R.string.library_sort_recent),
+            getString(com.wkq.bao.feature.res.R.string.library_sort_title),
+            getString(com.wkq.bao.feature.res.R.string.library_sort_year)
         )
-        spinnerLibrarySort.setSelection(initialState.sort.ordinal)
-        spinnerLibrarySort.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                viewModel.selectSort(LibrarySort.entries[position])
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        btnLibrarySort.text = sortOptions[initialState.sort.ordinal.coerceIn(sortOptions.indices)]
+        btnLibrarySort.backgroundTintList = null
+        TvFocusHelper.applyFocusScale(btnLibrarySort, 1.03f)
+        btnLibrarySort.setOnClickListener {
+            val currentSort = viewModel.uiState.value.sort
+            val displayOptions = sortOptions.mapIndexed { idx, title ->
+                if (idx == currentSort.ordinal) "✓ $title" else title
+            }.toTypedArray()
+            com.lxj.xpopup.XPopup.Builder(requireContext())
+                .isDarkTheme(true)
+                .maxWidth((360 * resources.displayMetrics.density).toInt())
+                .asCenterList(getString(com.wkq.bao.feature.res.R.string.library_sort), displayOptions) { index, _ ->
+                    viewModel.selectSort(LibrarySort.entries[index])
+                    btnLibrarySort.text = sortOptions[index]
+                }.show()
         }
-        listOf(btnClearLibrarySearch, checkLibraryFavorites, spinnerLibrarySort)
-            .forEach { TvFocusHelper.applyFocusScale(it, 1.03f) }
+        listOfNotNull(btnClearLibrarySearch, checkLibraryFavorites, btnLibrarySort).forEach { TvFocusHelper.applyFocusScale(it, 1.03f) }
     }
+
+    fun applySearchQuery(query: String) {
+
+        if (_binding == null) return
+
+        binding.libraryTools.etLibrarySearch.setText(query)
+
+        viewModel.search(query)
+
+    }
+
+
 
     private fun observeData() {
         viewLifecycleOwner.lifecycleScope.launch {
@@ -191,17 +221,18 @@ class MediaLibraryFragment : Fragment() {
     }
 
     private fun calculateSpanCount(widthPx: Int): Int {
-        val minimumCardWidthDp = if (resources.configuration.smallestScreenWidthDp >= 600) 176f else 148f
+        val minimumCardWidthDp = if (TvFocusHelper.isTelevision(binding.root)) 200f
+            else if (resources.configuration.smallestScreenWidthDp >= 600) 176f else 148f
         val minimumCardWidth = minimumCardWidthDp * resources.displayMetrics.density
         return (widthPx / minimumCardWidth).toInt().coerceIn(2, 6)
     }
 
     private fun Button.updateSelection(selected: Boolean) {
         isSelected = selected
-        setTextColor(context.getColor(if (selected) com.wkq.bao.feature.res.R.color.tv_text_primary else com.wkq.bao.feature.res.R.color.tv_text_secondary))
+        setTextColor(androidx.appcompat.content.res.AppCompatResources.getColorStateList(context, com.wkq.bao.feature.res.R.color.tv_navigation_text))
         setBackgroundResource(
             if (selected) com.wkq.bao.feature.res.R.drawable.bg_nav_link_active
-            else com.wkq.bao.feature.res.R.drawable.bg_tv_button_focus
+            else com.wkq.bao.feature.res.R.drawable.bg_tv_light_button
         )
         backgroundTintList = null
     }

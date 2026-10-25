@@ -1,6 +1,7 @@
 package com.wkq.bao.feature.app
 
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -56,11 +57,8 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
             require(storageManager.isStorageTargetWritable(uri)) {
                 getString(com.wkq.bao.feature.res.R.string.storage_location_invalid)
             }
-            require(storageManager.isExternalStorageTarget(uri)) {
-                getString(com.wkq.bao.feature.res.R.string.storage_external_target_required)
-            }
             storageManager.saveStorageRoot(uri, storageManager.resolveLocalLocation(uri))
-            checkNotNull(storageManager.getAvailableExternalStorageTarget())
+            checkNotNull(storageManager.getAvailableStorageTarget())
         }.onSuccess { target ->
             activeSource?.let { viewModel.enqueueSelected(it, target) }
         }.onFailure { error ->
@@ -97,8 +95,13 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
             binding.btnFileUp,
             binding.btnSelectAll,
             binding.btnDownloadSelected
-        ).forEach(TvFocusHelper::applyFocusScale)
+        ).forEach { control ->
+            // 使用自定义深色状态背景，避免 Material 主色染成浅底浅字。
+            control.backgroundTintList = null
+            TvFocusHelper.applyFocusScale(control)
+        }
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnNasSource)
+        Toast.makeText(this, com.wkq.bao.feature.res.R.string.nas_browser_long_click_hint, Toast.LENGTH_SHORT).show()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = navigateUp()
         })
@@ -193,11 +196,15 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
                 com.wkq.bao.feature.res.R.string.nas_file_select_all
             }
         )
-        binding.tvSelectedCount.text = resources.getQuantityString(
+        val selectedEntries = state.entries.filter { state.selectedPaths.contains(it.path) }
+        val totalBytes = selectedEntries.sumOf { it.size }
+        val sizeFormatted = android.text.format.Formatter.formatFileSize(this, totalBytes)
+        val countText = resources.getQuantityString(
             com.wkq.bao.feature.res.R.plurals.nas_file_selected_count,
             state.selectedPaths.size,
             state.selectedPaths.size
         )
+        binding.tvSelectedCount.text = "$countText · 约 $sizeFormatted"
         binding.layoutDownload.isVisible = state.selectedPaths.isNotEmpty()
         binding.btnDownloadSelected.isEnabled = state.selectedPaths.isNotEmpty() && !state.downloadInProgress
     }
@@ -205,14 +212,101 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
     private fun downloadSelection() {
         val source = activeSource ?: return showNasEditor(null)
         if (viewModel.browserState.value.selectedPaths.isEmpty() || waitingForDownloadTarget) return
-        storageManager.getAvailableExternalStorageTarget()?.let { target ->
-            viewModel.enqueueSelected(source, target)
+
+        val targets = storageManager.getStorageTargets().filter { it.isAvailable && storageManager.isStorageTargetWritable(it.uri) }
+        val devices = storageManager.getConnectedDevices()
+
+        if (targets.isEmpty() && devices.isEmpty()) {
+            requestStorageTargetAuth()
             return
         }
-        waitingForDownloadTarget = true
-        openDownloadTargetLauncher.launch(
-            storageManager.getStorageTarget()?.takeIf(storageManager::isExternalStorageTarget)?.uri
-        )
+
+        val targetOptions = mutableListOf<com.wkq.bao.core.media.storage.TvStorageManager.StorageTarget>()
+        val labels = mutableListOf<String>()
+
+        targets.forEach { target ->
+            targetOptions.add(target)
+            val typeName = when (target.location) {
+                com.wkq.bao.core.media.storage.MediaStorageLocation.INTERNAL_STORAGE -> getString(com.wkq.bao.feature.res.R.string.storage_internal)
+                com.wkq.bao.core.media.storage.MediaStorageLocation.TF_CARD -> getString(com.wkq.bao.feature.res.R.string.storage_tf_card)
+                com.wkq.bao.core.media.storage.MediaStorageLocation.USB_DRIVE -> getString(com.wkq.bao.feature.res.R.string.storage_usb_drive)
+                else -> getString(com.wkq.bao.feature.res.R.string.storage_external)
+            }
+            val info = storageManager.getStorageInfo(target)
+            val spaceText = if (info.freeBytes > 0) " · ${info.formattedFree} 可用" else ""
+            val isCurrent = if (storageManager.getStorageRoot() == target.uri.toString()) " [当前默认]" else ""
+            labels.add("$typeName$isCurrent$spaceText")
+        }
+
+        devices.forEach { device ->
+            labels.add("💾 ${device.name} · ${getString(com.wkq.bao.feature.res.R.string.storage_target_online)}")
+        }
+
+        labels.add(getString(com.wkq.bao.feature.res.R.string.nas_sync_add_new_target))
+
+        XPopup.Builder(this)
+            .isDarkTheme(true)
+            .maxWidth((460 * resources.displayMetrics.density).toInt())
+            .asCenterList(getString(com.wkq.bao.feature.res.R.string.nas_sync_target_title), labels.toTypedArray()) { index, _ ->
+                when {
+                    index < targetOptions.size -> {
+                        val selectedTarget = targetOptions[index]
+                        storageManager.saveStorageRoot(selectedTarget.uri, selectedTarget.location)
+                        viewModel.enqueueSelected(source, selectedTarget)
+                    }
+                    index < targetOptions.size + devices.size -> {
+                        val selectedDevice = devices[index - targetOptions.size]
+                        requestStorageTargetAuth(selectedDevice.initialUri)
+                    }
+                    else -> requestStorageTargetAuth(null)
+                }
+            }.show()
+    }
+
+    private fun requestStorageTargetAuth(initialUri: android.net.Uri? = null) {
+        val physicalDevices = storageManager.getTvPhysicalStorageDevices().filter { !it.isReadOnly }
+        val handler = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).resolveActivity(packageManager)
+        if (handler == null || handler.packageName == "com.android.tv.frameworkpackagestubs") {
+            if (physicalDevices.isEmpty()) {
+                Toast.makeText(this, com.wkq.bao.feature.res.R.string.storage_picker_missing, Toast.LENGTH_LONG).show()
+                return
+            }
+            val options = physicalDevices.map { "${it.name} (可用: ${it.formattedFree})" }.toTypedArray()
+            XPopup.Builder(this).isDarkTheme(true)
+                .asCenterList("选择下载存储位置", options) { index, _ ->
+                    val selected = physicalDevices.getOrNull(index) ?: return@asCenterList
+                    storageManager.saveStorageRoot(selected.uri, selected.location)
+                    activeSource?.let { src ->
+                        storageManager.getAvailableStorageTarget()?.let { target ->
+                            viewModel.enqueueSelected(src, target)
+                        }
+                    }
+                }.show()
+            return
+        }
+        try {
+            waitingForDownloadTarget = true
+            openDownloadTargetLauncher.launch(
+                initialUri ?: storageManager.getStorageTarget()?.takeIf { it.isAvailable }?.uri
+            )
+        } catch (_: Exception) {
+            waitingForDownloadTarget = false
+            if (physicalDevices.isNotEmpty()) {
+                val options = physicalDevices.map { "${it.name} (可用: ${it.formattedFree})" }.toTypedArray()
+                XPopup.Builder(this).isDarkTheme(true)
+                    .asCenterList("选择下载存储位置", options) { index, _ ->
+                        val selected = physicalDevices.getOrNull(index) ?: return@asCenterList
+                        storageManager.saveStorageRoot(selected.uri, selected.location)
+                        activeSource?.let { src ->
+                            storageManager.getAvailableStorageTarget()?.let { target ->
+                                viewModel.enqueueSelected(src, target)
+                            }
+                        }
+                    }.show()
+            } else {
+                Toast.makeText(this, com.wkq.bao.feature.res.R.string.storage_picker_missing, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun navigateUp() {

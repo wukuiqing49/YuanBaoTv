@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 顶部渐变暗角 (保护顶部标题与来源徽章) -->
+    <item android:gravity="top">
+        <shape android:shape="rectangle">
+            <size android:height="140dp" />
+            <gradient
+                android:angle="270"
+                android:startColor="#D9000000"
+                android:centerColor="#66000000"
+                android:endColor="#00000000"
+                android:type="linear" />
+        </shape>
+    </item>
+    <!-- 底部渐变暗幕 (保护控制面板、进度条与遥控按键) -->
+    <item android:gravity="bottom">
+        <shape android:shape="rectangle">
+            <size android:height="240dp" />
+            <gradient
+                android:angle="90"
+                android:startColor="#E6000000"
+                android:centerColor="#99000000"
+                android:endColor="#00000000"
+                android:type="linear" />
+        </shape>
+    </item>
+</layer-list>

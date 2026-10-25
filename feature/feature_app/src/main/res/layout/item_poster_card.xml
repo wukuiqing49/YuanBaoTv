@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/card_container"
-    android:foreground="@drawable/bg_card_focus_foreground"
-    android:clipToOutline="true"
-    android:layout_width="@dimen/ui_poster_width"
-    android:layout_height="@dimen/ui_poster_height"
-    android:layout_marginEnd="6dp"
-    android:background="@drawable/bg_tv_focus_ring"
-    android:focusable="true">
-    <ImageView android:id="@+id/iv_poster" android:layout_width="0dp" android:layout_height="0dp" android:scaleType="centerCrop" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
-    <View android:layout_width="0dp" android:layout_height="64dp" android:background="#E60A0C10" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
-    <TextView android:id="@+id/tv_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:layout_marginEnd="6dp" android:ellipsize="end" android:maxLines="2" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_caption" android:textStyle="bold" app:layout_constraintBottom_toTopOf="@id/tv_subtitle" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
-    <TextView android:id="@+id/tv_subtitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:layout_marginEnd="6dp" android:layout_marginBottom="6dp" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_caption" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/card_container" android:layout_width="@dimen/ui_poster_width" android:layout_height="wrap_content"
+    android:layout_marginEnd="@dimen/ui_item_gap" android:padding="4dp" android:focusable="true"
+    android:background="@drawable/bg_poster_surface" android:foreground="@drawable/bg_card_focus_foreground">
+    <!-- 封面和文字分区，长片名不会覆盖海报。 -->
+    <ImageView android:id="@+id/iv_poster" android:layout_width="0dp" android:layout_height="0dp"
+        android:background="@drawable/bg_poster_image_surface" android:clipToOutline="true" android:scaleType="centerCrop"
+        app:layout_constraintDimensionRatio="2:3" app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" />
+    <TextView android:id="@+id/tv_title" android:layout_width="0dp" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" android:layout_marginHorizontal="4dp" android:minHeight="@dimen/ui_card_title_block_height" app:lineHeight="@dimen/ui_card_title_line_height" android:maxLines="2"
+        android:ellipsize="end" android:includeFontPadding="false" android:textColor="@color/tv_text_body"
+        android:textSize="@dimen/ui_text_body" android:fontFamily="sans-serif-medium"
+        app:layout_constraintTop_toBottomOf="@id/iv_poster" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" />
+    <TextView android:id="@+id/tv_subtitle" android:layout_width="0dp" android:layout_height="wrap_content"
+        android:layout_marginTop="4dp" android:layout_marginHorizontal="4dp" android:layout_marginBottom="4dp"
+        android:minLines="1" android:maxLines="1" android:ellipsize="end" android:includeFontPadding="false"
+        android:textColor="@color/tv_text_tertiary" android:textSize="@dimen/ui_text_caption"
+        app:layout_constraintTop_toBottomOf="@id/tv_title" app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -169,7 +169,6 @@ class NasScanner(private val database: AppDatabase) {
         val series = existingSeries?.copy(
             type = existingSeries.type.takeUnless { it in setOf(MediaSeriesType.CARTOON, MediaSeriesType.LOCAL) }
                 ?: parsed.mediaType,
-            totalSeasons = maxOf(existingSeries.totalSeasons, parsed.seasonNumber),
             originalTitle = if (existingSeries.originalTitle.isBlank() || existingSeries.originalTitle == existingSeries.title) {
                 nfo?.originalTitle?.ifBlank { existingSeries.originalTitle } ?: existingSeries.originalTitle
             } else existingSeries.originalTitle,
@@ -193,7 +192,7 @@ class NasScanner(private val database: AppDatabase) {
                     description = nfo?.description?.ifBlank { scraped.description } ?: scraped.description,
                     posterUri = resolvedPosterUri,
                     backdropUri = resolvedBackdropUri,
-                    totalSeasons = parsed.seasonNumber.coerceAtLeast(1)
+                    totalSeasons = 1
                 )
             )
             mediaDao.getSeriesById(seriesId) ?: error("Cannot create NAS media index")
@@ -266,6 +265,11 @@ class NasScanner(private val database: AppDatabase) {
         )
         if (existingRemote == null) mediaDao.insertMediaRemoteSource(remoteSource)
         else mediaDao.updateMediaRemoteSource(remoteSource)
+        // 第四季文件不代表片库已有四季，展示数量按实际季记录计算。
+        val seasonCount = mediaDao.getSeasonsSync(seriesId).size.coerceAtLeast(1)
+        if (series.totalSeasons != seasonCount && !series.metadataEdited) {
+            mediaDao.updateScannedSeries(series.copy(totalSeasons = seasonCount))
+        }
         return 1
     }
 

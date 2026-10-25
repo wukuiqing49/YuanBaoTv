@@ -1,5 +1,5 @@
 <resources>
-    <color name="launcher_icon_background">#10151D</color>
-    <color name="primary">#1B5E20</color>
-    <color name="on_primary">#FFFFFF</color>
+    <color name="launcher_icon_background">#FBE5C6</color>
+    <color name="primary">#F2F2F7</color>
+    <color name="on_primary">#171719</color>
 </resources>

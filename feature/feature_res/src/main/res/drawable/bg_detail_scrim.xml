@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 1. 全局轻微暗化 -->
+    <item>
+        <color android:color="#4D101010" />
+    </item>
+    <!-- 2. 从左至右横向渐变暗角 (保护左侧立牌海报与元数据文字) -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:startColor="#F5101010"
+                android:centerColor="#CC101010"
+                android:endColor="#26101010"
+                android:type="linear" />
+        </shape>
+    </item>
+    <!-- 3. 从上至下纵向暗幕过渡 (平滑过渡到底部选集区域黑场) -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#1A101010"
+                android:centerColor="#80101010"
+                android:endColor="#F5101010"
+                android:type="linear" />
+        </shape>
+    </item>
+</layer-list>

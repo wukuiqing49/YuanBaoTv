@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_weight="3"
+        android:background="@drawable/bg_tv_button_focus"
+        android:addStatesFromChildren="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/et_library_search" android:nextFocusUp="@id/btn_filter_all"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@null"
+            android:drawableStart="@drawable/ic_tv_search"
+            android:drawablePadding="8dp"
+            android:drawableTint="@color/tv_text_secondary"
+            android:hint="@string/library_search_hint"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:maxLength="120"
+            android:paddingHorizontal="12dp"
+            android:singleLine="true"
+            android:textColor="@color/tv_text_primary"
+            android:textColorHint="@color/tv_text_secondary"
+            android:textSize="@dimen/ui_text_body" />
+
+        <ImageButton
+            android:id="@+id/btn_clear_library_search" android:nextFocusUp="@id/btn_filter_all"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_tv_light_button"
+            android:contentDescription="@string/library_clear_search"
+            android:padding="12dp"
+            android:src="@drawable/ic_tv_close"
+            android:tint="@color/tv_navigation_text" />
+    </LinearLayout>
+
+        <Button
+        android:id="@+id/btn_library_sort" android:nextFocusUp="@id/btn_filter_all"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="@dimen/feature_res_spacing_small"
+        android:layout_weight="1"
+        android:background="@drawable/bg_tv_light_button"
+        android:backgroundTint="@null"
+        android:text="@string/library_sort_recent"
+        android:textColor="@color/tv_navigation_text"
+        android:textSize="@dimen/ui_text_body" />
+
+    <Spinner
+        android:id="@+id/spinner_library_sort"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+    <CheckBox
+        android:id="@+id/check_library_favorites" android:nextFocusRight="@id/btn_library_sources" android:nextFocusUp="@id/btn_filter_all"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginStart="@dimen/feature_res_spacing_small"
+        android:background="@drawable/bg_tv_light_button"
+        android:buttonTint="@color/tv_navigation_text"
+        android:maxLines="1"
+        android:paddingEnd="@dimen/feature_res_spacing_small"
+        android:text="@string/library_favorites_only"
+        android:textColor="@color/tv_navigation_text"
+        android:textSize="@dimen/ui_text_body" />
+
+    <Button
+        android:id="@+id/btn_library_sources" android:nextFocusLeft="@id/check_library_favorites" android:nextFocusUp="@id/btn_filter_all"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/ui_action_min_height"
+        android:minWidth="0dp"
+        android:paddingHorizontal="12dp"
+        android:backgroundTint="@null"
+        android:background="@drawable/bg_tv_light_button"
+        android:text="@string/library_manage_sources"
+        android:textColor="@color/tv_navigation_text"
+        android:textSize="@dimen/ui_text_body" />
+</LinearLayout>

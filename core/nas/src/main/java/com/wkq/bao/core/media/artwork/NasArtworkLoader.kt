@@ -65,7 +65,7 @@ private class LocalVideoArtworkFetcher(
     private val diskCache: DiskCache?
 ) : Fetcher {
     override suspend fun fetch(): FetchResult = withContext(Dispatchers.IO) {
-        val key = options.diskCacheKey ?: data.toString()
+        val key = generatedFrameCacheKey(options.diskCacheKey ?: data.toString(), data)
         if (options.diskCachePolicy.readEnabled) {
             diskCache?.openSnapshot(key)?.let { snapshot ->
                 return@withContext SourceResult(
@@ -78,9 +78,7 @@ private class LocalVideoArtworkFetcher(
         val bytes = try {
             retriever.setDataSource(context, data.buildUpon().clearQuery().build())
             retriever.embeddedPicture?.takeIf { it.isNotEmpty() } ?: run {
-                val frame = retriever.getFrameAtTime(10_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                    ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                    ?: throw IOException("无法从本地影片提取封面")
+                val frame = retriever.representativeFrame()
                 try {
                     ByteArrayOutputStream().use { output ->
                         check(frame.compress(Bitmap.CompressFormat.JPEG, 82, output))
@@ -177,7 +175,7 @@ private class HttpsArtworkFetcher(
         )
     }
 
-    private val cacheKey: String get() = options.diskCacheKey ?: data.toString()
+    private val cacheKey: String get() = generatedFrameCacheKey(options.diskCacheKey ?: data.toString(), data)
     private val mimeType: String?
         get() = MimeTypeMap.getSingleton().getMimeTypeFromExtension(
             data.lastPathSegment.orEmpty().substringAfterLast('.', "").lowercase()
@@ -276,7 +274,7 @@ private class SmbArtworkFetcher(
             dataSource = DataSource.NETWORK
         )
 
-    private val cacheKey: String get() = options.diskCacheKey ?: data.toString()
+    private val cacheKey: String get() = generatedFrameCacheKey(options.diskCacheKey ?: data.toString(), data)
 
     private val mimeType: String?
         get() = MimeTypeMap.getSingleton().getMimeTypeFromExtension(
@@ -327,6 +325,10 @@ private fun cacheGeneratedFrame(
 }
 
 private const val ARTWORK_FRAME_PARAMETER = "artworkFrame"
+
+/** 升级取帧策略时不再复用旧版第十秒的磁盘缓存。 */
+private fun generatedFrameCacheKey(key: String, uri: Uri): String =
+    if (uri.getQueryParameter(ARTWORK_FRAME_PARAMETER) == "1") "$key|representative-frame-v2" else key
 
 private class SmbRemoteSource(
     private val handle: SmbClientManager.RemoteFileHandle

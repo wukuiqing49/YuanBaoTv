@@ -91,7 +91,7 @@ class NasSourceRemovalCoordinator(private val context: Context) {
             if (!storageManager.isStorageTargetAvailable(targetUri)) {
                 return ArtifactCleanupResult.STORAGE_UNAVAILABLE
             }
-            val root = DocumentFile.fromTreeUri(appContext, targetUri)
+            val root = TvStorageManager.getDocumentFile(appContext, targetUri)
                 ?: return ArtifactCleanupResult.STORAGE_UNAVAILABLE
             val library = com.wkq.bao.core.media.storage.MediaLibraryStorage(appContext)
             if (task.targetLibraryId.isNotBlank()) {
@@ -103,8 +103,8 @@ class NasSourceRemovalCoordinator(private val context: Context) {
                     val directory = directories.removeFirst()
                     directory.listFiles().forEach { file ->
                         if (file.isDirectory) directories.addLast(file)
-                        else if (file.name == "download_${task.id}.assembling" ||
-                            (directory.name == PARTS_DIRECTORY && file.name?.startsWith("chunk_${task.id}_") == true && file.name?.endsWith(".part") == true)) {
+                        else if (file.name?.startsWith("download_${task.id}.assembling") == true ||
+                            (directory.name == PARTS_DIRECTORY && file.name?.startsWith("chunk_${task.id}_") == true && (file.name?.endsWith(".part") == true || file.name?.endsWith(".part.bin") == true))) {
                             if (!file.delete()) return ArtifactCleanupResult.FAILED
                         }
                     }
@@ -117,7 +117,7 @@ class NasSourceRemovalCoordinator(private val context: Context) {
                 add(downloadDirectory.findFile("download_${task.id}.assembling"))
                 add(downloadDirectory.findFile("download_${task.id}.part"))
                 partsDirectory?.listFiles()
-                    ?.filter { it.name?.startsWith("chunk_${task.id}_") == true && it.name?.endsWith(".part") == true }
+                    ?.filter { it.name?.startsWith("chunk_${task.id}_") == true && (it.name?.endsWith(".part") == true || it.name?.endsWith(".part.bin") == true) }
                     ?.let(::addAll)
             }
             if (files.filterNotNull().any { !it.delete() }) return ArtifactCleanupResult.FAILED

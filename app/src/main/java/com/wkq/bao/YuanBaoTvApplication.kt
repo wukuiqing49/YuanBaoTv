@@ -32,7 +32,7 @@ class YuanBaoTvApplication : Application() {
         NasArtworkLoader.install(this)
         AppDiagnostics.record(this, "app", "started")
         DownloadWorkScheduler.enqueue(this)
-        com.wkq.bao.core.media.storage.StorageReconnectWorker.enqueue(this)
+        com.wkq.bao.core.media.storage.StorageReconnectWorker.enqueue(this, delaySeconds = 4)
         applicationScope.launch {
             val database = AppDatabase.getInstance(this@YuanBaoTvApplication)
             NasCredentialMigration.migratePlaintextCredentials(database)

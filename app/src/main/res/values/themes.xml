@@ -2,9 +2,19 @@
     <style name="Theme.YuanBaoTv" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/tv_accent_gold</item>
+        <item name="colorSurface">@color/tv_bg_dark</item>
+        <item name="colorOnSurface">@color/tv_text_primary</item>
+        <item name="colorSurfaceVariant">@color/tv_bg_card</item>
+        <item name="colorOnSurfaceVariant">@color/tv_text_secondary</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/tv_bg_dark</item>
         <item name="buttonStyle">@style/Widget.YuanBaoTv.Button</item>
+    </style>
+
+    <style name="Theme.YuanBaoTv.Splash" parent="Theme.YuanBaoTv">
+        <item name="android:windowBackground">@drawable/bg_splash_window</item>
     </style>
 </resources>

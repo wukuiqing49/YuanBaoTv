@@ -46,6 +46,17 @@ internal class NasEditorPopup(
     override fun onCreate() {
         super.onCreate()
         binding = PopupNasEditorBinding.bind(checkNotNull(contentView))
+        listOf(binding.btnEditorCancel, binding.btnEditorTest, binding.btnEditorSave).forEach { button ->
+            button.backgroundTintList = null
+            val textColors = androidx.appcompat.content.res.AppCompatResources.getColorStateList(context,
+                if (button == binding.btnEditorSave) ResR.color.home_primary_text else ResR.color.tv_button_text)
+            button.setTextColor(textColors)
+            (button as? com.google.android.material.button.MaterialButton)?.iconTint = textColors
+            com.wkq.bao.feature.app.utils.TvFocusHelper.applyFocusScale(button)
+        }
+        listOf(binding.btnProtocolSmb, binding.btnProtocolWebdav).forEach {
+            com.wkq.bao.feature.app.utils.TvFocusHelper.applyFocusScale(it)
+        }
         bindSource()
         bindActions()
     }

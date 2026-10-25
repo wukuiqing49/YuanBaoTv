@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/tv_bg_dark" android:fillViewport="true"
+    android:padding="@dimen/ui_page_inset" android:clipToPadding="false" android:scrollbars="none">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center" android:orientation="vertical" android:padding="@dimen/ui_section_gap">
+        <TextView android:id="@+id/tv_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center" android:maxLines="2" android:ellipsize="end"
+            android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_title" />
+        <ProgressBar android:id="@+id/progress_preparing" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ui_section_gap" />
+        <TextView android:id="@+id/tv_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ui_section_gap" android:gravity="center"
+            android:text="@string/player_external_preparing" android:textColor="@color/tv_text_secondary"
+            android:textSize="@dimen/ui_text_body" />
+        <LinearLayout android:id="@+id/layout_actions" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:visibility="gone" android:clipChildren="false" android:clipToPadding="false"
+            android:padding="@dimen/ui_item_gap">
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_retry" style="@style/Widget.YuanBaoTv.Button" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ui_section_gap" android:minHeight="@dimen/ui_action_min_height"
+            android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null"
+            android:textColor="@color/tv_button_text" android:textSize="@dimen/ui_text_action"
+            android:text="@string/player_external_open" />
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_internal" style="@style/Widget.YuanBaoTv.Button" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ui_item_gap" android:minHeight="@dimen/ui_action_min_height"
+            android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null"
+            android:textColor="@color/tv_button_text" android:textSize="@dimen/ui_text_action"
+            android:text="@string/player_use_internal" />
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_back" style="@style/Widget.YuanBaoTv.Button" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ui_item_gap" android:minHeight="@dimen/ui_action_min_height"
+            android:background="@drawable/bg_tv_button_focus" android:backgroundTint="@null"
+            android:textColor="@color/tv_button_text" android:textSize="@dimen/ui_text_action"
+            android:text="@string/player_external_back" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

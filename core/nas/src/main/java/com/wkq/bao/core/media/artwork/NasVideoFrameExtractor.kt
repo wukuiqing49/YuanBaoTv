@@ -28,13 +28,7 @@ internal object NasVideoFrameExtractor {
         try {
             retriever.setDataSource(dataSource)
             retriever.embeddedPicture?.takeIf { it.isNotEmpty() }?.let { return@withContext it }
-            var frame: Bitmap? = null
-            for (timeUs in FRAME_TIMES_US) {
-                frame = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                if (frame != null) break
-            }
-            frame ?: throw IOException("视频中没有可用画面")
-            frame.toJpeg()
+            retriever.representativeFrame().toJpeg()
         } catch (error: Throwable) {
             if (error is IOException) throw error
             throw IOException("无法生成 NAS 视频封面", error)
@@ -104,7 +98,6 @@ internal object NasVideoFrameExtractor {
         override fun releaseResources() = Unit
     }
 
-    private val FRAME_TIMES_US = longArrayOf(10_000_000L, 1_000_000L, 0L, -1L)
     private const val MAX_FRAME_WIDTH = 720
     private const val JPEG_QUALITY = 84
 }

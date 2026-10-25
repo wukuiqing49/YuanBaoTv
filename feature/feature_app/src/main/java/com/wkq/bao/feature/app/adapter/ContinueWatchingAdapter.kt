@@ -57,20 +57,18 @@ class ContinueWatchingAdapter(
             val history = item.history
             val remainSec = ((history.durationMs - history.positionMs).coerceAtLeast(0) / 1000).toInt()
             val remainMin = (remainSec / 60).coerceAtLeast(1)
-            val episodeTitle = item.episodeTitle.ifBlank {
-                binding.root.context.getString(com.wkq.bao.feature.res.R.string.episode_default_title)
-            }
-            binding.tvTitle.text = if (history.durationMs == 0L) "${item.seriesTitle} · $episodeTitle" else if (item.episodeTitle.isBlank()) binding.root.context.getString(com.wkq.bao.feature.res.R.string.continue_watching_movie, item.seriesTitle, remainMin) else binding.root.context.getString(
-                com.wkq.bao.feature.res.R.string.continue_watching_item,
-                item.seriesTitle,
-                episodeTitle,
-                remainMin
-            )
+            binding.tvTitle.text = com.wkq.bao.feature.app.utils.MediaLabels.displayTitle(item.seriesTitle)
+            val episodeLabel = item.episodeTitle.takeIf { it.isNotBlank() && it != item.seriesTitle }.orEmpty()
+            val remaining = if (history.durationMs > 0) binding.root.context.getString(
+                com.wkq.bao.feature.res.R.string.continue_remaining_time, remainMin
+            ) else ""
+            binding.tvSubtitle.text = com.wkq.bao.feature.app.utils.MediaLabels.metadataValues(episodeLabel, remaining)
+                .joinToString(binding.root.context.getString(com.wkq.bao.feature.res.R.string.media_metadata_separator))
             (binding.ivBackdrop ?: binding.ivThumbnail)?.let { artwork ->
                 MediaArtwork.load(
                     artwork,
                     item.backdropUri,
-                    com.wkq.bao.feature.res.R.drawable.bg_media_placeholder_landscape
+                    com.wkq.bao.feature.res.R.drawable.bg_poster_image_surface
                 )
                 artwork.contentDescription = item.seriesTitle
             }

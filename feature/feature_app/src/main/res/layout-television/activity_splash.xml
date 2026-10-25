@@ -6,28 +6,43 @@
     android:layout_height="match_parent"
     android:background="@color/tv_bg_dark">
 
-    <!-- 背景环境光晕 -->
+    <!-- 全屏 16:9 儿童家庭影院插画背景 -->
+    <ImageView
+        android:id="@+id/iv_splash_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg_splash_cover"
+        android:contentDescription="@null" />
+
+    <!-- 顶部半透明环境光晕遮罩 (保证顶部文字清晰度与层次感) -->
     <View
         android:id="@+id/v_glow"
-        android:layout_width="400dp"
-        android:layout_height="400dp"
-        android:background="@drawable/bg_glass_card"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#33000000" />
 
-    <!-- 居中品牌容器 -->
+    <!-- 顶部居中品牌容器 (留出视觉通透区，与下方插画角色完美呼应) -->
     <LinearLayout
         android:id="@+id/ll_brand"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="56dp"
         android:gravity="center"
         android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
+
+        <!-- 保留 ID 供 ViewBinding 兼容 -->
+        <ImageView
+            android:id="@+id/iv_splash_logo"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginBottom="8dp"
+            android:src="@drawable/ic_yuanbao_tv"
+            android:visibility="gone"
+            android:contentDescription="@string/app_name" />
 
         <!-- Logo 标题 -->
         <TextView
@@ -37,18 +52,26 @@
             android:text="@string/app_name"
             android:textColor="@color/tv_text_primary"
             android:textSize="@dimen/ui_text_hero"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:shadowColor="#EE000000"
+            android:shadowDx="0"
+            android:shadowDy="4"
+            android:shadowRadius="14" />
 
         <!-- Slogan -->
         <TextView
             android:id="@+id/tv_splash_slogan"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/feature_res_spacing_medium"
+            android:layout_marginTop="@dimen/feature_res_spacing_small"
             android:text="@string/splash_slogan"
-            android:textColor="@color/tv_text_secondary"
+            android:textColor="@color/tv_accent_gold"
             android:textSize="@dimen/ui_text_section"
-            android:letterSpacing="0.05" />
+            android:letterSpacing="0.06"
+            android:shadowColor="#EE000000"
+            android:shadowDx="0"
+            android:shadowDy="2"
+            android:shadowRadius="10" />
 
     </LinearLayout>
 
@@ -56,7 +79,7 @@
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="48dp"
+        android:layout_marginBottom="36dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -64,18 +87,22 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <ProgressBar
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
             android:indeterminate="true"
             android:indeterminateTint="@color/tv_accent_cyan" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
+            android:layout_marginStart="12dp"
             android:text="@string/splash_loading"
-            android:textColor="@color/tv_text_tertiary"
-            android:textSize="@dimen/ui_text_body" />
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="@dimen/ui_text_body"
+            android:shadowColor="#EE000000"
+            android:shadowDx="0"
+            android:shadowDy="2"
+            android:shadowRadius="8" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

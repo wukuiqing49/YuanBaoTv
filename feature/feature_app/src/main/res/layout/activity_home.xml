@@ -46,16 +46,17 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
-            <TextView android:id="@+id/tv_hero_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_text_primary" android:textSize="@dimen/phone_home_hero_title_size" android:textStyle="bold" />
+            <TextView android:id="@+id/tv_hero_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="2" android:textColor="@color/tv_text_primary" android:textSize="@dimen/phone_home_hero_title_size" android:textStyle="bold" />
             <TextView android:id="@+id/tv_hero_season_tag" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/feature_res_spacing_small" android:background="@drawable/bg_tag_pill" android:paddingHorizontal="@dimen/feature_res_spacing_small" android:paddingVertical="3dp" android:textColor="@color/tv_accent_gold" android:textSize="@dimen/ui_text_caption" />
             <TextView android:id="@+id/tv_hero_desc" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/feature_res_spacing_small" android:ellipsize="end" android:maxLines="2" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_caption" />
 
             <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal">
-                <Button android:id="@+id/btn_hero_play" android:layout_width="wrap_content" android:layout_height="42dp" android:background="@drawable/bg_hero_gold_btn" android:backgroundTint="@null" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/btn_continue_play" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" />
-                <Button android:id="@+id/btn_hero_detail" android:layout_width="wrap_content" android:layout_height="42dp" android:layout_marginStart="10dp" android:background="@drawable/bg_hero_detail_btn" android:backgroundTint="@null" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/btn_view_detail" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" />
+                <Button android:id="@+id/btn_hero_play" android:layout_width="wrap_content" android:layout_height="42dp" android:background="@drawable/bg_hero_gold_btn" android:backgroundTint="@null" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/btn_continue_play" android:textColor="@color/home_primary_text" android:textSize="@dimen/ui_text_caption" />
+                <Button android:id="@+id/btn_hero_detail" android:layout_width="wrap_content" android:layout_height="42dp" android:layout_marginStart="10dp" android:background="@drawable/bg_hero_detail_btn" android:backgroundTint="@null" android:minWidth="0dp" android:paddingHorizontal="12dp" android:text="@string/btn_view_detail" android:textColor="@color/tv_button_text" android:textSize="@dimen/ui_text_caption" />
             </LinearLayout>
         </LinearLayout>
 
+        <androidx.constraintlayout.widget.Barrier android:id="@+id/home_hero_bottom" android:layout_width="wrap_content" android:layout_height="wrap_content" app:barrierDirection="bottom" app:constraint_referenced_ids="iv_hero_backdrop,layout_hero_content" />
         <TextView
             android:id="@+id/tv_label_continue"
             android:layout_width="wrap_content"
@@ -67,14 +68,14 @@
             android:textSize="@dimen/ui_text_section"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/iv_hero_backdrop" />
+            app:layout_constraintTop_toBottomOf="@id/home_hero_bottom" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_continue_watching"
             android:layout_width="0dp"
-            android:layout_height="@dimen/phone_home_continue_row_height"
+            android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/feature_res_spacing_small"
-            android:clipToPadding="false"
+            android:clipToPadding="false" android:paddingTop="@dimen/ui_focus_padding" android:paddingBottom="@dimen/ui_focus_padding"
             android:orientation="horizontal"
             android:paddingStart="@dimen/feature_res_spacing_medium"
             android:paddingEnd="@dimen/feature_res_spacing_medium"
@@ -100,9 +101,9 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_cartoons"
             android:layout_width="0dp"
-            android:layout_height="@dimen/ui_poster_row_height"
+            android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/feature_res_spacing_small"
-            android:clipToPadding="false"
+            android:clipToPadding="false" android:paddingTop="@dimen/ui_focus_padding" android:paddingBottom="@dimen/ui_focus_padding"
             android:orientation="horizontal"
             android:paddingStart="@dimen/feature_res_spacing_medium"
             android:paddingEnd="@dimen/feature_res_spacing_medium"

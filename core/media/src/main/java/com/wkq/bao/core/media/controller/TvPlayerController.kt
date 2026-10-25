@@ -3,6 +3,12 @@ package com.wkq.bao.core.media.controller
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
+import androidx.core.content.ContextCompat
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import com.google.common.util.concurrent.Futures
+import com.wkq.bao.core.media.service.PlaybackSessionCommands
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -11,7 +17,6 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.MoreExecutors
 import com.wkq.bao.core.database.AppDatabase
 import com.wkq.bao.core.database.entity.WatchHistoryEntity
 import com.wkq.bao.core.media.resolver.MediaResolver
@@ -42,6 +47,8 @@ class TvPlayerController(
     private var subtitleJob: Job? = null
     private val watchHistoryDao = AppDatabase.getInstance(context).watchHistoryDao()
 
+    var onNextEpisodeRequested: (() -> Unit)? = null
+
     private var controllerFuture: ListenableFuture<MediaController>? = null
     var player: Player? = null
         private set
@@ -71,7 +78,20 @@ class TvPlayerController(
      */
     fun connect(onConnected: ((Player) -> Unit)? = null) {
         val sessionToken = SessionToken(context, ComponentName(context, TvPlaybackService::class.java))
-        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        controllerFuture = MediaController.Builder(context, sessionToken)
+            .setConnectionHints(Bundle().apply { putBoolean(PlaybackSessionCommands.UI_ACTIVE, true) })
+            .setListener(object : MediaController.Listener {
+                override fun onCustomCommand(
+                    controller: MediaController, command: SessionCommand, args: Bundle
+                ): ListenableFuture<SessionResult> {
+                    val handler = onNextEpisodeRequested
+                    if (command.customAction == PlaybackSessionCommands.NEXT_EPISODE && handler != null) {
+                        handler()
+                        return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                    }
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
+                }
+            }).buildAsync()
         controllerFuture?.addListener({
             runCatching { controllerFuture?.get() }.getOrNull()?.let { controller ->
                 player = controller
@@ -82,7 +102,14 @@ class TvPlayerController(
                     playEpisode(request.seriesId, request.seasonId, request.episodeId, request.onResult)
                 }
             }
-        }, MoreExecutors.directExecutor())
+        }, ContextCompat.getMainExecutor(context))
+    }
+
+    fun setPlaybackControlsActive(active: Boolean) {
+        (player as? MediaController)?.sendCustomCommand(
+            SessionCommand(PlaybackSessionCommands.UI_ACTIVE, Bundle.EMPTY),
+            Bundle().apply { putBoolean(PlaybackSessionCommands.EXTRA_ACTIVE, active) }
+        )
     }
 
     private fun setupPlayerListeners(p: Player?) {
@@ -224,10 +251,22 @@ class TvPlayerController(
         val subtitles = subtitleResolver.resolve(Uri.parse(uriString))
         if (requestId != playbackRequestId) return false
         val p = player ?: return false
+        val series = runCatching { AppDatabase.getInstance(context).mediaDao().getSeriesById(currentSeriesId) }.getOrNull()
+        val artworkUri = series?.posterUri?.takeIf { it.isNotBlank() } ?: series?.backdropUri?.takeIf { it.isNotBlank() }
+        val metadataBuilder = MediaMetadata.Builder()
+            .setTitle(title)
+            .setDisplayTitle(title)
+            .setExtras(Bundle().apply { putBoolean("is_movie", series?.type == "MOVIE") })
+        if (series != null) {
+            metadataBuilder.setArtist(series.title)
+        }
+        if (!artworkUri.isNullOrBlank()) {
+            runCatching { metadataBuilder.setArtworkUri(Uri.parse(artworkUri)) }
+        }
         val mediaItem = MediaItem.Builder()
             .setUri(uriString)
             .setMediaId(episodeId.toString())
-            .setMediaMetadata(MediaMetadata.Builder().setTitle(title).build())
+            .setMediaMetadata(metadataBuilder.build())
             .setSubtitleConfigurations(subtitles)
             .build()
 
@@ -259,10 +298,17 @@ class TvPlayerController(
     // 遥控器操作快捷方法
     fun togglePlayPause() {
         val p = player ?: return
-        if (p.isPlaying) p.pause() else p.play()
+        if (p.playWhenReady) p.pause() else play()
     }
 
-    fun seekForward(ms: Long = 10000) {
+    fun play() {
+        val p = player ?: return
+        if (p.playbackState == Player.STATE_IDLE) p.prepare()
+        if (p.playbackState == Player.STATE_ENDED) p.seekToDefaultPosition()
+        p.play()
+    }
+
+    fun seekForward(ms: Long = 15000) {
         val p = player ?: return
         val duration = p.duration.takeIf { it > 0 } ?: Long.MAX_VALUE
         p.seekTo((p.currentPosition + ms).coerceAtMost(duration))
@@ -324,6 +370,8 @@ class TvPlayerController(
     }
 
     fun release() {
+        setPlaybackControlsActive(false)
+        onNextEpisodeRequested = null
         subtitleJob?.cancel()
         saveWatchProgress(completed = player?.playbackState == Player.STATE_ENDED)
         playbackRequestId++
@@ -343,4 +391,58 @@ class TvPlayerController(
             historyScope.cancel()
         }
     }
+
+    /**
+     * 获取指定集的所有可用播放源列表
+     */
+    suspend fun getAvailableSources(episodeId: Long): List<PlaybackSource> {
+        return mediaResolver.resolveAllSources(episodeId)
+    }
+
+    /**
+     * 获取当前生效的播放源
+     */
+    fun getCurrentSource(): PlaybackSource? = activeSource
+
+    /**
+     * 手动切换到指定播放源，保持当前播放进度与全量播放状态
+     */
+    fun switchToSource(source: PlaybackSource, onResult: ((Boolean, String) -> Unit)? = null) {
+        val p = player ?: return
+        val currentPos = p.currentPosition.coerceAtLeast(0L)
+        val requestId = ++playbackRequestId
+        playbackJob?.cancel()
+        activeSource = source
+        activeResultCallback = onResult
+
+        playbackJob = scope.launch {
+            try {
+                val sourceLabel = when (source) {
+                    is PlaybackSource.Local -> source.location.name
+                    is PlaybackSource.NasStream -> "NAS"
+                    is PlaybackSource.Unavailable -> return@launch
+                }
+                val uriString = when (source) {
+                    is PlaybackSource.Local -> source.uri.toString()
+                    is PlaybackSource.NasStream -> source.uri.toString()
+                    else -> return@launch
+                }
+                val title = when (source) {
+                    is PlaybackSource.Local -> source.title
+                    is PlaybackSource.NasStream -> source.title
+                    else -> ""
+                }
+                if (startPlay(uriString, title, requestId, currentPos)) {
+                    onResult?.invoke(true, sourceLabel)
+                } else {
+                    onResult?.invoke(false, "切换播放源失败")
+                }
+            } catch (e: Exception) {
+                if (requestId == playbackRequestId) {
+                    onResult?.invoke(false, e.message ?: "切换播放源异常")
+                }
+            }
+        }
+    }
+
 }

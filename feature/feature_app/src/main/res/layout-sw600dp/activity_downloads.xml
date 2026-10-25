@@ -38,7 +38,7 @@
             android:backgroundTint="@null"
             android:paddingHorizontal="14dp"
             android:text="@string/btn_import_nas"
-            android:textColor="@color/tv_control_text"
+            android:textColor="@color/tv_button_text"
             android:textSize="@dimen/ui_text_body"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/card_storage_info"
@@ -78,7 +78,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/tv_text_secondary"
+                android:textColor="@color/tv_text_tertiary"
                 android:textSize="@dimen/ui_text_caption"
                 app:layout_constraintEnd_toStartOf="@id/btn_select_storage"
                 app:layout_constraintStart_toStartOf="parent"
@@ -91,7 +91,7 @@
                 android:background="@drawable/bg_tv_button_focus"
                 android:paddingHorizontal="10dp"
                 android:text="@string/storage_select_target"
-                android:textColor="@color/tv_control_text"
+                android:textColor="@color/tv_button_text"
                 android:textSize="@dimen/ui_text_caption"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -116,7 +116,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/feature_res_spacing_large"
         android:text="@string/section_downloading"
-        android:textColor="@color/tv_text_primary"
+        android:textColor="@color/tv_button_text"
         android:textSize="@dimen/ui_text_section"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
@@ -185,7 +185,7 @@
                 android:layout_height="36dp"
                 android:background="@drawable/bg_tv_button_focus"
                 android:text="@string/btn_pause"
-                android:textColor="@color/tv_control_text"
+                android:textColor="@color/tv_button_text"
                 android:textSize="@dimen/ui_text_caption" />
 
             <Button
@@ -195,7 +195,7 @@
                 android:layout_marginStart="10dp"
                 android:background="@drawable/bg_tv_button_focus"
                 android:text="@string/btn_cancel"
-                android:textColor="@color/tv_text_secondary"
+                android:textColor="@color/tv_button_text"
                 android:textSize="@dimen/ui_text_caption" />
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
@@ -257,7 +257,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="10dp"
-        android:clipToPadding="false"
+        android:clipToPadding="false" android:paddingTop="@dimen/ui_focus_padding" android:paddingBottom="@dimen/ui_focus_padding"
         android:orientation="horizontal"
         android:scrollbars="none"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"

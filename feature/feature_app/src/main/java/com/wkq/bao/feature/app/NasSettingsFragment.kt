@@ -49,11 +49,8 @@ class NasSettingsFragment : Fragment() {
             if (!storageManager.isStorageTargetAvailable(uri)) error(
                 getString(com.wkq.bao.feature.res.R.string.storage_location_invalid)
             )
-            require(storageManager.isExternalStorageTarget(uri)) {
-                getString(com.wkq.bao.feature.res.R.string.storage_external_target_required)
-            }
             storageManager.saveStorageRoot(uri, storageManager.resolveLocalLocation(uri))
-            checkNotNull(storageManager.getAvailableExternalStorageTarget())
+            checkNotNull(storageManager.getAvailableStorageTarget())
         }.onSuccess { target ->
             activeSource?.let { viewModel.enqueueSelected(it, target) }
         }.onFailure { error ->
@@ -77,7 +74,10 @@ class NasSettingsFragment : Fragment() {
         listOf(
             binding.cardActiveNas, binding.cardAddNas, binding.btnScan, binding.btnTestConn,
             binding.btnRefreshFiles, binding.btnFileUp, binding.btnSelectAll, binding.btnDownloadSelected
-        ).forEach(TvFocusHelper::applyFocusScale)
+        ).forEach { control ->
+            control.backgroundTintList = null
+            TvFocusHelper.applyFocusScale(control)
+        }
         fileAdapter = NasFileAdapter(viewModel::toggleSelection) { entry ->
             activeSource?.let { viewModel.openDirectory(it, entry) }
         }
@@ -150,14 +150,49 @@ class NasSettingsFragment : Fragment() {
     private fun selectDownloadTarget() {
         val source = activeSource ?: return showMissingSource()
         if (viewModel.browserState.value.selectedPaths.isEmpty() || waitingForDownloadTarget) return
-        storageManager.getAvailableExternalStorageTarget()?.let { target ->
+        storageManager.getAvailableStorageTarget()?.let { target ->
             viewModel.enqueueSelected(source, target)
             return
         }
-        waitingForDownloadTarget = true
-        openDownloadTargetLauncher.launch(
-            storageManager.getStorageTarget()?.takeIf(storageManager::isExternalStorageTarget)?.uri
-        )
+        val physicalDevices = storageManager.getTvPhysicalStorageDevices().filter { !it.isReadOnly }
+        val handler = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).resolveActivity(requireContext().packageManager)
+        if (handler == null || handler.packageName == "com.android.tv.frameworkpackagestubs") {
+            if (physicalDevices.isEmpty()) {
+                Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.storage_picker_missing, Toast.LENGTH_LONG).show()
+                return
+            }
+            val options = physicalDevices.map { "${it.name} (可用: ${it.formattedFree})" }.toTypedArray()
+            XPopup.Builder(requireContext()).isDarkTheme(true)
+                .asCenterList("选择下载存储位置", options) { index, _ ->
+                    val selected = physicalDevices.getOrNull(index) ?: return@asCenterList
+                    storageManager.saveStorageRoot(selected.uri, selected.location)
+                    storageManager.getAvailableStorageTarget()?.let { target ->
+                        viewModel.enqueueSelected(source, target)
+                    }
+                }.show()
+            return
+        }
+        try {
+            waitingForDownloadTarget = true
+            openDownloadTargetLauncher.launch(
+                storageManager.getStorageTarget()?.takeIf { it.isAvailable }?.uri
+            )
+        } catch (_: Exception) {
+            waitingForDownloadTarget = false
+            if (physicalDevices.isNotEmpty()) {
+                val options = physicalDevices.map { "${it.name} (可用: ${it.formattedFree})" }.toTypedArray()
+                XPopup.Builder(requireContext()).isDarkTheme(true)
+                    .asCenterList("选择下载存储位置", options) { index, _ ->
+                        val selected = physicalDevices.getOrNull(index) ?: return@asCenterList
+                        storageManager.saveStorageRoot(selected.uri, selected.location)
+                        storageManager.getAvailableStorageTarget()?.let { target ->
+                            viewModel.enqueueSelected(source, target)
+                        }
+                    }.show()
+            } else {
+                Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.storage_picker_missing, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun renderActiveSource(state: NasSettingsUiState = viewModel.uiState.value) {

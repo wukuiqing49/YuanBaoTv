@@ -51,10 +51,15 @@ class StorageReconnectWorker(context: Context, parameters: WorkerParameters) : C
     }
 
     companion object {
-        fun enqueue(context: Context) {
+        fun enqueue(context: Context, delaySeconds: Long = 0) {
+            val builder = OneTimeWorkRequestBuilder<StorageReconnectWorker>()
+            if (delaySeconds > 0) {
+                builder.setInitialDelay(delaySeconds, java.util.concurrent.TimeUnit.SECONDS)
+            }
             WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
-                "storage_reconnect", ExistingWorkPolicy.APPEND_OR_REPLACE,
-                OneTimeWorkRequestBuilder<StorageReconnectWorker>().build())
+                "storage_reconnect", ExistingWorkPolicy.KEEP,
+                builder.build()
+            )
         }
     }
 }

@@ -37,7 +37,7 @@
                 android:layout_height="48dp"
                 android:background="@drawable/bg_tv_button_focus"
                 android:text="@string/nav_all_media"
-                android:textColor="@color/tv_control_text" />
+                android:textColor="@color/tv_button_text" />
 
             <Button
                 android:id="@+id/btn_filter_cartoon"
@@ -46,10 +46,10 @@
                 android:nextFocusDown="@id/et_library_search"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="8dp"
                 android:background="@drawable/bg_tv_button_focus"
                 android:text="@string/nav_cartoon"
-                android:textColor="@color/tv_text_secondary" />
+                android:textColor="@color/tv_button_text" />
 
             <Button
                 android:id="@+id/btn_filter_tv"
@@ -58,10 +58,10 @@
                 android:nextFocusDown="@id/et_library_search"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="8dp"
                 android:background="@drawable/bg_tv_button_focus"
                 android:text="@string/nav_tv"
-                android:textColor="@color/tv_text_secondary" />
+                android:textColor="@color/tv_button_text" />
 
             <Button
                 android:id="@+id/btn_filter_movie"
@@ -70,17 +70,17 @@
                 android:nextFocusDown="@id/et_library_search"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="8dp"
                 android:background="@drawable/bg_tv_button_focus"
                 android:text="@string/nav_movie"
-                android:textColor="@color/tv_text_secondary" />
+                android:textColor="@color/tv_button_text" />
         </LinearLayout>
         <include android:id="@+id/library_tools" layout="@layout/layout_library_tools" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/ui_item_gap" />
     </LinearLayout>
 
     <!-- 媒体多列网格 -->
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_media_grid"
+        android:id="@+id/rv_media_grid" android:paddingHorizontal="@dimen/ui_focus_padding"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="@dimen/feature_res_spacing_small"
@@ -91,7 +91,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@id/layout_header"
         app:spanCount="5"
-        tools:listitem="@layout/item_poster_card" />
+        tools:listitem="@layout/item_poster_card"  android:paddingTop="@dimen/ui_focus_padding" android:paddingBottom="@dimen/ui_focus_padding" />
 
     <LinearLayout
         android:id="@+id/layout_empty_library"
@@ -110,7 +110,7 @@
         <ImageView android:id="@+id/iv_empty_library" android:layout_width="72dp" android:layout_height="72dp" android:importantForAccessibility="no" android:scaleType="centerInside" android:padding="@dimen/feature_res_spacing_medium" android:background="@drawable/bg_glass_card" android:src="@drawable/ic_tv_library" />
         <TextView android:id="@+id/tv_empty_library_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/library_empty_title" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_title" android:textStyle="bold" />
         <TextView android:id="@+id/tv_empty_library" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:gravity="center" android:maxLines="3" android:text="@string/library_empty_message" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_body" />
-        <Button android:id="@+id/btn_empty_library_action" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginTop="0dp" android:background="@drawable/bg_hero_play_btn" android:minWidth="152dp" android:text="@string/btn_add_nas" android:textColor="@color/tv_control_text" />
+        <Button android:id="@+id/btn_empty_library_action" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginTop="0dp" android:background="@drawable/bg_hero_play_btn" android:minWidth="152dp" android:text="@string/btn_add_nas" android:textColor="@color/home_primary_text" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

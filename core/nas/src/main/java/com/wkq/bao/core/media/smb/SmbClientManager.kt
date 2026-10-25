@@ -248,7 +248,7 @@ object SmbClientManager {
                     )
                     children.forEach { item ->
                         coroutineContext.ensureActive()
-                        if (item.fileName == "." || item.fileName == "..") return@forEach
+                        if (item.fileName == "." || item.fileName == ".." || com.wkq.bao.core.media.webdav.WebDavClientManager.isIgnoredDirectory(item.fileName)) return@forEach
                         val childPath = joinRemotePath(path, item.fileName)
                         val isDirectory = (item.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value) != 0L
                         if (isDirectory) {

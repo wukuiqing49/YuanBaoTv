@@ -38,6 +38,7 @@ class NasFileAdapter(
 
     inner class ViewHolder(private val binding: ItemNasFileBinding) : RecyclerView.ViewHolder(binding.root) {
         init {
+            binding.btnOpenFolder.backgroundTintList = null
             TvFocusHelper.applyFocusScale(binding.root, 1.02f)
             TvFocusHelper.applyFocusScale(binding.btnOpenFolder)
             binding.root.setOnClickListener {
@@ -47,6 +48,15 @@ class NasFileAdapter(
                             if (entry.isDirectory) onOpenDirectory(entry) else onToggleSelection(entry)
                         }
                     }
+            }
+            binding.root.setOnLongClickListener {
+                bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }
+                    ?.let { position ->
+                        getItem(position).let { entry ->
+                            onToggleSelection(entry)
+                            true
+                        }
+                    } ?: false
             }
             binding.cbSelected.setOnClickListener {
                 bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }

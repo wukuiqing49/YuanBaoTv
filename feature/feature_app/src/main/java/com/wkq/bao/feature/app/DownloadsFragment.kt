@@ -57,6 +57,31 @@ class DownloadsFragment : Fragment() {
         }
     }
 
+    private val storagePermissionLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        if (_binding != null) renderStorage()
+    }
+
+    private fun checkStoragePermissions() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val read = androidx.core.content.ContextCompat.checkSelfPermission(
+                requireContext(), android.Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            val write = androidx.core.content.ContextCompat.checkSelfPermission(
+                requireContext(), android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!read || !write) {
+                storagePermissionLauncher.launch(
+                    arrayOf(
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    )
+                )
+            }
+        }
+    }
+
     private val openStorageLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -133,6 +158,7 @@ class DownloadsFragment : Fragment() {
         binding.tvLabelDownloading.setOnClickListener { showingCache = !showingCache; renderState(viewModel.uiState.value) }
         TvFocusHelper.applyFocusScale(binding.tvLabelDownloading)
         binding.rvDownloadTasks.adapter = cachedAdapter
+        checkStoragePermissions()
         renderStorage()
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnSelectStorage)
         viewLifecycleOwner.lifecycleScope.launch {
@@ -147,7 +173,13 @@ class DownloadsFragment : Fragment() {
         cachedAdapter.submitList(state.cachedMedia)
         val desiredAdapter = if (showingCache) cachedAdapter else downloadAdapter
         if (binding.rvDownloadTasks.adapter !== desiredAdapter) binding.rvDownloadTasks.adapter = desiredAdapter
-        binding.tvLabelDownloading.setText(if (showingCache) com.wkq.bao.feature.res.R.string.cache_switch_tasks else com.wkq.bao.feature.res.R.string.cache_switch_library)
+        val cachedCount = state.cachedMedia.size
+        val taskCount = state.tasks.size
+        binding.tvLabelDownloading.text = if (showingCache) {
+            "📺 " + getString(com.wkq.bao.feature.res.R.string.downloads_tab_cached, cachedCount) + (if (taskCount > 0) " · 📥 $taskCount 个同步中" else "")
+        } else {
+            "📥 " + getString(com.wkq.bao.feature.res.R.string.downloads_tab_tasks, taskCount) + " · 📺 查看本地影视 ($cachedCount)"
+        }
         binding.tvCacheEmptyTitle.setText(if (showingCache) com.wkq.bao.feature.res.R.string.cache_empty_title else com.wkq.bao.feature.res.R.string.downloads_empty_title)
         binding.tvCacheEmptyMessage.setText(if (showingCache) com.wkq.bao.feature.res.R.string.cache_empty_message else com.wkq.bao.feature.res.R.string.downloads_empty_message)
         val isTaskListEmpty = if (showingCache) state.cachedMedia.isEmpty() else state.tasks.isEmpty()
@@ -204,6 +236,13 @@ class DownloadsFragment : Fragment() {
     private fun selectStorageLocation() {
         if (targetPickerJob?.isActive == true) return
         targetPickerJob = viewLifecycleOwner.lifecycleScope.launch {
+            checkStoragePermissions()
+            val handler = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).resolveActivity(requireContext().packageManager)
+            val isTvNoSaf = handler == null || handler.packageName == "com.android.tv.frameworkpackagestubs"
+            if (isTvNoSaf) {
+                showTvDirectStoragePicker()
+                return@launch
+            }
             val (targets, devices) = withContext(Dispatchers.IO) {
                 storageManager.getStorageTargets() to storageManager.getConnectedDevices()
             }
@@ -213,7 +252,8 @@ class DownloadsFragment : Fragment() {
             }
             val currentUri = storageManager.getStorageRoot()
             val labels = targets.map { target ->
-                val documentId = DocumentsContract.getTreeDocumentId(target.uri)
+                val documentId = if (target.uri.scheme == "file") target.uri.path.orEmpty()
+                else runCatching { DocumentsContract.getTreeDocumentId(target.uri) }.getOrDefault(target.uri.toString())
                 val label = getString(com.wkq.bao.feature.res.R.string.storage_saved_target_format,
                     documentId, getString(when (target.status) {
                         TvStorageManager.TargetStatus.AVAILABLE -> com.wkq.bao.feature.res.R.string.storage_target_online
@@ -257,18 +297,21 @@ class DownloadsFragment : Fragment() {
             com.wkq.bao.feature.res.R.string.storage_scan_now
         ).map(::getString).toTypedArray()
         XPopup.Builder(requireContext()).isDarkTheme(true)
-            .asCenterList(DocumentsContract.getTreeDocumentId(target.uri), actions) { index, _ ->
+            .maxWidth((460 * resources.displayMetrics.density).toInt())
+            .asCenterList(if (target.uri.scheme == "file") target.uri.path.orEmpty() else runCatching { DocumentsContract.getTreeDocumentId(target.uri) }.getOrDefault(target.uri.toString()), actions) { index, _ ->
                 if (_binding != null) when (index) {
                     0 -> { storageManager.saveStorageRoot(target.uri, target.location); renderStorage() }
                     1 -> openStoragePicker(target.uri)
-                    2 -> XPopup.Builder(requireContext()).isDarkTheme(true).asConfirm(
-                        getString(com.wkq.bao.feature.res.R.string.storage_remove_target),
-                        getString(com.wkq.bao.feature.res.R.string.storage_remove_confirmation),
-                        {
-                            storageManager.removeStorageRoot(target.uri)
-                            if (_binding != null) renderStorage()
-                        }
-                    ).show()
+                    2 -> XPopup.Builder(requireContext()).isDarkTheme(true)
+                        .maxWidth((460 * resources.displayMetrics.density).toInt())
+                        .asConfirm(
+                            getString(com.wkq.bao.feature.res.R.string.storage_remove_target),
+                            getString(com.wkq.bao.feature.res.R.string.storage_remove_confirmation),
+                            {
+                                storageManager.removeStorageRoot(target.uri)
+                                if (_binding != null) renderStorage()
+                            }
+                        ).show()
                     3 -> {
                         if (storageAuthorizationJob?.isActive != true) {
                             storageAuthorizationJob = viewLifecycleOwner.lifecycleScope.launch {
@@ -286,17 +329,42 @@ class DownloadsFragment : Fragment() {
     private fun openStoragePicker(initialUri: Uri?) {
         try {
             val handler = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).resolveActivity(requireContext().packageManager)
-            // Google TV 的占位实现会直接取消，不会提供真正的目录授权页面。
             if (handler == null || handler.packageName == "com.android.tv.frameworkpackagestubs") {
-                Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.storage_picker_missing, Toast.LENGTH_LONG).show()
+                showTvDirectStoragePicker()
                 return
             }
             openStorageLauncher.launch(initialUri)
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.storage_picker_missing, Toast.LENGTH_LONG).show()
+            showTvDirectStoragePicker()
         } catch (_: SecurityException) {
-            Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.storage_permission_failed, Toast.LENGTH_LONG).show()
+            showTvDirectStoragePicker()
         }
+    }
+
+    /** 专为电视端定制：免 SAF 授权，直接由用户选择已挂载的物理存储设备。 */
+    private fun showTvDirectStoragePicker() {
+        val physicalDevices = storageManager.getTvPhysicalStorageDevices()
+        if (physicalDevices.isEmpty()) {
+            Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.storage_picker_missing, Toast.LENGTH_LONG).show()
+            return
+        }
+        val options = physicalDevices.map { dev ->
+            val rwTag = if (dev.isReadOnly) " [只读]" else ""
+            "${dev.name} (可用: ${dev.formattedFree} / 总计: ${dev.formattedTotal})$rwTag"
+        }.toTypedArray()
+
+        XPopup.Builder(requireContext()).isDarkTheme(true)
+            .asCenterList("选择存储设备 (电视免授权直连)", options) { index, _ ->
+                val selected = physicalDevices.getOrNull(index) ?: return@asCenterList
+                storageManager.saveStorageRoot(selected.uri, selected.location)
+                renderStorage()
+                Toast.makeText(requireContext(), "已选用存储：${selected.name}", Toast.LENGTH_SHORT).show()
+                if (!selected.isReadOnly) {
+                    offerLibraryInitialization(selected.uri)
+                } else {
+                    viewModel.startLocalScan(selected.uri)
+                }
+            }.show()
     }
 
     private fun offerLibraryInitialization(uri: Uri) {

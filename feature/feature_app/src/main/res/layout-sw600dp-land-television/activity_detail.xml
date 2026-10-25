@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/tv_bg_dark">
+
+    <!-- 1. 底层 16:9 Backdrop 大背景 -->
+    <ImageView
+        android:id="@+id/iv_backdrop"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg_glass_card"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- 2. 中层 90% 暗角黑幕遮罩 -->
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@drawable/bg_detail_scrim"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/detail_scroll" android:layout_width="0dp" android:layout_height="0dp"
+        android:fillViewport="true" android:scrollbars="none" android:clipToPadding="false"
+        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent">
+        <androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:paddingBottom="24dp" android:clipChildren="false">
+    <!-- 3. 上层主信息区 (左侧 2:3 立牌海报 + 右侧元数据文字与操作按钮) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_top_content"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/ui_page_inset"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="@dimen/ui_page_inset"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- 左侧 2:3 海报立牌 (180dp x 270dp) -->
+        <ImageView
+            android:id="@+id/iv_series_poster"
+            android:layout_width="160dp"
+            android:layout_height="240dp"
+            android:background="@drawable/bg_tv_focus_ring"
+            android:foreground="@drawable/bg_card_focus_foreground"
+            android:clipToOutline="true"
+            android:clipToPadding="false"
+            android:focusable="true"
+            android:scaleType="centerCrop"
+            android:src="@drawable/bg_glass_card"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- 右侧元数据内容与操作区 -->
+        <LinearLayout
+            android:id="@+id/layout_meta"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:orientation="vertical"
+
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/iv_series_poster"
+            app:layout_constraintTop_toTopOf="@id/iv_series_poster">
+
+            <!-- 媒体类型 Badge -->
+            <TextView
+                android:id="@+id/tv_nas_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_badge_nas"
+                android:text="@string/detail_badge_series"
+                android:textColor="@color/tv_text_tertiary"
+                android:textSize="@dimen/tv_readable_caption"
+                android:textStyle="bold" />
+
+            <!-- 剧集标题 -->
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="@dimen/ui_text_title"
+                android:textStyle="bold"
+                tools:text="汪汪队立大功 (Paw Patrol)" />
+
+            <!-- 元数据 (年代 • 分类 • 季数) -->
+            <TextView
+                android:id="@+id/tv_meta_tags"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/feature_res_spacing_small"
+                android:textColor="@color/tv_text_tertiary"
+                android:textSize="@dimen/ui_text_body"
+                android:textStyle="bold"
+                tools:text="2023 • 动画 / 益智 • 7 季" />
+                <TextView android:id="@+id/tv_playback_hint" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:maxLines="2" android:ellipsize="end" android:textSize="@dimen/ui_text_caption" android:textColor="@color/tv_text_secondary" android:visibility="gone"/>
+
+            <!-- 简介 -->
+            <TextView
+                android:id="@+id/tv_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:ellipsize="end"
+                android:lineSpacingExtra="3dp"
+                android:maxLines="2"
+                android:textColor="@color/tv_text_secondary"
+                android:textSize="@dimen/tv_readable_body"
+                tools:text="精通科技的10岁男孩莱德救了6条小狗，并将它们训练成了优秀的救援队员。" />
+
+            <!-- 主操作按钮组 -->
+            <androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:clipChildren="false" android:clipToPadding="false"><Button app:iconSize="20dp" app:iconTint="@color/home_primary_text" app:iconGravity="textStart" android:ellipsize="end" android:maxWidth="300dp" android:maxLines="1"
+                    android:id="@+id/btn_play"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_home_primary_button"
+                    app:icon="@drawable/ic_tv_play"
+                    app:iconPadding="6dp"
+                    android:text="@string/btn_play_now"
+                    android:textColor="@color/home_primary_text"
+                    android:textSize="@dimen/ui_text_body"
+                    android:textStyle="bold" />
+<Button app:iconSize="20dp" app:iconTint="@color/tv_button_text" app:iconGravity="textStart" android:ellipsize="end" android:maxWidth="300dp" android:maxLines="1"
+                    android:id="@+id/btn_download_season"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_tv_button_focus"
+                    app:icon="@drawable/ic_tv_download"
+                    app:iconPadding="6dp"
+                    android:text="@string/btn_download_season"
+                    android:textColor="@color/tv_button_text"
+                    android:textSize="@dimen/tv_readable_body" />
+<Button app:iconSize="20dp" app:iconTint="@color/tv_navigation_text" app:iconGravity="textStart" android:ellipsize="end" android:maxWidth="300dp"
+                    android:id="@+id/btn_favorite"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:minWidth="100dp"
+                    android:maxLines="1"
+                    android:paddingHorizontal="@dimen/feature_res_spacing_medium"
+                    android:background="@drawable/bg_tv_light_button"
+                    app:icon="@drawable/ic_tv_favorite"
+                    app:iconPadding="6dp"
+                    android:text="@string/btn_favorite"
+                    android:textColor="@color/tv_navigation_text"
+                    android:textSize="@dimen/tv_readable_body" />
+<Button app:iconSize="20dp" app:iconTint="@color/tv_navigation_text" app:iconGravity="textStart" android:ellipsize="end" android:maxWidth="300dp" app:icon="@drawable/ic_tv_edit" app:iconPadding="8dp" android:id="@+id/btn_edit_metadata" android:layout_width="wrap_content" android:layout_height="44dp" android:minWidth="100dp" android:paddingHorizontal="@dimen/feature_res_spacing_medium" android:background="@drawable/bg_tv_light_button" android:maxLines="1" android:text="@string/media_edit_metadata" android:textColor="@color/tv_navigation_text" android:textSize="@dimen/tv_readable_body" />
+                <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_playback_mode" style="@style/Widget.YuanBaoTv.Button"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:minHeight="@dimen/ui_action_min_height" android:maxLines="1" android:ellipsize="end"
+                    android:text="@string/player_mode_button" />
+                  <androidx.constraintlayout.helper.widget.Flow android:layout_width="0dp" android:layout_height="wrap_content"
+                    app:constraint_referenced_ids="btn_play,btn_download_season,btn_favorite,btn_edit_metadata,btn_playback_mode"
+                    app:flow_wrapMode="chain" app:flow_maxElementsWrap="4" app:flow_horizontalStyle="packed" app:flow_horizontalBias="0"
+                    app:flow_horizontalGap="12dp" app:flow_verticalGap="8dp"
+                    app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent"/>
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 4. 底部选集流与分季 Tab -->
+    <LinearLayout
+        android:id="@+id/layout_episodes_section"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/ui_page_inset"
+        android:layout_marginTop="@dimen/feature_res_spacing_large"
+        android:layout_marginEnd="@dimen/ui_page_inset"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_top_content">
+
+        <!-- 分季选择 Tab 栏 (动态生成) -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="72dp" android:paddingHorizontal="12dp" android:paddingVertical="12dp" android:clipToPadding="false" android:clipChildren="false"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/ll_season_tabs"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <!-- 选集列表 -->
+                <TextView
+            android:id="@+id/tv_episodes_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="4dp"
+            android:text="@string/detail_episode_hint"
+            android:textColor="@color/tv_text_tertiary"
+            android:textSize="@dimen/ui_text_caption" />
+        <androidx.recyclerview.widget.RecyclerView android:paddingHorizontal="@dimen/ui_focus_padding"
+            android:id="@+id/rv_episodes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:clipToPadding="false" android:paddingTop="@dimen/ui_focus_padding" android:paddingBottom="@dimen/ui_focus_padding"
+            android:clipChildren="false"
+            android:orientation="horizontal"
+            android:scrollbars="none"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/item_episode_card" />
+
+        <TextView
+            android:id="@+id/tv_episode_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:text="@string/detail_no_episodes"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="@dimen/ui_text_body"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/group_detail_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:constraint_referenced_ids="layout_top_content,layout_episodes_section" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <LinearLayout
+        android:id="@+id/layout_detail_state"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/tv_bg_dark"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="64dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ProgressBar android:id="@+id/progress_detail" android:layout_width="48dp" android:layout_height="48dp" android:indeterminateTint="@color/tv_accent_cyan" />
+        <TextView android:id="@+id/tv_detail_state_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:gravity="center" android:text="@string/detail_loading" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_title" android:textStyle="bold" />
+        <TextView android:id="@+id/tv_detail_state_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:gravity="center" android:maxLines="2" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_body" />
+        <Button android:id="@+id/btn_detail_state_action" android:layout_width="wrap_content" android:layout_height="44dp" android:layout_marginTop="22dp" android:background="@drawable/bg_hero_play_btn" android:minWidth="152dp" android:text="@string/btn_retry" android:textColor="@color/home_primary_text" android:visibility="gone" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

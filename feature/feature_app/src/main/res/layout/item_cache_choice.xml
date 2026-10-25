@@ -1,2 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
-<CheckedTextView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:padding="@dimen/ui_item_gap" android:checkMark="?android:attr/listChoiceIndicatorMultiple" android:focusable="true" android:clickable="true" android:background="@drawable/bg_tv_button_focus" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_body" android:maxLines="3" android:ellipsize="end" />
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="68dp"
+    android:layout_margin="4dp"
+    android:background="@drawable/bg_tv_button_focus"
+    android:clickable="true"
+    android:focusable="true"
+    android:padding="8dp">
+
+    <CheckBox
+        android:id="@+id/cb_cache" android:buttonTint="@color/tv_navigation_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:clickable="false"
+        android:focusable="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_choice_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/tv_button_text"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/cb_cache"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="第 01 集 · 飞向太空" />
+
+    <TextView
+        android:id="@+id/tv_choice_status"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/tv_caption_text"
+        android:textSize="11sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/cb_cache"
+        app:layout_constraintTop_toBottomOf="@id/tv_choice_title"
+        tools:text="未缓存 · 850 MB" />
+</androidx.constraintlayout.widget.ConstraintLayout>

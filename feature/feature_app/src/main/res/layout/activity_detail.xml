@@ -50,9 +50,10 @@
                 android:layout_weight="1"
                 android:orientation="vertical">
 
-                <TextView android:id="@+id/tv_nas_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_badge_nas" android:paddingHorizontal="6dp" android:paddingVertical="3dp" android:text="@string/detail_badge_series" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_caption" />
+                <TextView android:id="@+id/tv_nas_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_badge_nas" android:paddingHorizontal="6dp" android:paddingVertical="3dp" android:text="@string/detail_badge_series" android:textColor="@color/tv_text_tertiary" android:textSize="@dimen/ui_text_caption" />
                 <TextView android:id="@+id/tv_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/feature_res_spacing_small" android:ellipsize="end" android:maxLines="2" android:textColor="@color/tv_text_primary" android:textSize="@dimen/phone_detail_title_size" android:textStyle="bold" />
                 <TextView android:id="@+id/tv_meta_tags" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:ellipsize="end" android:maxLines="1" android:textColor="@color/tv_accent_cyan" android:textSize="@dimen/ui_text_body" />
+                <TextView android:id="@+id/tv_playback_hint" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:maxLines="2" android:ellipsize="end" android:textSize="@dimen/ui_text_caption" android:textColor="@color/tv_text_secondary" android:visibility="gone"/>
                 <TextView android:id="@+id/tv_desc" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/feature_res_spacing_small" android:ellipsize="end" android:maxLines="4" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_body" />
             </LinearLayout>
         </LinearLayout>
@@ -62,11 +63,15 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/feature_res_spacing_medium"
             android:paddingHorizontal="@dimen/feature_res_spacing_medium">
-            <Button android:id="@+id/btn_play" android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="@dimen/ui_action_min_height" android:background="@drawable/bg_hero_play_btn" android:maxLines="2" android:text="@string/btn_play_now" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_body" app:layout_constraintTop_toTopOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" />
-            <Button android:id="@+id/btn_download_season" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="@dimen/ui_action_min_height" android:minWidth="0dp" android:paddingHorizontal="12dp" android:background="@drawable/bg_tv_button_focus" android:maxLines="2" android:text="@string/btn_download_season" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_body" />
-            <Button android:id="@+id/btn_favorite" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="@dimen/ui_action_min_height" android:minWidth="0dp" android:paddingHorizontal="12dp" android:background="@drawable/bg_tv_button_focus" android:maxLines="2" android:text="@string/btn_favorite" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_body" />
-            <Button android:id="@+id/btn_edit_metadata" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="@dimen/ui_action_min_height" android:minWidth="0dp" android:paddingHorizontal="12dp" android:background="@drawable/bg_tv_button_focus" android:maxLines="2" android:text="@string/media_edit_metadata" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_body" />
-            <androidx.constraintlayout.helper.widget.Flow android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginTop="@dimen/feature_res_spacing_small" app:constraint_referenced_ids="btn_download_season,btn_favorite,btn_edit_metadata" app:flow_wrapMode="chain" app:flow_horizontalStyle="packed" app:flow_horizontalBias="0" app:flow_horizontalGap="8dp" app:flow_verticalGap="8dp" app:layout_constraintTop_toBottomOf="@id/btn_play" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintBottom_toBottomOf="parent" />
+            <Button android:id="@+id/btn_play" android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="@dimen/ui_action_min_height" android:background="@drawable/bg_hero_play_btn" android:maxLines="2" android:text="@string/btn_play_now" android:textColor="@color/home_primary_text" android:textSize="@dimen/ui_text_body" app:layout_constraintTop_toTopOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" />
+            <Button android:id="@+id/btn_download_season" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="@dimen/ui_action_min_height" android:minWidth="0dp" android:paddingHorizontal="12dp" android:background="@drawable/bg_tv_button_focus" android:maxLines="2" android:text="@string/btn_download_season" android:textColor="@color/tv_button_text" android:textSize="@dimen/ui_text_body" />
+            <Button android:id="@+id/btn_favorite" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="@dimen/ui_action_min_height" android:minWidth="0dp" android:paddingHorizontal="12dp" android:background="@drawable/bg_tv_light_button" android:maxLines="2" android:text="@string/btn_favorite" android:textColor="@color/tv_navigation_text" android:textSize="@dimen/ui_text_body" />
+            <Button android:id="@+id/btn_edit_metadata" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="@dimen/ui_action_min_height" android:minWidth="0dp" android:paddingHorizontal="12dp" android:background="@drawable/bg_tv_light_button" android:maxLines="2" android:text="@string/media_edit_metadata" android:textColor="@color/tv_navigation_text" android:textSize="@dimen/ui_text_body" />
+            <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_playback_mode" style="@style/Widget.YuanBaoTv.Button"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:minHeight="@dimen/ui_action_min_height" android:maxLines="1" android:ellipsize="end"
+                    android:text="@string/player_mode_button" />
+                  <androidx.constraintlayout.helper.widget.Flow android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginTop="@dimen/feature_res_spacing_small" app:constraint_referenced_ids="btn_download_season,btn_favorite,btn_edit_metadata" app:flow_wrapMode="chain" app:flow_horizontalStyle="packed" app:flow_horizontalBias="0" app:flow_horizontalGap="8dp" app:flow_verticalGap="8dp" app:layout_constraintTop_toBottomOf="@id/btn_play" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintBottom_toBottomOf="parent" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <LinearLayout
@@ -96,7 +101,16 @@
                 android:textSize="@dimen/ui_text_body"
                 android:visibility="gone" />
 
-            <androidx.recyclerview.widget.RecyclerView
+                    <TextView
+            android:id="@+id/tv_episodes_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="4dp"
+            android:text="@string/detail_episode_hint"
+            android:textColor="@color/tv_text_tertiary"
+            android:textSize="@dimen/ui_text_caption" />
+        <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_episodes"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -156,7 +170,7 @@
             android:background="@drawable/bg_hero_play_btn"
             android:minWidth="128dp"
             android:text="@string/btn_retry"
-            android:textColor="@color/tv_control_text"
+            android:textColor="@color/home_primary_text"
             android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

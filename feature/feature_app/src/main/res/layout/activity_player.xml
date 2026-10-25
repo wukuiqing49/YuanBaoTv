@@ -40,14 +40,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/player_playback_failed" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_body" />
-        <Button android:id="@+id/btn_player_retry" android:layout_width="wrap_content" android:layout_height="42dp" android:layout_marginTop="12dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/btn_retry" android:textColor="@color/tv_control_text" />
+        <Button android:id="@+id/btn_player_retry" android:layout_width="wrap_content" android:layout_height="42dp" android:layout_marginTop="12dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/btn_retry" android:textColor="@color/tv_button_text" />
     </LinearLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_osd"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="#99000000"
+        android:background="@drawable/bg_player_osd_scrim"
         android:padding="@dimen/feature_res_spacing_medium"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -70,17 +70,185 @@
                 <SeekBar android:id="@+id/seek_progress" android:layout_width="0dp" android:layout_height="28dp" android:layout_marginHorizontal="@dimen/feature_res_spacing_small" android:layout_weight="1" android:focusable="true" android:max="1000" android:progressBackgroundTint="#55FFFFFF" android:progressTint="@color/tv_accent_cyan" android:thumbTint="@color/tv_accent_cyan" />
                 <TextView android:id="@+id/tv_total_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/tv_text_secondary" android:textSize="@dimen/ui_text_caption" />
             </LinearLayout>
-            <androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/ui_item_gap">
-<Button android:id="@+id/btn_rewind" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_rewind" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
-<Button android:id="@+id/btn_play_pause" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_hero_play_btn" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" android:text="@string/btn_play_now" />
-<Button android:id="@+id/btn_fast_forward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_fast_forward" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
-<Button android:id="@+id/btn_audio_tracks" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_audio_tracks" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:enabled="false" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
-<Button android:id="@+id/btn_speed" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_speed_default" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
-<Button android:id="@+id/btn_subtitles" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_subtitles_none" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
-<Button android:id="@+id/btn_next_episode" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_next_episode" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
-<Button android:id="@+id/btn_auto_next" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_tv_button_focus" android:text="@string/player_auto_all" android:textColor="@color/tv_control_text" android:textSize="@dimen/ui_text_caption" android:minWidth="64dp" android:minHeight="48dp" android:maxLines="2" />
-<androidx.constraintlayout.helper.widget.Flow android:layout_width="0dp" android:layout_height="wrap_content" app:constraint_referenced_ids="btn_rewind,btn_play_pause,btn_fast_forward,btn_audio_tracks,btn_speed,btn_subtitles,btn_next_episode,btn_auto_next" app:flow_wrapMode="chain" app:flow_maxElementsWrap="3" app:flow_horizontalStyle="packed" app:flow_horizontalGap="8dp" app:flow_verticalGap="4dp" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent" />
-</androidx.constraintlayout.widget.ConstraintLayout>
+                                                <!-- 遥控器居中快捷按键组 (单行流线化大屏核心主控 + 更多菜单，严格垂直居中) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="80dp"
+                android:layout_marginTop="@dimen/ui_item_gap"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <!-- 1. 快退 (纯 MD 图标，无 10s 字样) -->
+                <Button
+                    android:id="@+id/btn_rewind"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:minWidth="56dp"
+                    android:minHeight="56dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_tv_button_focus"
+                    app:icon="@drawable/ic_tv_rewind"
+                    app:iconSize="28dp"
+                    app:iconGravity="textStart"
+                    app:iconPadding="0dp"
+                    app:iconTint="@color/tv_button_text"
+                    android:text=""
+                    android:contentDescription="@string/player_rewind" />
+
+                <!-- 2. 核心大播放/暂停按钮 (醒目大图标，与两侧按钮水平居中对齐) -->
+                <Button
+                    android:id="@+id/btn_play_pause"
+                    android:layout_width="84dp"
+                    android:layout_height="64dp"
+                    android:layout_marginStart="16dp"
+                    android:minWidth="84dp"
+                    android:minHeight="64dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_hero_play_btn"
+                    app:icon="@drawable/ic_tv_play"
+                    app:iconSize="36dp"
+                    app:iconGravity="textStart"
+                    app:iconPadding="0dp"
+                    app:iconTint="@color/home_primary_text"
+                    android:text=""
+                    android:contentDescription="@string/btn_play_now" />
+
+                <!-- 3. 快进 (纯 MD 图标，无 10s 字样) -->
+                <Button
+                    android:id="@+id/btn_fast_forward"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="16dp"
+                    android:minWidth="56dp"
+                    android:minHeight="56dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_tv_button_focus"
+                    app:icon="@drawable/ic_tv_forward"
+                    app:iconSize="28dp"
+                    app:iconGravity="textStart"
+                    app:iconPadding="0dp"
+                    app:iconTint="@color/tv_button_text"
+                    android:text=""
+                    android:contentDescription="@string/player_fast_forward" />
+
+                <!-- 4. 下一集 (快捷图标) -->
+                <Button
+                    android:id="@+id/btn_next_episode"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="16dp"
+                    android:minWidth="56dp"
+                    android:minHeight="56dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_tv_button_focus"
+                    app:icon="@drawable/ic_tv_next"
+                    app:iconSize="26dp"
+                    app:iconGravity="textStart"
+                    app:iconPadding="0dp"
+                    app:iconTint="@color/tv_button_text"
+                    android:text=""
+                    android:contentDescription="@string/player_next_episode" />
+
+                <!-- 5. 更多设置按钮 (收纳倍速、字幕、音轨、连播模式) -->
+                <Button
+                    android:id="@+id/btn_more"
+                    android:layout_width="wrap_content"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="16dp"
+                    android:minWidth="76dp"
+                    android:minHeight="56dp"
+                    android:paddingHorizontal="14dp"
+                    android:background="@drawable/bg_tv_button_focus"
+                    app:icon="@drawable/ic_tv_more"
+                    app:iconSize="24dp"
+                    app:iconGravity="textStart"
+                    app:iconPadding="6dp"
+                    app:iconTint="@color/tv_button_text"
+                    android:text="@string/player_more"
+                    android:textColor="@color/tv_button_text"
+                    android:textSize="@dimen/tv_readable_body" />
+
+                <!-- 次级隐藏控件 (由“更多”菜单代理触发，保留 viewBinding 兼容) -->
+                <Button android:id="@+id/btn_audio_tracks" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" android:text="@string/player_audio_tracks" />
+                <Button android:id="@+id/btn_speed" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" android:text="@string/player_speed_default" />
+                <Button android:id="@+id/btn_subtitles" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" android:text="@string/player_subtitles_none" />
+                <Button android:id="@+id/btn_auto_next" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" android:text="@string/player_auto_all" />
+
+            </LinearLayout>
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 快进快退大字号时间气泡 (D-Pad 微调体验增强) -->
+    <LinearLayout
+        android:id="@+id/layout_seek_bubble"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_nas_browser_bottom_bar"
+        android:elevation="8dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="28dp"
+        android:paddingVertical="14dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/tv_seek_delta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/tv_accent_cyan"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_seek_time_target"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+
+    <!-- ?????????? (Menu ?????) -->
+    <LinearLayout
+        android:id="@+id/layout_aspect_bubble"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_nas_browser_bottom_bar"
+        android:elevation="8dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="32dp"
+        android:paddingVertical="16dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/tv_aspect_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/player_aspect_ratio"
+            android:textColor="@color/tv_accent_cyan"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_aspect_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

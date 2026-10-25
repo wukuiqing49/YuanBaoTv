@@ -89,4 +89,46 @@ class MediaResolver(private val context: Context) {
             false
         }
     }
+
+    /**
+     * 解析指定集的所有可用播放源（包括本地所有副本与全部可用 NAS 源）
+     */
+    suspend fun resolveAllSources(episodeId: Long): List<PlaybackSource> = withContext(Dispatchers.IO) {
+        val sources = mutableListOf<PlaybackSource>()
+        val mediaFile = mediaDao.getMediaFileByEpisodeId(episodeId) ?: return@withContext emptyList()
+        val title = com.wkq.bao.core.media.repository.RoomPlaybackNavigationRepository.create(context).episodeTitle(episodeId)
+
+        // 1. 本地所有副本
+        mediaDao.getMediaLocations(mediaFile.id).forEach { localLocation ->
+            val localUri = Uri.parse(localLocation.uri)
+            if (isLocalFileValid(localUri)) {
+                val location = MediaStorageLocation.fromStored(localLocation.storageType)
+                    ?: TvStorageManager(context).resolveLocalLocation(localUri)
+                sources.add(PlaybackSource.Local(localUri, title, location))
+            }
+        }
+        val legacyUri = mediaFile.localUri?.let(Uri::parse)
+        if (legacyUri != null && isLocalFileValid(legacyUri) && sources.none { (it as? PlaybackSource.Local)?.uri == legacyUri }) {
+            val location = MediaStorageLocation.fromStored(mediaFile.localStorageType)
+                ?: TvStorageManager(context).resolveLocalLocation(legacyUri)
+            sources.add(PlaybackSource.Local(legacyUri, title, location))
+        }
+
+        // 2. 全部 NAS 源
+        val enabledSources = AppDatabase.getInstance(context).nasDao().getEnabledSources()
+            .associateBy { it.id }
+        mediaDao.getMediaRemoteSources(mediaFile.id).forEach { remote ->
+            val sourceId = remote.nasSourceId ?: return@forEach
+            val source = enabledSources[sourceId] ?: return@forEach
+            val uri = Uri.parse(remote.uri)
+            when (uri.scheme?.lowercase()) {
+                "smb" -> SmbCredentialRegistry.register(source)
+                "https" -> WebDavCredentialRegistry.register(source)
+                else -> return@forEach
+            }
+            sources.add(PlaybackSource.NasStream(uri, title, sourceId))
+        }
+        sources
+    }
+
 }

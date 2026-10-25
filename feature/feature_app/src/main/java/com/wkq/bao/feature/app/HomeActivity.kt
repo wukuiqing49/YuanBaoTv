@@ -24,6 +24,7 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
 
     companion object {
         const val EXTRA_INITIAL_PAGE = "extra_initial_page"
+        const val EXTRA_SEARCH_QUERY = "extra_search_query"
         private const val MIN_FONT_SCALE = 0.5f
         private const val MAX_TAB_FONT_SCALE = 1.15f
 
@@ -38,6 +39,7 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
 
     private val tabs by lazy { listOf(binding.tabHome, binding.tabLibrary, binding.tabDownloads) }
     private val navigationTabs by lazy { tabs + binding.tabNas }
+    var pendingSearchQuery: String? = null
     private var restoredPage: Int? = null
     private val contentFocus = mutableMapOf<Int, java.lang.ref.WeakReference<View>>()
 
@@ -53,14 +55,14 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
 
     override fun onResume() {
         super.onResume()
-        com.wkq.bao.core.media.storage.StorageReconnectWorker.enqueue(this)
+        com.wkq.bao.core.media.storage.StorageReconnectWorker.enqueue(this, delaySeconds = 2)
     }
     override fun initView() {
         configureInsets()
         capTabFontScale()
         binding.vpMainPages.apply {
             adapter = MainPagerAdapter()
-            offscreenPageLimit = 2
+            offscreenPageLimit = 1
             isUserInputEnabled = false
             // ViewPager2 内部列表只负责承载页面，不应成为电视遥控器的停留焦点。
             (getChildAt(0) as? RecyclerView)?.isFocusable = false
@@ -113,16 +115,29 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
     }
 
     private fun applyRequestedPage(intent: Intent) {
-        val requestedPage = intent.getIntExtra(EXTRA_INITIAL_PAGE, MainPageNavigator.HOME)
+        val searchQuery = intent.getStringExtra(EXTRA_SEARCH_QUERY)
+        val requestedPage = if (!searchQuery.isNullOrBlank()) {
+            pendingSearchQuery = searchQuery
+            MainPageNavigator.LIBRARY
+        } else {
+            intent.getIntExtra(EXTRA_INITIAL_PAGE, MainPageNavigator.HOME)
+        }
         val initialPage = if (requestedPage == MainPageNavigator.NAS) {
             MainPageNavigator.HOME
         } else {
             requestedPage.coerceIn(0, tabs.lastIndex)
         }
         binding.vpMainPages.setCurrentItem(initialPage, false)
+        renderSelectedTab(initialPage)
         restoreVisibleFocus(alignNavigation = true)
         if (requestedPage == MainPageNavigator.NAS) {
             binding.root.post { NasBrowserActivity.start(this) }
+        }
+        if (!searchQuery.isNullOrBlank()) {
+            supportFragmentManager.fragments
+                .filterIsInstance<MediaLibraryFragment>()
+                .firstOrNull()
+                ?.applySearchQuery(searchQuery)
         }
     }
 
@@ -214,9 +229,17 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
     }
 
     private fun renderSelectedTab(selected: Int) {
+        if (TvFocusHelper.isTelevision(binding.root)) {
+            val immersive = selected == MainPageNavigator.HOME
+            val params = binding.vpMainPages.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+            params.topToTop = if (immersive) androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID else -1
+            params.topToBottom = if (immersive) -1 else binding.layoutPageTabs.id
+            params.topMargin = if (immersive) 0 else (12 * resources.displayMetrics.density).toInt()
+            binding.vpMainPages.layoutParams = params
+        }
         tabs.forEachIndexed { index, tab ->
             tab.isSelected = index == selected
-            tab.setTextColor(getColor(if (index == selected) com.wkq.bao.feature.res.R.color.tv_text_primary else com.wkq.bao.feature.res.R.color.tv_text_secondary))
+            tab.setTextColor(androidx.appcompat.content.res.AppCompatResources.getColorStateList(this, com.wkq.bao.feature.res.R.color.tv_navigation_text))
             tab.setBackgroundResource(com.wkq.bao.feature.res.R.drawable.bg_nav_link_active)
         }
     }

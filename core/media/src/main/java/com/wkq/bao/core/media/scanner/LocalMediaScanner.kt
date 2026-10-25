@@ -29,7 +29,7 @@ class LocalMediaScanner(
     private val context: Context,
     private val database: AppDatabase
 ) {
-    private val videoExtensions = setOf("mp4", "mkv", "avi", "mov", "ts", "webm", "m4v")
+    private val videoExtensions = setOf("mp4", "mkv", "avi", "mov", "ts", "webm", "m4v", "rmvb", "rm", "flv", "wmv", "vob", "m2ts", "f4v", "3gp", "asf", "mpg", "mpeg")
 
     suspend fun scanAndImport(
         treeUri: Uri,
@@ -42,7 +42,7 @@ class LocalMediaScanner(
     ): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
             check(TvStorageManager(context).isStorageTargetAvailable(treeUri)) { "Storage is unavailable" }
-            val root = DocumentFile.fromTreeUri(context, treeUri) ?: error("无法读取所选目录")
+            val root = TvStorageManager.getDocumentFile(context, treeUri) ?: error("无法读取所选目录")
             val directories = ArrayDeque<LocalDirectory>()
             val pendingFiles = ArrayList<LocalMediaFile>(BATCH_SIZE)
             directories.add(LocalDirectory(root, SidecarArtworkResolver.DirectoryArtwork(), root.name.orEmpty()))
@@ -160,7 +160,6 @@ class LocalMediaScanner(
         val series = existingSeries?.copy(
             type = existingSeries.type.takeUnless { it in setOf(MediaSeriesType.CARTOON, MediaSeriesType.LOCAL) }
                 ?: parsed.mediaType,
-            totalSeasons = maxOf(existingSeries.totalSeasons, parsed.seasonNumber),
             originalTitle = if (existingSeries.originalTitle.isBlank() || existingSeries.originalTitle == existingSeries.title) {
                 nfo?.originalTitle?.ifBlank { existingSeries.originalTitle } ?: existingSeries.originalTitle
             } else existingSeries.originalTitle,
@@ -184,7 +183,7 @@ class LocalMediaScanner(
                     description = nfo?.description?.ifBlank { metadata.description } ?: metadata.description,
                     posterUri = resolvedPosterUri.ifBlank { metadata.posterUri },
                     backdropUri = document.backdropUri.ifBlank { metadata.backdropUri },
-                    totalSeasons = parsed.seasonNumber.coerceAtLeast(1)
+                    totalSeasons = 1
                 )
             )
             mediaDao.getSeriesById(seriesId) ?: error("无法创建本地媒体索引")
@@ -247,6 +246,10 @@ class LocalMediaScanner(
         )
         if (existingLocation == null) mediaDao.insertMediaLocation(location)
         else mediaDao.updateMediaLocation(location)
+        val seasonCount = mediaDao.getSeasonsSync(seriesId).size.coerceAtLeast(1)
+        if (series.totalSeasons != seasonCount && !series.metadataEdited) {
+            mediaDao.updateScannedSeries(series.copy(totalSeasons = seasonCount))
+        }
         return 1
     }
 

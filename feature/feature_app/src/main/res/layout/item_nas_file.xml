@@ -9,7 +9,7 @@
     android:paddingHorizontal="@dimen/nas_browser_row_horizontal_padding">
 
     <CheckBox
-        android:id="@+id/cb_selected"
+        android:id="@+id/cb_selected" android:buttonTint="@color/tv_navigation_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:clickable="true"
@@ -50,14 +50,14 @@
         android:layout_marginStart="10dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:textColor="@color/tv_text_secondary"
+        android:textColor="@color/tv_text_tertiary"
         android:textSize="@dimen/nas_browser_row_info_text_size"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/btn_open_folder"
         app:layout_constraintStart_toEndOf="@id/iv_file_type"
         app:layout_constraintTop_toBottomOf="@id/tv_file_name" />
 
-    <ImageButton
+    <ImageButton android:tint="@color/tv_button_text"
         android:id="@+id/btn_open_folder"
         android:layout_width="@dimen/nas_browser_row_action_height"
         android:layout_height="@dimen/nas_browser_row_action_height"

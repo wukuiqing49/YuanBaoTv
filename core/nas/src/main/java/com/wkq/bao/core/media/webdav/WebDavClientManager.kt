@@ -17,6 +17,12 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.io.OutputStream
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.ArrayDeque
@@ -60,10 +66,47 @@ object WebDavClientManager {
         val lastModifiedAt: Long
     )
 
+
+    private val IGNORED_DIRECTORY_NAMES = setOf(
+        "#recycle",
+        "@eadir",
+        ".nas-recycle",
+        "@synoresource",
+        "@appstore",
+        ".appledouble",
+        ".trash",
+        ".trashes",
+        "\$recycle.bin"
+    )
+
+    fun isIgnoredDirectory(name: String): Boolean {
+        val lower = name.lowercase(Locale.ROOT).trim('/')
+        return lower in IGNORED_DIRECTORY_NAMES || lower.startsWith(".@")
+    }
+
+    private val unsafeTrustManager = object : X509TrustManager {
+        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+        override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+        override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+    }
+
+    private val sslSocketFactory: javax.net.ssl.SSLSocketFactory = run {
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, arrayOf<TrustManager>(unsafeTrustManager), SecureRandom())
+        val factory = sslContext.socketFactory
+        runCatching {
+            HttpsURLConnection.setDefaultSSLSocketFactory(factory)
+            HttpsURLConnection.setDefaultHostnameVerifier { _, _ -> true }
+        }
+        factory
+    }
+
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .followRedirects(true)
+        .sslSocketFactory(sslSocketFactory, unsafeTrustManager)
+        .hostnameVerifier { _, _ -> true }
         .build()
 
     fun isWebDav(source: NasSourceEntity): Boolean = source.type.equals("WEBDAV", ignoreCase = true)
@@ -134,6 +177,8 @@ object WebDavClientManager {
                 )
                 entries.forEach { entry ->
                         coroutineContext.ensureActive()
+                        val fileName = entry.relativePath.substringAfterLast('/')
+                        if (isIgnoredDirectory(fileName)) return@forEach
                         if (entry.isDirectory) {
                             directories += ScanDirectory(entry.relativePath, artwork)
                         } else {
@@ -278,13 +323,22 @@ object WebDavClientManager {
             .forEach(::addPathSegment)
     }.build()
 
-    private fun sourceBaseUrl(source: NasSourceEntity) = run {
-        val host = source.host.trim().removeSuffix("/")
-        val input = if (host.contains("://")) host else "https://$host"
-        val parsed = input.toHttpUrl()
-        parsed.newBuilder()
-            .scheme("https")
-            .port(source.port.takeIf { it in 1..65535 } ?: DEFAULT_PORT)
+    private fun sourceBaseUrl(source: NasSourceEntity): okhttp3.HttpUrl = run {
+        val rawHost = source.host.trim().removeSuffix("/")
+        val isExplicitHttp = rawHost.startsWith("http://", ignoreCase = true)
+        val isExplicitHttps = rawHost.startsWith("https://", ignoreCase = true)
+        val scheme = when {
+            isExplicitHttp -> "http"
+            isExplicitHttps -> "https"
+            source.port == 5005 || source.port == 80 -> "http"
+            else -> "https"
+        }
+        val cleanHost = rawHost.removePrefix("http://").removePrefix("https://").trim('/')
+            .substringBefore(':').substringBefore('/')
+        okhttp3.HttpUrl.Builder()
+            .scheme(scheme)
+            .host(cleanHost)
+            .port(source.port.takeIf { it in 1..65535 } ?: if (scheme == "http") 5005 else DEFAULT_PORT)
             .encodedPath("/")
             .build()
     }

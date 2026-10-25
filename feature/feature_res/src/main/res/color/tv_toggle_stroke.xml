@@ -1,0 +1,1 @@
+<selector xmlns:android="http://schemas.android.com/apk/res/android"><item android:state_enabled="false" android:color="@color/tv_control_disabled"/><item android:state_focused="true" android:color="@color/tv_focus_ring"/><item android:state_checked="true" android:color="@android:color/transparent"/><item android:color="@android:color/transparent"/></selector>
