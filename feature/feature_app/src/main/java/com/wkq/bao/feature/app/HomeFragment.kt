@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.core.view.updateLayoutParams
+import androidx.core.view.doOnPreDraw
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -64,7 +65,8 @@ class HomeFragment : Fragment() {
         binding.root.findViewById<androidx.core.widget.NestedScrollView>(R.id.home_scroll)?.setOnScrollChangeListener(
             androidx.core.widget.NestedScrollView.OnScrollChangeListener { _, _, scrollY, _, _ ->
                 val density = resources.displayMetrics.density
-                binding.layoutHeroContent.alpha = (1f - scrollY / (24f * density)).coerceIn(0f, 1f)
+                // 内容随滚动自然离屏，保持可见性与遥控焦点一致。
+                binding.layoutHeroContent.alpha = 1f
                 binding.ivHeroBackdrop.alpha = (1f - scrollY / (360f * density)).coerceIn(0.18f, 1f)
                 if (scrollY > 0) previewJob?.cancel()
             }
@@ -74,11 +76,23 @@ class HomeFragment : Fragment() {
 
     private fun setupViews() {
         if (TvFocusHelper.isTelevision(binding.root)) {
-            // 电视横排在滚动容器内须给出高度，避免首次测量时列表被压成零高。
-            (listOf(binding.rvContinueWatching, binding.rvCartoons) + listOf(
-                binding.homeSections.rvMovies, binding.homeSections.rvSeries, binding.homeSections.rvAnimation
-            )).forEach { row ->
-                row.layoutParams = row.layoutParams.apply { height = (220 * resources.displayMetrics.density).toInt() }
+            val res = com.wkq.bao.feature.res.R.dimen.ui_focus_padding
+            val focusPadding = resources.getDimensionPixelSize(res)
+            // 按当前限定符和字体缩放测量卡片，避免电视首次测量为零或大字被固定行高裁切。
+            fun sizeRow(row: androidx.recyclerview.widget.RecyclerView, layout: Int) {
+                val sample = layoutInflater.inflate(layout, row, false)
+                sample.findViewById<android.widget.TextView>(R.id.tv_title)?.text = "M\nM"
+                sample.findViewById<android.widget.TextView>(R.id.tv_subtitle)?.text = if (layout == R.layout.item_continue_watching) "M\nM" else "M"
+                sample.measure(
+                    View.MeasureSpec.makeMeasureSpec(sample.layoutParams.width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                )
+                row.layoutParams = row.layoutParams.apply { height = sample.measuredHeight + focusPadding * 2 }
+            }
+            sizeRow(binding.rvContinueWatching, R.layout.item_continue_watching)
+            (listOf(binding.rvCartoons) + listOf(binding.homeSections.rvMovies,
+                binding.homeSections.rvSeries, binding.homeSections.rvAnimation)).forEach {
+                sizeRow(it, R.layout.item_poster_card)
             }
         }
         listOf(binding.btnHeroPlay, binding.btnHeroDetail).forEach { button ->
@@ -144,6 +158,9 @@ class HomeFragment : Fragment() {
             renderLoadingState()
             return
         }
+        binding.root.doOnPreDraw {
+            context?.let { com.wkq.bao.core.base.diagnostics.AppDiagnostics.finishTiming(it, "home_first_frame") }
+        }
         continueAdapter.submitList(state.continueWatching)
         posterAdapter.submitList(state.cartoons)
         val hasContinueWatching = state.continueWatching.isNotEmpty()
@@ -169,19 +186,20 @@ class HomeFragment : Fragment() {
             binding.tvHeroDesc.visibility = View.VISIBLE
             binding.ivHeroBackdrop.visibility = View.GONE
             binding.vHeroScrim.visibility = View.GONE
-            binding.tvHeroTitle.setText(com.wkq.bao.feature.res.R.string.library_empty_title)
+            binding.tvHeroTitle.setText(com.wkq.bao.feature.res.R.string.home_welcome_title)
             binding.tvHeroSeasonTag.text = ""
             binding.tvHeroSeasonTag.visibility = View.GONE
             binding.tvHeroLastWatch?.visibility = View.GONE
-            binding.tvHeroDesc.setText(com.wkq.bao.feature.res.R.string.library_empty_message)
+            binding.tvHeroDesc.maxLines = 3
+            binding.tvHeroDesc.setText(com.wkq.bao.feature.res.R.string.home_welcome_message)
             binding.btnHeroPlay.setText(com.wkq.bao.feature.res.R.string.btn_add_local_media)
             binding.btnHeroPlay.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             (binding.btnHeroPlay as? com.google.android.material.button.MaterialButton)?.icon = null
             binding.btnHeroPlay.isEnabled = true
             binding.btnHeroPlay.visibility = View.VISIBLE
-            binding.btnHeroDetail.setText(com.wkq.bao.feature.res.R.string.btn_add_nas)
+            binding.btnHeroDetail.setText(com.wkq.bao.feature.res.R.string.home_connect_server)
             binding.btnHeroDetail.visibility = View.VISIBLE
-            binding.btnHeroPlay.setOnClickListener { navigator().showPage(MainPageNavigator.DOWNLOADS) }
+            binding.btnHeroPlay.setOnClickListener { navigator().openLocalMedia() }
             binding.btnHeroDetail.setOnClickListener { navigator().showPage(MainPageNavigator.NAS) }
             TvFocusHelper.requestInitialFocus(binding.root, binding.btnHeroPlay)
             return
@@ -216,7 +234,7 @@ class HomeFragment : Fragment() {
         }
         binding.tvHeroDesc.visibility = if (featured.description.isBlank()) View.GONE else View.VISIBLE
         if (TvFocusHelper.isTelevision(binding.root)) binding.tvHeroDesc.maxLines = 1
-        binding.ivHeroBackdrop.scaleType = ImageView.ScaleType.CENTER_CROP
+        binding.ivHeroBackdrop.scaleType = if (featured.backdropUri.isNotBlank()) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.FIT_CENTER
         val heroArt = featured.backdropUri.takeIf(String::isNotBlank)
             ?: featured.posterUri.takeIf(String::isNotBlank)
         MediaArtwork.load(
@@ -267,6 +285,10 @@ class HomeFragment : Fragment() {
         posterAdapter.onItemFocusChanged = null
         categoryAdapters.forEach { it.onItemFocusChanged = null }
         categoryAdapters.clear()
+        binding.rvContinueWatching.adapter = null
+        binding.rvCartoons.adapter = null
+        listOf(binding.homeSections.rvMovies, binding.homeSections.rvSeries, binding.homeSections.rvAnimation)
+            .forEach { it.adapter = null }
         _binding = null
         super.onDestroyView()
     }

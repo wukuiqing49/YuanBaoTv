@@ -41,6 +41,8 @@ class TvPlayerController(
     private val context: Context,
     private val scope: CoroutineScope
 ) {
+    private val failedLocalUris = mutableSetOf<String>()
+    private var lastFailure = "source"
     private val mediaResolver = MediaResolver(context)
     private val subtitleResolver = LocalSubtitleResolver(context)
     private val nasSubtitleResolver = NasSubtitleResolver(context)
@@ -135,6 +137,7 @@ class TvPlayerController(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                lastFailure = com.wkq.bao.core.media.resolver.PlaybackFailure.classify(error.errorCode, error)
                 fallbackFromPlaybackError()
             }
         })
@@ -160,6 +163,8 @@ class TvPlayerController(
         currentEpisodeId = episodeId
         activeResultCallback = onResult
         failedNasSourceIds.clear()
+        failedLocalUris.clear()
+        lastFailure = "source"
 
         playbackJob = scope.launch {
             try {
@@ -206,9 +211,8 @@ class TvPlayerController(
         val requestId = playbackRequestId
         val resumePosition = player?.currentPosition?.coerceAtLeast(0L) ?: 0L
         val callback = activeResultCallback
-        if (failedSource is PlaybackSource.NasStream) {
-            failedNasSourceIds += failedSource.nasSourceId
-        }
+        if (failedSource is PlaybackSource.NasStream) failedNasSourceIds += failedSource.nasSourceId
+        if (failedSource is PlaybackSource.Local) failedLocalUris += failedSource.uri.toString()
         activeSource = null // 等待新来源解析，防止同一次错误重复触发回退。
         val excludedSources = failedNasSourceIds.toSet()
 
@@ -217,8 +221,9 @@ class TvPlayerController(
             try {
                 when (val fallback = mediaResolver.resolve(
                     episodeId = failedEpisodeId,
-                    allowLocal = false,
-                    excludedNasSourceIds = excludedSources
+                    allowLocal = true,
+                    excludedNasSourceIds = excludedSources,
+                    excludedLocalUris = failedLocalUris.toSet()
                 )) {
                     is PlaybackSource.NasStream -> {
                         if (requestId != playbackRequestId) return@launch
@@ -227,9 +232,15 @@ class TvPlayerController(
                         callback?.invoke(true, "NAS")
                     }
                     is PlaybackSource.Unavailable -> {
-                        if (requestId == playbackRequestId) callback?.invoke(false, "播放源回退失败: ${fallback.reason}")
+                        if (requestId == playbackRequestId) callback?.invoke(false, lastFailure)
                     }
-                    is PlaybackSource.Local -> Unit
+                    is PlaybackSource.Local -> {
+                        if (requestId != playbackRequestId) return@launch
+                        activeSource = fallback
+                        if (startPlay(fallback.uri.toString(), fallback.title, requestId, resumePosition)) {
+                            callback?.invoke(true, fallback.location.name)
+                        }
+                    }
                 }
             } catch (error: CancellationException) {
                 throw error
@@ -413,6 +424,8 @@ class TvPlayerController(
         val requestId = ++playbackRequestId
         playbackJob?.cancel()
         activeSource = source
+        failedNasSourceIds.clear()
+        failedLocalUris.clear()
         activeResultCallback = onResult
 
         playbackJob = scope.launch {
@@ -437,9 +450,11 @@ class TvPlayerController(
                 } else {
                     onResult?.invoke(false, "切换播放源失败")
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 if (requestId == playbackRequestId) {
-                    onResult?.invoke(false, e.message ?: "切换播放源异常")
+                    onResult?.invoke(false, "source")
                 }
             }
         }

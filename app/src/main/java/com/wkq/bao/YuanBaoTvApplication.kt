@@ -21,6 +21,7 @@ class YuanBaoTvApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        AppDiagnostics.beginTiming("home_first_frame")
         CoreUtils.init(
             context = this,
             config = CoreUtilsConfig(

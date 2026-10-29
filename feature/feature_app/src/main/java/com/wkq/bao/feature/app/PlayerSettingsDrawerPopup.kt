@@ -28,6 +28,8 @@ class PlayerSettingsDrawerPopup(
         fun getCurrentSkipIntroLabel(): String
         fun getCurrentSpeedLabel(): String
         fun getCurrentAutoNextLabel(): String
+        fun getCurrentSubtitlesLabel(): String = ""
+        fun getCurrentAudioLabel(): String = ""
         fun hasMultipleEpisodes(): Boolean
     }
 
@@ -53,8 +55,8 @@ class PlayerSettingsDrawerPopup(
         refreshLabels()
 
         binding.itemAspectRatio.setOnClickListener {
-            val newLabel = callbacks.onToggleAspectRatio()
-            binding.itemAspectRatio.text = context.getString(ResR.string.player_aspect_ratio) + " ($newLabel)"
+            callbacks.onToggleAspectRatio()
+            refreshLabels()
         }
 
         binding.itemSwitchSource.setOnClickListener {
@@ -62,8 +64,8 @@ class PlayerSettingsDrawerPopup(
         }
 
         binding.itemSkipIntro.setOnClickListener {
-            val newLabel = callbacks.onToggleSkipIntro()
-            binding.itemSkipIntro.text = context.getString(ResR.string.player_skip_intro) + " ($newLabel)"
+            callbacks.onToggleSkipIntro()
+            refreshLabels()
         }
 
         binding.itemSpeed.setOnClickListener {
@@ -80,8 +82,8 @@ class PlayerSettingsDrawerPopup(
         }
 
         binding.itemAutoNext.setOnClickListener {
-            val newLabel = callbacks.onToggleAutoNext()
-            binding.itemAutoNext.text = context.getString(ResR.string.player_auto_next_setting) + " ($newLabel)"
+            callbacks.onToggleAutoNext()
+            refreshLabels()
         }
 
         listOf(
@@ -103,11 +105,14 @@ class PlayerSettingsDrawerPopup(
     }
 
     fun refreshLabels() {
-        binding.itemAspectRatio.text = context.getString(ResR.string.player_aspect_ratio) + " (" + callbacks.getCurrentAspectRatioLabel() + ")"
-        val source = callbacks.getCurrentSourceLabel()
-        binding.itemSwitchSource.text = context.getString(ResR.string.player_switch_source) + (if (source.isNotBlank()) " ($source)" else "")
-        binding.itemSkipIntro.text = context.getString(ResR.string.player_skip_intro) + " (" + callbacks.getCurrentSkipIntroLabel() + ")"
+        if (!::binding.isInitialized) return
+        fun label(title: Int, value: String) = context.getString(ResR.string.player_setting_value, context.getString(title), value)
+        binding.itemAspectRatio.text = label(ResR.string.player_aspect_ratio, callbacks.getCurrentAspectRatioLabel())
+        binding.itemSwitchSource.text = label(ResR.string.player_switch_source, callbacks.getCurrentSourceLabel())
+        binding.itemSkipIntro.text = label(ResR.string.player_skip_intro, callbacks.getCurrentSkipIntroLabel())
         binding.itemSpeed.text = callbacks.getCurrentSpeedLabel()
-        binding.itemAutoNext.text = context.getString(ResR.string.player_auto_next_setting) + " (" + callbacks.getCurrentAutoNextLabel() + ")"
+        binding.itemAutoNext.text = label(ResR.string.player_auto_next_setting, callbacks.getCurrentAutoNextLabel())
+        binding.itemSubtitles.text = label(ResR.string.player_subtitle_setting, callbacks.getCurrentSubtitlesLabel())
+        binding.itemAudioTracks.text = label(ResR.string.player_audio_tracks, callbacks.getCurrentAudioLabel())
     }
 }

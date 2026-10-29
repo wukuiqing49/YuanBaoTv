@@ -25,7 +25,8 @@ class MediaResolver(private val context: Context) {
     suspend fun resolve(
         episodeId: Long,
         allowLocal: Boolean = true,
-        excludedNasSourceIds: Set<Long> = emptySet()
+        excludedNasSourceIds: Set<Long> = emptySet(),
+        excludedLocalUris: Set<String> = emptySet()
     ): PlaybackSource = withContext(Dispatchers.IO) {
         val episode = mediaDao.getEpisodeById(episodeId)
             ?: return@withContext PlaybackSource.Unavailable("Episode not found: $episodeId", episodeId)
@@ -39,7 +40,7 @@ class MediaResolver(private val context: Context) {
         if (allowLocal) {
             mediaDao.getMediaLocations(mediaFile.id).forEach { localLocation ->
                 val localUri = Uri.parse(localLocation.uri)
-                if (isLocalFileValid(localUri)) {
+                if (localUri.toString() !in excludedLocalUris && isLocalFileValid(localUri)) {
                     val location = MediaStorageLocation.fromStored(localLocation.storageType)
                         ?: TvStorageManager(context).resolveLocalLocation(localUri)
                     return@withContext PlaybackSource.Local(localUri, title, location)
@@ -48,7 +49,7 @@ class MediaResolver(private val context: Context) {
 
             // 兼容尚未升级到多位置表的旧记录。
             val legacyUri = mediaFile.localUri?.let(Uri::parse)
-            if (legacyUri != null && isLocalFileValid(legacyUri)) {
+            if (legacyUri != null && legacyUri.toString() !in excludedLocalUris && isLocalFileValid(legacyUri)) {
                 val location = MediaStorageLocation.fromStored(mediaFile.localStorageType)
                     ?: TvStorageManager(context).resolveLocalLocation(legacyUri)
                 return@withContext PlaybackSource.Local(legacyUri, title, location)
@@ -64,7 +65,10 @@ class MediaResolver(private val context: Context) {
             val uri = Uri.parse(remote.uri)
             when (uri.scheme?.lowercase()) {
                 "smb" -> SmbCredentialRegistry.register(source)
-                "https" -> WebDavCredentialRegistry.register(source)
+                "http", "https" -> {
+                    if (!com.wkq.bao.core.media.webdav.WebDavEndpoint.matches(source, uri.toString())) return@forEach
+                    WebDavCredentialRegistry.register(source)
+                }
                 else -> return@forEach
             }
             return@withContext PlaybackSource.NasStream(uri, title, sourceId)
@@ -123,7 +127,10 @@ class MediaResolver(private val context: Context) {
             val uri = Uri.parse(remote.uri)
             when (uri.scheme?.lowercase()) {
                 "smb" -> SmbCredentialRegistry.register(source)
-                "https" -> WebDavCredentialRegistry.register(source)
+                "http", "https" -> {
+                    if (!com.wkq.bao.core.media.webdav.WebDavEndpoint.matches(source, uri.toString())) return@forEach
+                    WebDavCredentialRegistry.register(source)
+                }
                 else -> return@forEach
             }
             sources.add(PlaybackSource.NasStream(uri, title, sourceId))

@@ -81,12 +81,17 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
             onOpenDirectory = { entry -> activeSource?.let { viewModel.openDirectory(it, entry) } }
         )
         binding.rvNasFiles.adapter = fileAdapter
-        binding.btnBack.setOnClickListener { finish() }
+        binding.btnBack.setOnClickListener { navigateUp() }
         binding.btnNasSource.setOnClickListener { showSourcePicker() }
         binding.btnNasScan.setOnClickListener { viewModel.handleScanAction() }
+        binding.btnNasLibrary.setOnClickListener {
+            HomeActivity.open(this, MainPageNavigator.LIBRARY)
+            finish()
+        }
+        binding.btnNasMore.setOnClickListener { showSourceActions() }
         binding.btnNasEdit.setOnClickListener { showNasEditor(activeSource) }
         binding.btnRefreshFiles.setOnClickListener { activeSource?.let(viewModel::refreshFiles) }
-        binding.tvNasFilesEmpty.setOnClickListener { activeSource?.let(viewModel::refreshFiles) }
+        binding.tvNasFilesEmpty.setOnClickListener { activeSource?.let(viewModel::refreshFiles) ?: showNasEditor(null) }
         binding.btnFileUp.setOnClickListener { activeSource?.let(viewModel::goUp) }
         binding.btnSelectAll.setOnClickListener { viewModel.toggleSelectAll() }
         binding.btnDownloadSelected.setOnClickListener { downloadSelection() }
@@ -94,7 +99,10 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
             binding.btnBack,
             binding.btnNasSource,
             binding.btnNasScan,
+            binding.btnNasLibrary,
+            binding.tvNasFilesEmpty,
             binding.btnNasEdit,
+            binding.btnNasMore,
             binding.btnRefreshFiles,
             binding.btnFileUp,
             binding.btnSelectAll,
@@ -105,11 +113,6 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
             TvFocusHelper.applyFocusScale(control)
         }
         TvFocusHelper.requestInitialFocus(binding.root, binding.btnNasSource)
-        val uiPrefs = getSharedPreferences("ui_hints", Context.MODE_PRIVATE)
-        if (!uiPrefs.getBoolean("nas_long_click_hint_shown", false)) {
-            Toast.makeText(this, com.wkq.bao.feature.res.R.string.nas_browser_long_click_hint, Toast.LENGTH_SHORT).show()
-            uiPrefs.edit().putBoolean("nas_long_click_hint_shown", true).apply()
-        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = navigateUp()
         })
@@ -143,7 +146,8 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
                         activeSource = state.activeSource
                         renderSource(state.activeSource)
                         renderScan(state.activeSource, state.scanSession)
-                        state.activeSource?.let(viewModel::openRoot)
+                        if (state.activeSource != null) viewModel.openRoot(state.activeSource)
+                        else renderBrowserState(NasBrowserUiState())
                     }
                 }
                 launch { viewModel.browserState.collectLatest(::renderBrowserState) }
@@ -160,6 +164,7 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
             if (source == null) com.wkq.bao.feature.res.R.string.btn_add_nas
             else com.wkq.bao.feature.res.R.string.btn_edit
         )
+        binding.btnNasEdit.isVisible = source != null
         binding.btnNasScan.isVisible = source != null
         binding.btnRefreshFiles.isEnabled = source != null
     }
@@ -167,6 +172,14 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
     private fun renderScan(source: NasSourceEntity?, session: ScanSessionEntity?) {
         binding.btnNasScan.isVisible = source != null
         binding.btnNasScan.isEnabled = source != null
+        binding.tvNasScanStatus.text = when {
+            source == null -> getString(com.wkq.bao.feature.res.R.string.nas_setup_steps)
+            ScanSessionStatus.isActive(session?.status.orEmpty()) -> getString(com.wkq.bao.feature.res.R.string.scan_progress, session?.importedCount ?: 0) + "\n" + getString(com.wkq.bao.feature.res.R.string.nas_scan_background_hint)
+            session?.status == ScanSessionStatus.SUCCEEDED -> getString(com.wkq.bao.feature.res.R.string.scan_complete, session.importedCount)
+            session?.status == ScanSessionStatus.FAILED -> getString(com.wkq.bao.feature.res.R.string.nas_scan_failed_guidance)
+            session?.status == ScanSessionStatus.CANCELLED -> getString(com.wkq.bao.feature.res.R.string.scan_cancelled)
+            else -> getString(com.wkq.bao.feature.res.R.string.nas_scan_ready_hint)
+        }
         binding.btnNasScan.text = when {
             source == null -> getString(com.wkq.bao.feature.res.R.string.btn_scan_now)
             ScanSessionStatus.isActive(session?.status.orEmpty()) -> getString(
@@ -183,17 +196,19 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
         }
     }
 
-    private fun renderBrowserState(state: NasBrowserUiState) {
+    private fun renderBrowserState(input: NasBrowserUiState) {
+        val state = if (activeSource == null) NasBrowserUiState() else input
         fileAdapter.render(state.entries, state.selectedPaths)
         binding.progressNasFiles.visibility = if (state.loading || state.downloadInProgress) View.VISIBLE else View.GONE
-        binding.rvNasFiles.visibility = if (!state.loading && state.entries.isNotEmpty()) View.VISIBLE else View.GONE
+        // 保留列表的布局边界，让居中的加载/空态覆盖层仍有可用宽高。
+        binding.rvNasFiles.visibility = if (!state.loading && state.entries.isNotEmpty()) View.VISIBLE else View.INVISIBLE
         binding.tvNasFilesEmpty.visibility = if (!state.loading && state.entries.isEmpty()) View.VISIBLE else View.GONE
         binding.tvNasFilesEmpty.setText(
             if (activeSource == null) com.wkq.bao.feature.res.R.string.nas_configuration_required
             else if (state.loadFailed) com.wkq.bao.feature.res.R.string.nas_file_load_failed_retry
             else com.wkq.bao.feature.res.R.string.nas_file_empty
         )
-        binding.tvNasFilesEmpty.isEnabled = activeSource != null && state.loadFailed
+        binding.tvNasFilesEmpty.isEnabled = activeSource == null || state.loadFailed
         binding.tvFilePath.text = "/${state.currentPath.trim('/')}"
         binding.btnFileUp.isEnabled = state.currentPath != state.rootPath && !state.loading
         binding.btnSelectAll.isEnabled = state.entries.isNotEmpty() && !state.loading
@@ -212,7 +227,7 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
             state.selectedPaths.size,
             state.selectedPaths.size
         )
-        binding.tvSelectedCount.text = "$countText · 约 $sizeFormatted"
+        binding.tvSelectedCount.text = getString(com.wkq.bao.feature.res.R.string.nas_selection_size_format, countText, sizeFormatted)
         binding.layoutDownload.isVisible = state.selectedPaths.isNotEmpty()
         binding.btnDownloadSelected.isEnabled = state.selectedPaths.isNotEmpty() && !state.downloadInProgress
     }
@@ -241,13 +256,13 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
                 else -> getString(com.wkq.bao.feature.res.R.string.storage_external)
             }
             val info = storageManager.getStorageInfo(target)
-            val spaceText = if (info.freeBytes > 0) " · ${info.formattedFree} 可用" else ""
-            val isCurrent = if (storageManager.getStorageRoot() == target.uri.toString()) " [当前默认]" else ""
-            labels.add("$typeName$isCurrent$spaceText")
+            val spaceText = if (info.freeBytes > 0) " · " + getString(com.wkq.bao.feature.res.R.string.storage_available_format, info.formattedFree) else ""
+            val label = "$typeName$spaceText"
+            labels.add(if (storageManager.getStorageRoot() == target.uri.toString()) getString(com.wkq.bao.feature.res.R.string.storage_target_current, label) else label)
         }
 
         devices.forEach { device ->
-            labels.add("💾 ${device.name} · ${getString(com.wkq.bao.feature.res.R.string.storage_target_online)}")
+            labels.add(getString(com.wkq.bao.feature.res.R.string.storage_saved_target_format, device.name, getString(com.wkq.bao.feature.res.R.string.storage_target_online)))
         }
 
         labels.add(getString(com.wkq.bao.feature.res.R.string.nas_sync_add_new_target))
@@ -279,9 +294,9 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
                 Toast.makeText(this, com.wkq.bao.feature.res.R.string.storage_picker_missing, Toast.LENGTH_LONG).show()
                 return
             }
-            val options = physicalDevices.map { "${it.name} (可用: ${it.formattedFree})" }.toTypedArray()
+            val options = physicalDevices.map { getString(com.wkq.bao.feature.res.R.string.storage_device_space_format, if (it.location == com.wkq.bao.core.media.storage.MediaStorageLocation.INTERNAL_STORAGE) getString(com.wkq.bao.feature.res.R.string.storage_internal) else it.name, it.formattedFree) }.toTypedArray()
             XPopup.Builder(this).isDarkTheme(true)
-                .asCenterList("选择下载存储位置", options) { index, _ ->
+                .asCenterList(getString(com.wkq.bao.feature.res.R.string.nas_sync_target_title), options) { index, _ ->
                     val selected = physicalDevices.getOrNull(index) ?: return@asCenterList
                     storageManager.saveStorageRoot(selected.uri, selected.location)
                     activeSource?.let { src ->
@@ -300,9 +315,9 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
         } catch (_: Exception) {
             waitingForDownloadTarget = false
             if (physicalDevices.isNotEmpty()) {
-                val options = physicalDevices.map { "${it.name} (可用: ${it.formattedFree})" }.toTypedArray()
+                val options = physicalDevices.map { getString(com.wkq.bao.feature.res.R.string.storage_device_space_format, if (it.location == com.wkq.bao.core.media.storage.MediaStorageLocation.INTERNAL_STORAGE) getString(com.wkq.bao.feature.res.R.string.storage_internal) else it.name, it.formattedFree) }.toTypedArray()
                 XPopup.Builder(this).isDarkTheme(true)
-                    .asCenterList("选择下载存储位置", options) { index, _ ->
+                    .asCenterList(getString(com.wkq.bao.feature.res.R.string.nas_sync_target_title), options) { index, _ ->
                         val selected = physicalDevices.getOrNull(index) ?: return@asCenterList
                         storageManager.saveStorageRoot(selected.uri, selected.location)
                         activeSource?.let { src ->
@@ -325,6 +340,41 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
         } else {
             finish()
         }
+    }
+
+    private fun showSourceActions() {
+        val source = activeSource
+        val actions = mutableListOf<Pair<Int, () -> Unit>>()
+        if (source != null) {
+            actions += com.wkq.bao.feature.res.R.string.btn_test_conn to { viewModel.testConnection(source); Unit }
+            actions += (if (source.enabled) com.wkq.bao.feature.res.R.string.btn_disable else com.wkq.bao.feature.res.R.string.btn_enable) to { viewModel.toggleEnabled(source); Unit }
+        }
+        actions += com.wkq.bao.feature.res.R.string.btn_export_diagnostics to {
+            runCatching {
+                startActivity(Intent.createChooser(com.wkq.bao.core.base.diagnostics.AppDiagnostics.createShareIntent(this), getString(com.wkq.bao.feature.res.R.string.title_export_diagnostics)))
+            }.onFailure { Toast.makeText(this, com.wkq.bao.feature.res.R.string.diagnostics_export_failed, Toast.LENGTH_LONG).show() }
+            Unit
+        }
+        actions += com.wkq.bao.feature.res.R.string.btn_local_data_info to {
+            XPopup.Builder(this).isDarkTheme(true).asConfirm(
+                getString(com.wkq.bao.feature.res.R.string.title_local_data_info),
+                getString(com.wkq.bao.feature.res.R.string.local_data_info_message),
+                getString(com.wkq.bao.feature.res.R.string.btn_clear_diagnostics), getString(android.R.string.ok),
+                {}, { com.wkq.bao.core.base.diagnostics.AppDiagnostics.clear(this) }, false
+            ).show()
+            Unit
+        }
+        if (source != null) actions += com.wkq.bao.feature.res.R.string.btn_remove_nas to {
+            XPopup.Builder(this).isDarkTheme(true).asConfirm(
+                getString(com.wkq.bao.feature.res.R.string.title_remove_nas),
+                getString(com.wkq.bao.feature.res.R.string.remove_nas_message),
+                getString(android.R.string.cancel), getString(com.wkq.bao.feature.res.R.string.btn_remove_nas),
+                { viewModel.remove(source.id) }, null, false
+            ).show()
+            Unit
+        }
+        XPopup.Builder(this).isDarkTheme(true)
+            .asCenterList(getString(com.wkq.bao.feature.res.R.string.nas_source_actions), actions.map { getString(it.first) }.toTypedArray()) { index, _ -> actions[index].second() }.show()
     }
 
     private fun showSourcePicker() {
@@ -417,7 +467,7 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
                     Toast.LENGTH_SHORT
                 ).show()
                 if (event.count > 0) {
-                    HomeActivity.open(this, MainPageNavigator.DOWNLOADS)
+                    HomeActivity.openDownloads(this)
                     finish()
                 }
             }
@@ -426,7 +476,16 @@ class NasBrowserActivity : BaseActivity<ActivityNasBrowserBinding>() {
                 com.wkq.bao.feature.res.R.string.nas_file_action_failed,
                 Toast.LENGTH_LONG
             ).show()
-            is NasSettingsEvent.SourceRemoved -> Unit
+            is NasSettingsEvent.SourceRemoved -> {
+                val message = when (event.result) {
+                    com.wkq.bao.core.media.download.NasSourceRemovalResult.Removed -> com.wkq.bao.feature.res.R.string.nas_removed
+                    com.wkq.bao.core.media.download.NasSourceRemovalResult.NotFound -> com.wkq.bao.feature.res.R.string.nas_removed
+                    com.wkq.bao.core.media.download.NasSourceRemovalResult.StorageUnavailable -> com.wkq.bao.feature.res.R.string.nas_remove_storage_unavailable
+                    com.wkq.bao.core.media.download.NasSourceRemovalResult.DownloadStillStopping -> com.wkq.bao.feature.res.R.string.nas_remove_download_stopping
+                    com.wkq.bao.core.media.download.NasSourceRemovalResult.CleanupFailed -> com.wkq.bao.feature.res.R.string.nas_remove_cleanup_failed
+                }
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            }
         }
     }
 }

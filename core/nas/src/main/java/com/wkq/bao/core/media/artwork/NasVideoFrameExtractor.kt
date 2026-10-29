@@ -18,7 +18,7 @@ internal object NasVideoFrameExtractor {
     suspend fun extract(source: NasSourceEntity, uri: Uri): ByteArray = withContext(Dispatchers.IO) {
         val dataSource = when (uri.scheme) {
             "smb" -> SmbVideoDataSource(SmbClientManager.openRemoteFile(source, uri))
-            "https" -> {
+            "http", "https" -> {
                 val size = WebDavClientManager.getRemoteFileInfo(source, uri).length
                 WebDavVideoDataSource(source, uri, size)
             }

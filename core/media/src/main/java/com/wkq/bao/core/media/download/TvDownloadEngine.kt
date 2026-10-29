@@ -69,8 +69,8 @@ class TvDownloadEngine(
             val nasSource = database.nasDao().getSourceById(sourceNasId)
                 ?.takeIf { it.enabled }
                 ?: return@withContext fail(claimedTask, "NAS source is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
-            if (sourceUri.scheme !in setOf("smb", "https")) return@withContext fail(claimedTask, "Unsupported NAS download source", DownloadTaskErrorCode.UNSUPPORTED_SOURCE)
-            if (sourceUri.scheme == "https" && !WebDavClientManager.isWebDav(nasSource)) return@withContext fail(claimedTask, "WebDAV source configuration is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
+            if (sourceUri.scheme !in setOf("smb", "http", "https")) return@withContext fail(claimedTask, "Unsupported NAS download source", DownloadTaskErrorCode.UNSUPPORTED_SOURCE)
+            if (sourceUri.scheme in setOf("http", "https") && (!WebDavClientManager.isWebDav(nasSource) || !com.wkq.bao.core.media.webdav.WebDavEndpoint.matches(nasSource, sourceUri.toString()))) return@withContext fail(claimedTask, "WebDAV source configuration is unavailable", DownloadTaskErrorCode.SOURCE_UNAVAILABLE)
 
             val storageTarget = resolveStorageTarget(claimedTask)
                 ?: return@withContext fail(claimedTask, "Download storage is unavailable", DownloadTaskErrorCode.STORAGE_UNAVAILABLE)

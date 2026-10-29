@@ -83,7 +83,7 @@
             android:textSize="@dimen/ui_text_caption" />
 
         <TextView
-            android:id="@+id/tab_nas"
+            android:id="@+id/tab_nas" android:contentDescription="@string/sources_open_description" android:layout_marginStart="12dp"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -95,7 +95,7 @@
             android:includeFontPadding="false"
             android:maxLines="1"
             android:minHeight="48dp"
-            android:text="@string/nav_nas"
+            android:text="@string/sources_open_action"
             android:textColor="@color/tv_text_secondary"
             android:textSize="@dimen/ui_text_caption"
             android:visibility="gone" />

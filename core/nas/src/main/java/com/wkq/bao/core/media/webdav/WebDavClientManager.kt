@@ -1,7 +1,6 @@
 package com.wkq.bao.core.media.webdav
 
 import android.net.Uri
-import android.util.Base64
 import com.wkq.bao.core.database.entity.NasSourceEntity
 import com.wkq.bao.core.media.artwork.SidecarArtworkResolver
 import com.wkq.bao.core.nas.browser.NasFileEntry
@@ -17,12 +16,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.io.OutputStream
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
-import javax.net.ssl.HttpsURLConnection
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.ArrayDeque
@@ -33,7 +26,7 @@ import kotlin.coroutines.coroutineContext
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 
-/** HTTPS WebDAV 的连接、递归扫描与 Range 读取实现。 */
+/** HTTP/HTTPS WebDAV 的连接、递归扫描与 Range 读取实现。 */
 object WebDavClientManager {
     /** 隐藏 HTTP 响应类型，供媒体层流式读取附件。 */
     fun <T> withRemoteStream(source: NasSourceEntity, uri: Uri, action: (java.io.InputStream) -> T): T =
@@ -84,29 +77,12 @@ object WebDavClientManager {
         return lower in IGNORED_DIRECTORY_NAMES || lower.startsWith(".@")
     }
 
-    private val unsafeTrustManager = object : X509TrustManager {
-        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-        override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-        override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
-    }
-
-    private val sslSocketFactory: javax.net.ssl.SSLSocketFactory = run {
-        val sslContext = SSLContext.getInstance("TLS")
-        sslContext.init(null, arrayOf<TrustManager>(unsafeTrustManager), SecureRandom())
-        val factory = sslContext.socketFactory
-        runCatching {
-            HttpsURLConnection.setDefaultSSLSocketFactory(factory)
-            HttpsURLConnection.setDefaultHostnameVerifier { _, _ -> true }
-        }
-        factory
-    }
-
+    // 凭据只发往配置来源；重定向需要用户修改来源地址，禁止隐式跨源发送。
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .sslSocketFactory(sslSocketFactory, unsafeTrustManager)
-        .hostnameVerifier { _, _ -> true }
+        .followRedirects(false)
+        .followSslRedirects(false)
         .build()
 
     fun isWebDav(source: NasSourceEntity): Boolean = source.type.equals("WEBDAV", ignoreCase = true)
@@ -120,8 +96,7 @@ object WebDavClientManager {
     fun authorizationHeader(source: NasSourceEntity): String? {
         if (source.username.isBlank()) return null
         val password = NasCredentialVault.decrypt(source.passwordEncrypted)
-        val token = Base64.encodeToString("${source.username}:$password".toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-        return "Basic $token"
+        return okhttp3.Credentials.basic(source.username, password, Charsets.UTF_8)
     }
 
     suspend fun testConnection(source: NasSourceEntity): Result<String> = withContext(Dispatchers.IO) {
@@ -290,6 +265,33 @@ object WebDavClientManager {
         request(source, uri.toString()).get().build()
     ).execute()
 
+    /** 播放与扫描共用 TLS、来源边界和重定向策略。 */
+    fun openPlayback(source: NasSourceEntity, address: String, position: Long, length: Long): PlaybackStream {
+        require(position >= 0 && (length == -1L || length > 0))
+        val builder = request(source, address).get()
+        if (position > 0 || length > 0) {
+            val end = if (length > 0) Math.addExact(position, length - 1).toString() else ""
+            builder.header("Range", "bytes=$position-$end")
+        }
+        val response = client.newCall(builder.build()).execute()
+        try {
+            if (!response.isSuccessful) throw IOException("WebDAV HTTP ${response.code}")
+            if (position > 0 && response.code != 206) throw IOException("WebDAV Range unsupported")
+            if (response.code == 206 && !response.header("Content-Range").orEmpty().startsWith("bytes $position-")) {
+                throw IOException("WebDAV Range mismatch")
+            }
+            val body = response.body ?: throw IOException("WebDAV empty response")
+            return PlaybackStream(body.byteStream(), body.contentLength()) { response.close() }
+        } catch (error: Throwable) {
+            response.close()
+            throw error
+        }
+    }
+
+    class PlaybackStream(val input: java.io.InputStream, val length: Long, private val closeResponse: () -> Unit) : java.io.Closeable {
+        override fun close() = closeResponse()
+    }
+
     private fun listDirectory(source: NasSourceEntity, directory: String, timeoutSeconds: Long? = null): List<DavEntry> {
         executePropFind(source, directory, depth = 1, timeoutSeconds).use { response ->
             check(response.code == 207) { "WebDAV 目录读取失败: HTTP ${response.code}" }
@@ -312,10 +314,13 @@ object WebDavClientManager {
             .build()
     ).execute()
 
-    private fun request(source: NasSourceEntity, url: String): Request.Builder = Request.Builder()
+    private fun request(source: NasSourceEntity, url: String): Request.Builder {
+        require(WebDavEndpoint.matches(source, url)) { "WebDAV request is outside the configured source" }
+        return Request.Builder()
         .url(url)
         .header("Accept", "*/*")
         .apply { authorizationHeader(source)?.let { header("Authorization", it) } }
+    }
 
     private fun endpoint(source: NasSourceEntity, path: String) = sourceBaseUrl(source).newBuilder().apply {
         (baseSegments(source) + path.trim('/').split('/'))
@@ -323,30 +328,9 @@ object WebDavClientManager {
             .forEach(::addPathSegment)
     }.build()
 
-    private fun sourceBaseUrl(source: NasSourceEntity): okhttp3.HttpUrl = run {
-        val rawHost = source.host.trim().removeSuffix("/")
-        val isExplicitHttp = rawHost.startsWith("http://", ignoreCase = true)
-        val isExplicitHttps = rawHost.startsWith("https://", ignoreCase = true)
-        val scheme = when {
-            isExplicitHttp -> "http"
-            isExplicitHttps -> "https"
-            source.port == 5005 || source.port == 80 -> "http"
-            else -> "https"
-        }
-        val cleanHost = rawHost.removePrefix("http://").removePrefix("https://").trim('/')
-            .substringBefore(':').substringBefore('/')
-        okhttp3.HttpUrl.Builder()
-            .scheme(scheme)
-            .host(cleanHost)
-            .port(source.port.takeIf { it in 1..65535 } ?: if (scheme == "http") 5005 else DEFAULT_PORT)
-            .encodedPath("/")
-            .build()
-    }
+    private fun sourceBaseUrl(source: NasSourceEntity) = WebDavEndpoint.baseUrl(source)
 
-    private fun baseSegments(source: NasSourceEntity): List<String> =
-        listOf(source.shareName, source.rootPath)
-            .flatMap { it.trim('/').split('/') }
-            .filter(String::isNotBlank)
+    private fun baseSegments(source: NasSourceEntity) = WebDavEndpoint.baseSegments(source)
 
     private fun parseEntries(source: NasSourceEntity, stream: java.io.InputStream): List<DavEntry> {
         val entries = mutableListOf<DavEntry>()

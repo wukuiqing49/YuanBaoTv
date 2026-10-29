@@ -111,17 +111,13 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- 正在下载区域 -->
-    <Button
-        android:id="@+id/tv_label_downloading"
-        android:layout_width="wrap_content"
-        android:layout_height="44dp"
-        android:layout_marginTop="@dimen/feature_res_spacing_large"
-        android:text="@string/section_downloading"
-        android:textColor="@color/tv_button_text"
-        android:textSize="@dimen/ui_text_action"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_header_storage"  android:minHeight="44dp" android:maxLines="1" android:ellipsize="end" android:textAllCaps="false" android:paddingHorizontal="16dp" android:background="@drawable/bg_tv_button_focus" />
+    <LinearLayout android:id="@+id/download_sections" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="vertical" android:clipChildren="false" android:clipToPadding="false" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/layout_header_storage" app:layout_constraintEnd_toEndOf="parent">
+ <Button android:id="@+id/btn_scan_local" android:layout_width="wrap_content" android:layout_height="wrap_content"  android:minHeight="48dp" android:minWidth="0dp" android:paddingHorizontal="12dp" android:paddingVertical="8dp" android:text="@string/storage_scan_now" android:textAllCaps="false" android:maxLines="2" android:ellipsize="end" android:textSize="@dimen/ui_text_action" android:textColor="@color/tv_button_text" android:background="@drawable/bg_tv_button_focus" android:focusable="true" />
+ <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal" android:clipChildren="false" android:clipToPadding="false">
+ <Button android:id="@+id/tv_label_downloading" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:minHeight="48dp" android:minWidth="0dp" android:paddingHorizontal="12dp" android:paddingVertical="8dp" android:text="@string/downloads_local_tab" android:textAllCaps="false" android:maxLines="2" android:ellipsize="end" android:textSize="@dimen/ui_text_action" android:textColor="@color/tv_button_text" android:background="@drawable/bg_tv_button_focus" android:focusable="true" />
+ <Space android:layout_width="12dp" android:layout_height="1dp" />
+ <Button android:id="@+id/btn_download_tasks" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:minHeight="48dp" android:minWidth="0dp" android:paddingHorizontal="12dp" android:paddingVertical="8dp" android:text="@string/downloads_tasks_tab" android:textAllCaps="false" android:maxLines="2" android:ellipsize="end" android:textSize="@dimen/ui_text_action" android:textColor="@color/tv_button_text" android:background="@drawable/bg_tv_button_focus" android:focusable="true" />
+ </LinearLayout></LinearLayout>
 
     <!-- 正在下载任务卡片 (Focused Example) -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -134,7 +130,7 @@
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:padding="@dimen/feature_res_spacing_medium"
-        app:layout_constraintTop_toBottomOf="@id/tv_label_downloading">
+        app:layout_constraintTop_toBottomOf="@id/download_sections">
 
         <TextView
             android:id="@+id/tv_task_title"
@@ -210,7 +206,7 @@
         android:paddingBottom="@dimen/feature_res_spacing_medium"
         android:scrollbars="none"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintTop_toBottomOf="@id/tv_label_downloading"
+        app:layout_constraintTop_toBottomOf="@id/download_sections"
         app:layout_constraintBottom_toBottomOf="parent" />
 
     <LinearLayout
@@ -222,7 +218,7 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_label_downloading">
+        app:layout_constraintTop_toBottomOf="@id/download_sections">
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

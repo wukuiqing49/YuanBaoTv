@@ -17,10 +17,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 
 data class HomeUiState(
-    val loading: Boolean = false,
+    val loading: Boolean = true,
     val continueWatching: List<ContinueWatchingItem> = emptyList(),
     val cartoons: List<MediaSeriesEntity> = emptyList(),
     val movies: List<MediaSeriesEntity> = emptyList(),
@@ -36,7 +37,8 @@ sealed interface HomeEvent {
 }
 
 class HomeViewModel(
-    private val repository: MediaBrowseRepository
+    private val repository: MediaBrowseRepository,
+    private val computationDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Default
 ) : ViewModel() {
     val offlineSeriesIds = repository.offlineSeriesIds
     private val previewSeriesId = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
@@ -50,25 +52,17 @@ class HomeViewModel(
         repository.allSeries,
         previewSeriesId
     ) { continueWatching, allSeries, previewId ->
-        // 重建索引期间旧副本仍可能可播，同一展示集合只保留最近一条历史。
+        // 使用数据库作品 ID，避免同名作品、翻拍版和不同年份被展示标题误合并。
         val visibleContinueWatching = continueWatching.sortedWith(
             compareByDescending<ContinueWatchingItem> { it.history.lastPlayedAt }
                 .thenByDescending { it.history.seriesId }
-        ).distinctBy { com.wkq.bao.feature.app.utils.MediaLabels.homeCollectionKey(it.seriesTitle) }.take(8)
+        ).distinctBy { it.history.seriesId }.take(8)
         val featuredProgress = visibleContinueWatching.firstOrNull()
         val featured = allSeries.firstOrNull { it.id == previewId }
             ?: allSeries.firstOrNull { it.id == featuredProgress?.history?.seriesId }
             ?: allSeries.maxByOrNull(MediaSeriesEntity::updatedAt)
-        val usedCollections = visibleContinueWatching.mapTo(hashSetOf()) {
-            com.wkq.bao.feature.app.utils.MediaLabels.homeCollectionKey(it.seriesTitle)
-        }
-        fun pick(items: List<MediaSeriesEntity>): List<MediaSeriesEntity> {
-            val selected = items.filterNot {
-                com.wkq.bao.feature.app.utils.MediaLabels.homeCollectionKey(it.title) in usedCollections
-            }.distinctBy { com.wkq.bao.feature.app.utils.MediaLabels.homeCollectionKey(it.title) }.take(8)
-            selected.forEach { usedCollections += com.wkq.bao.feature.app.utils.MediaLabels.homeCollectionKey(it.title) }
-            return selected
-        }
+        fun pick(items: List<MediaSeriesEntity>): List<MediaSeriesEntity> =
+            items.distinctBy { it.id }.take(8)
         val recent = pick(allSeries.sortedByDescending(MediaSeriesEntity::createdAt))
         val movies = pick(allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.MOVIE })
         val series = pick(allSeries.filter { it.type == com.wkq.bao.core.database.entity.MediaSeriesType.TV })
@@ -83,7 +77,7 @@ class HomeViewModel(
             featured = featured,
             featuredProgress = visibleContinueWatching.firstOrNull { it.history.seriesId == featured?.id }
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), HomeUiState())
+    }.flowOn(computationDispatcher).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), HomeUiState())
 
     private val _events = MutableSharedFlow<HomeEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<HomeEvent> = _events.asSharedFlow()

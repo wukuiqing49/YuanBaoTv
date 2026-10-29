@@ -16,11 +16,8 @@ object WebDavCredentialRegistry {
 
     fun resolve(uri: Uri): NasSourceEntity? = sources.values
         .asSequence()
-        .filter { source ->
-            uri.scheme.equals("https", true) && uri.host.equals(sourceHost(source), true) &&
-                uri.port == source.port && isUnderSourcePath(uri, source)
-        }
-        .maxByOrNull { source -> sourceBasePath(source).length }
+        .filter { source -> WebDavEndpoint.matches(source, uri.toString()) }
+        .maxByOrNull { source -> WebDavEndpoint.baseSegments(source).size }
 
     suspend fun resolve(context: Context, uri: Uri): NasSourceEntity? {
         resolve(uri)?.let { return it }
@@ -29,28 +26,8 @@ object WebDavCredentialRegistry {
             .getEnabledSources()
             .asSequence()
             .filter(WebDavClientManager::isWebDav)
-            .firstOrNull { source -> matches(uri, source) }
+            .firstOrNull { source -> WebDavEndpoint.matches(source, uri.toString()) }
             ?.also(::register)
     }
 
-    private fun sourceHost(source: NasSourceEntity): String? {
-        val input = source.host.trim().let { if (it.contains("://")) it else "https://$it" }
-        return Uri.parse(input).host
-    }
-
-    private fun isUnderSourcePath(uri: Uri, source: NasSourceEntity): Boolean {
-        val basePath = sourceBasePath(source)
-        if (basePath.isBlank()) return true
-        val requestPath = uri.path.orEmpty().trim('/')
-        return requestPath.equals(basePath, true) || requestPath.startsWith("$basePath/", true)
-    }
-
-    private fun matches(uri: Uri, source: NasSourceEntity): Boolean =
-        uri.scheme.equals("https", true) && uri.host.equals(sourceHost(source), true) &&
-            uri.port == source.port && isUnderSourcePath(uri, source)
-
-    private fun sourceBasePath(source: NasSourceEntity): String =
-        listOf(source.shareName, source.rootPath)
-            .joinToString("/")
-            .trim('/')
 }

@@ -97,10 +97,10 @@
             android:textSize="@dimen/ui_text_body" />
 
         <TextView
-            android:id="@+id/tab_nas"
+            android:id="@+id/tab_nas" android:contentDescription="@string/sources_open_description" android:layout_marginStart="12dp"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:background="@drawable/bg_nav_link_active"
+            android:background="@drawable/bg_tv_button_focus"
             android:focusable="true"
             android:gravity="center"
             android:ellipsize="end"
@@ -108,7 +108,7 @@
             android:maxLines="1"
             android:minWidth="96dp"
             android:paddingHorizontal="@dimen/feature_res_spacing_medium"
-            android:text="@string/nav_nas"
+            android:text="@string/sources_open_action"
             android:textColor="@color/tv_text_secondary"
             android:textSize="@dimen/ui_text_body" />
     </LinearLayout>

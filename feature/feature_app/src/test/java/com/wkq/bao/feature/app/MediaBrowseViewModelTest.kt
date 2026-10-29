@@ -42,13 +42,13 @@ class MediaBrowseViewModelTest {
     @Test
     fun `home state exposes all featured media and prioritizes continue watching`() = runTest {
         val repository = FakeMediaBrowseRepository()
-        val viewModel = HomeViewModel(repository)
+        val viewModel = HomeViewModel(repository, dispatcher)
         val stateCollection = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.uiState.collect {}
         }
         advanceUntilIdle()
 
-        assertEquals(listOf(repository.cartoon.id), viewModel.uiState.value.cartoons.map { it.id })
+        assertEquals(listOf(repository.movie.id, repository.cartoon.id), viewModel.uiState.value.cartoons.map { it.id })
         assertEquals(repository.movie.id, viewModel.uiState.value.featured?.id)
         assertEquals(repository.continueItem.history.episodeId, viewModel.uiState.value.continueWatching.single().history.episodeId)
 
@@ -59,21 +59,21 @@ class MediaBrowseViewModelTest {
     }
 
     @Test
-    fun `continue watching groups reindexed copies and keeps the latest progress`() = runTest {
+    fun `continue watching preserves distinct works even when display names match`() = runTest {
         val repository = FakeMediaBrowseRepository()
         val old = repository.continueItem.copy(seriesTitle = "小猪佩奇第四季 Peppa Pig Season 4",
             history = repository.continueItem.history.copy(seriesId = 1, lastPlayedAt = 100, positionMs = 39_000))
         val corrected = old.copy(seriesTitle = "小猪佩奇第四季 Peppa Pig",
             history = old.history.copy(seriesId = 20))
         repository.continueWatching.value = listOf(old, corrected)
-        val viewModel = HomeViewModel(repository)
+        val viewModel = HomeViewModel(repository, dispatcher)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
         advanceUntilIdle()
-        assertEquals(listOf(20L), viewModel.uiState.value.continueWatching.map { it.history.seriesId })
-        assertEquals(39_000L, viewModel.uiState.value.continueWatching.single().history.positionMs)
+        assertEquals(listOf(20L, 1L), viewModel.uiState.value.continueWatching.map { it.history.seriesId })
+        assertEquals(39_000L, viewModel.uiState.value.continueWatching.first().history.positionMs)
         repository.continueWatching.value = listOf(old.copy(history = old.history.copy(lastPlayedAt = 101)), corrected)
         advanceUntilIdle()
-        assertEquals(1L, viewModel.uiState.value.continueWatching.single().history.seriesId)
+        assertEquals(1L, viewModel.uiState.value.continueWatching.first().history.seriesId)
     }
 
     @Test
@@ -83,7 +83,7 @@ class MediaBrowseViewModelTest {
         repository.playableEpisode = fifth
         repository.continueWatching.value = listOf(repository.continueItem.copy(
             history = repository.continueItem.history.copy(episodeId = fifth.id)))
-        val viewModel = HomeViewModel(repository)
+        val viewModel = HomeViewModel(repository, dispatcher)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
         advanceUntilIdle()
         val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }
@@ -98,7 +98,7 @@ class MediaBrowseViewModelTest {
             repository.playableEpisode = invalid
             repository.continueWatching.value = listOf(repository.continueItem.copy(
                 history = repository.continueItem.history.copy(episodeId = 50)))
-            val viewModel = HomeViewModel(repository)
+            val viewModel = HomeViewModel(repository, dispatcher)
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
             advanceUntilIdle()
             val event = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.first() }
@@ -232,18 +232,18 @@ class MediaBrowseViewModelTest {
         repository.continueWatching.value = emptyList()
         val recent = (100L..107L).map { repository.movie.copy(id = it, title = "Recent $it", createdAt = it) }
         repository.series.value = recent + listOf(olderEdited, newer, tv, local)
-        val viewModel = HomeViewModel(repository)
+        val viewModel = HomeViewModel(repository, dispatcher)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
         advanceUntilIdle()
         assertEquals((107L downTo 100L).toList(), viewModel.uiState.value.cartoons.map { it.id })
         val categoryIds = (viewModel.uiState.value.movies + viewModel.uiState.value.series + viewModel.uiState.value.animation).map { it.id }.toSet()
-        assertEquals(true, viewModel.uiState.value.cartoons.none { it.id in categoryIds })
-        assertEquals(listOf(1L), viewModel.uiState.value.movies.map { it.id })
+        assertEquals(true, viewModel.uiState.value.cartoons.all { it.id in categoryIds })
+        assertEquals((100L..107L).toList(), viewModel.uiState.value.movies.map { it.id })
         assertEquals(listOf(30L), viewModel.uiState.value.series.map { it.id })
         assertEquals(listOf(2L), viewModel.uiState.value.animation.map { it.id })
         repository.series.value = recent + listOf(newer.copy(type = MediaSeriesType.MOVIE))
         advanceUntilIdle()
-        assertEquals(listOf(2L), viewModel.uiState.value.movies.map { it.id })
+        assertEquals((100L..107L).toList(), viewModel.uiState.value.movies.map { it.id })
         assertEquals(true, viewModel.uiState.value.animation.isEmpty())
         assertEquals(true, viewModel.uiState.value.series.isEmpty())
     }
@@ -251,7 +251,7 @@ class MediaBrowseViewModelTest {
     @Test
     fun `preview changes playback target and falls back when media disappears`() = runTest {
         val repository = FakeMediaBrowseRepository()
-        val viewModel = HomeViewModel(repository)
+        val viewModel = HomeViewModel(repository, dispatcher)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
         advanceUntilIdle()
         viewModel.previewSeries(repository.cartoon.id)
@@ -268,24 +268,18 @@ class MediaBrowseViewModelTest {
     }
 
     @Test
-    fun `small library does not repeat rows and split episodes do not fill the home page`() = runTest {
+    fun `small library keeps independent categories and same title works`() = runTest {
         val repository = FakeMediaBrowseRepository()
-        val viewModel = HomeViewModel(repository)
+        val viewModel = HomeViewModel(repository, dispatcher)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
         advanceUntilIdle()
-        assertEquals(listOf(repository.cartoon.id), viewModel.uiState.value.cartoons.map { it.id })
-        assertEquals(true, viewModel.uiState.value.movies.isEmpty())
-        assertEquals(true, viewModel.uiState.value.animation.isEmpty())
-        repository.continueWatching.value = emptyList()
-        repository.series.value = (1L..30L).map { repository.movie.copy(id = it, title = "Movie $it", createdAt = it) }
+        assertEquals(listOf(1L), viewModel.uiState.value.movies.map { it.id })
+        assertEquals(listOf(2L), viewModel.uiState.value.animation.map { it.id })
+        repository.series.value = listOf(repository.movie.copy(id = 10, title = "同名电影", year = "1990"),
+            repository.movie.copy(id = 11, title = "同名电影", year = "2024"))
         advanceUntilIdle()
-        assertEquals(8, viewModel.uiState.value.cartoons.size)
-        assertEquals(8, viewModel.uiState.value.movies.size)
-        assertEquals(true, viewModel.uiState.value.movies.none { it in viewModel.uiState.value.cartoons })
-        repository.series.value = (1L..30L).map { repository.movie.copy(id = it, title = "动画第二季 第${it}话 (超高清SDR)") }
-        advanceUntilIdle()
-        assertEquals(1, viewModel.uiState.value.cartoons.size)
-        assertEquals(true, viewModel.uiState.value.movies.isEmpty())
+        assertEquals(setOf(10L, 11L), viewModel.uiState.value.cartoons.map { it.id }.toSet())
+        assertEquals(setOf(10L, 11L), viewModel.uiState.value.movies.map { it.id }.toSet())
     }
 
     private class FakeMediaBrowseRepository : MediaBrowseRepository {

@@ -20,6 +20,16 @@ object AppDiagnostics {
     private const val KEY_EVENTS = "events"
     private const val MAX_EVENTS = 200
     private val lock = Any()
+    private val timings = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    fun beginTiming(name: String) {
+        timings[name] = android.os.SystemClock.elapsedRealtime()
+    }
+
+    fun finishTiming(context: Context, name: String) {
+        val start = timings.remove(name) ?: return
+        record(context, "performance", "${name}_${android.os.SystemClock.elapsedRealtime() - start}ms")
+    }
 
     fun record(context: Context, category: String, event: String) {
         val safeCategory = category.sanitize()

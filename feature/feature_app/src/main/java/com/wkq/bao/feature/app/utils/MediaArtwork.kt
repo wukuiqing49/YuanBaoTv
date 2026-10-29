@@ -23,7 +23,14 @@ object MediaArtwork {
             fallback(ResR.drawable.bg_poster_image_surface)
             error(ResR.drawable.bg_poster_image_surface)
             crossfade(true)
-            listener(onError = { _, _ -> onUnavailable(true) }, onSuccess = { _, _ -> onUnavailable(false) })
+            listener(onError = { _, _ -> onUnavailable(true) }, onSuccess = { _, result ->
+                // 横卡遇到竖海报（或反向）完整容纳主体，保留中性底色。
+                val drawable = result.drawable
+                val artWide = drawable.intrinsicWidth > drawable.intrinsicHeight
+                val cardWide = imageView.width > imageView.height
+                imageView.scaleType = if (artWide != cardWide) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.CENTER_CROP
+                onUnavailable(false)
+            })
         }
     }
 

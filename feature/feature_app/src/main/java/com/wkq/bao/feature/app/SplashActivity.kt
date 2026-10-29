@@ -25,12 +25,9 @@ class SplashActivity : BaseActivity<ActivitySplashBinding>() {
     private val viewModel by viewModels<SplashViewModel> { SplashViewModel.Factory(applicationContext) }
 
     companion object {
-        private const val REQUEST_NOTIFICATIONS = 1001
-        private const val MIN_SPLASH_DURATION_MS = 600L
     }
 
     override fun initView() {
-        requestNotificationPermissionIfNeeded()
         // 品牌标题淡入与微缩放动效
         binding.llBrand.alpha = 0f
         binding.llBrand.scaleX = 0.94f
@@ -53,17 +50,8 @@ class SplashActivity : BaseActivity<ActivitySplashBinding>() {
             .start()
     }
 
-    private fun requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
-        }
-    }
-
     override fun initData() {
         lifecycleScope.launch {
-            val startTime = System.currentTimeMillis()
 
             // 优先检查系统语音直接播放请求 (如用户说 "播放流浪地球")，语音播放即刻响应不作人为停留
             if (intent?.action == "android.media.action.MEDIA_PLAY_FROM_SEARCH") {
@@ -78,14 +66,8 @@ class SplashActivity : BaseActivity<ActivitySplashBinding>() {
             withContext(Dispatchers.IO) {
                 runCatching {
                     val db = AppDatabase.getInstance(applicationContext)
-                    db.mediaDao().getAllSeriesSync()
+                    db.openHelper.writableDatabase
                 }
-            }
-
-            // 保证开屏页至少展示设定的停留时长，给用户完整精致的开屏体验
-            val elapsed = System.currentTimeMillis() - startTime
-            if (elapsed < MIN_SPLASH_DURATION_MS) {
-                delay(MIN_SPLASH_DURATION_MS - elapsed)
             }
 
             navigateToHome(viewModel.resolveInitialPage())

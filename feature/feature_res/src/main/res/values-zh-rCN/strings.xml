@@ -10,7 +10,7 @@
     <string name="nav_all_media">全部媒体</string>
     <string name="nav_search">搜索</string>
     <string name="nav_settings">设置</string>
-    <string name="nav_downloads">下载与本地</string>
+    <string name="nav_downloads">本地与下载</string>
     <string name="section_continue_watching">继续观看</string>
     <string name="section_cartoons">精选媒体</string>
     <string name="section_recently_added">最近添加</string>
@@ -35,7 +35,7 @@
     <string name="title_nas_settings">NAS 源设置</string>
     <string name="btn_add_nas">添加 NAS</string>
     <string name="btn_add_local_media">选择本地影片</string>
-    <string name="btn_import_nas">从 NAS 导入</string>
+    <string name="btn_import_nas">媒体来源</string>
     <string name="btn_test_conn">测试连接</string>
     <string name="btn_scan_now">立即扫描</string>
     <string name="btn_edit">编辑</string>
@@ -43,10 +43,10 @@
     <string name="status_disconnected">未连接</string>
     <string name="status_enabled">已启用</string>
     <string name="status_disabled">已停用</string>
-    <string name="title_downloads">下载与本地媒体</string>
+    <string name="title_downloads">本地与下载</string>
     <string name="section_downloading">下载任务</string>
     <string name="downloads_empty_title">暂无下载任务</string>
-    <string name="downloads_empty_message">从媒体详情加入下载后，进度会显示在这里</string>
+    <string name="downloads_empty_message">在影片详情或媒体来源中加入下载，随后可在这里查看进度、暂停或重试。</string>
     <string name="section_downloaded_gallery">已下载媒体</string>
     <string name="storage_space_format">%1$s 可用 / %2$s</string>
     <string name="btn_pause">暂停</string>
@@ -85,9 +85,9 @@
     <string name="nas_protocol_smb">SMB</string>
     <string name="nas_protocol_webdav">WebDAV</string>
     <string name="nas_port">端口</string>
-    <string name="nas_editor_webdav_hint">HTTPS WebDAV，默认端口 5006</string>
+    <string name="nas_editor_webdav_hint">支持 HTTP / HTTPS；HTTP 默认 5005，HTTPS 默认 5006。HTTP 仅用于可信网络。</string>
     <string name="nas_webdav_path">WebDAV 目录</string>
-    <string name="nas_editor_webdav_host_hint">公网域名或局域网 IP，不要填 https://</string>
+    <string name="nas_editor_webdav_host_hint">域名或 IP；可用 http:// 或 https:// 指定协议</string>
     <string name="nas_editor_webdav_path_hint">WebDAV 服务根目录下的媒体目录，可留空</string>
     <string name="nas_editor_name_hint">用于在设备中识别此 NAS，可留空</string>
     <string name="nas_editor_host_hint">IP 地址或局域网主机名</string>
@@ -292,7 +292,7 @@
     <string name="cache_switch_tasks">本地媒体 · 切换下载任务</string>
     <string name="cache_switch_library">下载任务 · 切换本地媒体</string>
     <string name="cache_empty_title">暂无本地媒体</string>
-    <string name="cache_empty_message">从 NAS 导入媒体后，可在详情页缓存电影或选集；已有文件也可通过存储扫描加入。</string>
+    <string name="cache_empty_message">选择目录并扫描，即可在这里查看本地影片；从详情页下载的影片也会自动加入。</string>
     <string name="media_metadata_separator">\u0020·\u0020</string>
     <string name="continue_remaining_time">剩余 %1$d 分钟</string>
     <string name="player_more">更多</string>
@@ -335,4 +335,40 @@
     <string name="player_mode_title">选择播放方式</string>
     <string name="player_mode_auto">自动：小米系统播放器（电视小爱控制）</string>
     <string name="player_mode_internal">内置播放器（连续播放、字幕与进度同步）</string>
+    <string name="downloads_cached_switch_tasks">本地影视 %1$d 部 · 查看同步任务 %2$d 个</string>
+    <string name="downloads_tasks_switch_cached">同步任务 %1$d 个 · 查看本地影视 %2$d 部</string>
+    <string name="player_failure_certificate">无法验证 NAS 证书。请在设备上安装可信 CA 或使用有效的 HTTPS 证书后重试。</string>
+    <string name="player_failure_authentication">NAS 拒绝访问。请在 NAS 设置中检查账号、密码和目录权限后重试。</string>
+    <string name="player_failure_format">当前设备无法解码此影片。请尝试其他播放源或兼容的视频格式。</string>
+    <string name="player_failure_network">无法连接 NAS。请检查 NAS 电源和网络连接后重试。</string>
+    <string name="player_failure_source">影片暂不可用。请检查存储设备是否已连接、目录是否已授权，或确认 NAS 在线后重试。</string>
+
+    <!-- 媒体浏览与管理流程 -->
+    <string name="downloads_local_tab">本地影片</string>
+    <string name="downloads_tasks_tab">下载任务</string>
+    <string name="downloads_local_count">本地影片 · %1$d</string>
+    <string name="downloads_tasks_count">下载任务 · %1$d</string>
+    <string name="storage_manage_directories">管理目录</string>
+    <string name="local_choose_videos">选择本地视频</string>
+    <string name="storage_available_format">%1$s 可用</string>
+    <string name="storage_device_space_format">%1$s · %2$s 可用</string>
+    <string name="nas_selection_size_format">%1$s · 约 %2$s</string>
+    <string name="nas_setup_steps">连接家庭服务器 → 扫描影片 → 在媒体库播放</string>
+    <string name="nas_scan_background_hint">扫描会在后台继续，可以离开此页。</string>
+    <string name="nas_scan_ready_hint">来源已配置。扫描配置目录中的影片，或浏览文件下载到本地。</string>
+    <string name="nas_view_library">查看媒体库</string>
+    <string name="home_welcome_title">把你的视频，变成家庭影院</string>
+    <string name="home_welcome_message">选择 U 盘或本机视频，或连接家庭服务器。扫描后即可浏览海报、选集和继续观看。</string>
+    <string name="home_connect_server">连接家庭服务器</string>
+    <string name="player_group_playback">播放</string>
+    <string name="player_group_tracks">声音与字幕</string>
+    <string name="player_group_advanced">来源与画面</string>
+    <string name="player_setting_value">%1$s：%2$s</string>
+    <string name="player_track_unavailable">暂无可用轨道</string>
+    <string name="player_track_automatic">自动选择</string>
+    <string name="player_subtitle_setting">字幕</string>
+    <string name="sources_open_action">媒体来源 ›</string>
+    <string name="sources_open_description">打开媒体来源管理，返回后回到当前页面</string>
+    <string name="nas_scan_failed_guidance">扫描失败。请检查服务器连接和目录权限后重试。</string>
+    <string name="nas_source_actions">来源管理</string>
 </resources>

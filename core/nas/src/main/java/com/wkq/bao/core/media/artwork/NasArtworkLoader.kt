@@ -128,6 +128,7 @@ private class HttpsArtworkFetcher(
         val response = if (source != null) {
             WebDavClientManager.openRemoteFile(source, data)
         } else {
+            if (data.scheme == "http") throw IOException("HTTP artwork requires a configured NAS source")
             HTTP_CLIENT.newCall(Request.Builder().url(data.toString()).get().build()).execute()
         }
         if (!response.isSuccessful) {
@@ -183,13 +184,13 @@ private class HttpsArtworkFetcher(
 
     class Factory(private val appContext: Context) : Fetcher.Factory<Uri> {
         override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? {
-            if (!data.scheme.equals("https", true)) return null
+            if (!com.wkq.bao.core.media.webdav.WebDavEndpoint.supports(data.scheme)) return null
             return HttpsArtworkFetcher(appContext, data, options, imageLoader.diskCache)
         }
     }
 
     private companion object {
-        val HTTP_CLIENT = OkHttpClient()
+        val HTTP_CLIENT = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).build()
     }
 }
 

@@ -2,45 +2,49 @@ package com.wkq.bao.core.media.webdav
 
 import android.content.Context
 import android.net.Uri
-import androidx.media3.datasource.DataSource
+import androidx.media3.common.C
+import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSpec
-import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.datasource.TransferListener
-import com.wkq.bao.core.media.webdav.WebDavClientManager.authorizationHeader
-import com.wkq.bao.core.media.webdav.WebDavCredentialRegistry
 
-/** 为 Media3 的 WebDAV 视频请求附加当前 NAS 的 Basic Auth。 */
-class WebDavDataSource(context: Context) : DataSource {
-    private val transferListeners = linkedSetOf<TransferListener>()
-    private var delegate: DataSource? = null
-
-    override fun addTransferListener(transferListener: TransferListener) {
-        transferListeners += transferListener
-        delegate?.addTransferListener(transferListener)
-    }
+/** Media3 复用经过来源校验的 WebDAV 客户端，凭据不会随重定向外发。 */
+class WebDavDataSource(@Suppress("UNUSED_PARAMETER") context: Context) : BaseDataSource(true) {
+    private var stream: WebDavClientManager.PlaybackStream? = null
+    private var currentUri: Uri? = null
+    private var remaining = C.LENGTH_UNSET.toLong()
 
     override fun open(dataSpec: DataSpec): Long {
+        transferInitializing(dataSpec)
         val source = WebDavCredentialRegistry.resolve(dataSpec.uri)
-            ?: throw java.io.IOException("未找到 WebDAV 媒体源配置，请先在 NAS 设置中完成连接")
-        val headers = authorizationHeader(source)?.let { mapOf("Authorization" to it) }.orEmpty()
-        return DefaultHttpDataSource.Factory()
-            .setDefaultRequestProperties(headers)
-            .setAllowCrossProtocolRedirects(false)
-            .createDataSource()
-            .also {
-                transferListeners.forEach(it::addTransferListener)
-                delegate = it
-            }
-            .open(dataSpec)
+            ?: throw java.io.IOException("WebDAV source unavailable")
+        val opened = WebDavClientManager.openPlayback(source, dataSpec.uri.toString(), dataSpec.position, dataSpec.length)
+        stream = opened
+        currentUri = dataSpec.uri
+        remaining = if (dataSpec.length != C.LENGTH_UNSET.toLong()) dataSpec.length else opened.length
+        transferStarted(dataSpec)
+        return remaining
     }
 
-    override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
-        delegate?.read(buffer, offset, length) ?: throw IllegalStateException("WebDAV 数据源尚未打开")
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (length == 0) return 0
+        if (remaining == 0L) return C.RESULT_END_OF_INPUT
+        val count = stream?.input?.read(buffer, offset,
+            if (remaining < 0) length else minOf(length.toLong(), remaining).toInt())
+            ?: throw java.io.IOException("WebDAV source not open")
+        if (count < 0) {
+            if (remaining > 0) throw java.io.EOFException("WebDAV response truncated")
+            return C.RESULT_END_OF_INPUT
+        }
+        if (remaining >= 0) remaining -= count
+        bytesTransferred(count)
+        return count
+    }
 
-    override fun getUri(): Uri? = delegate?.uri
+    override fun getUri(): Uri? = currentUri
 
     override fun close() {
-        delegate?.close()
-        delegate = null
+        val opened = stream ?: return
+        stream = null
+        currentUri = null
+        try { opened.close() } finally { transferEnded() }
     }
 }

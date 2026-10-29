@@ -12,7 +12,6 @@ import android.view.animation.DecelerateInterpolator
 object TvFocusHelper {
 
     private val focusInterpolator = DecelerateInterpolator(1.5f)
-    private const val FOCUS_GLOW_COLOR = 0x88FFD54F.toInt()
 
     fun applyFocusScale(view: View, scale: Float = 1.08f, onFocusChanged: ((Boolean) -> Unit)? = null) {
         // 明确卡片轮廓，避免部分电视系统无法从状态 drawable 推导圆角。
@@ -65,7 +64,7 @@ object TvFocusHelper {
                     .start()
                 v.elevation = originalElevation + 12f * v.resources.displayMetrics.density
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    v.outlineSpotShadowColor = FOCUS_GLOW_COLOR
+                    v.outlineSpotShadowColor = androidx.core.content.ContextCompat.getColor(v.context, com.wkq.bao.feature.res.R.color.tv_focus_ring)
                 }
             } else {
                 v.animate()
@@ -144,7 +143,6 @@ object TvFocusHelper {
         val uiModeManager = context.getSystemService(android.content.Context.UI_MODE_SERVICE) as? android.app.UiModeManager
         if (uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION) return true
         if (!pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN)) return true
-        // 圆宝TV 作为 TV 优先专属应用，默认全部开启大屏焦点动效
-        return true
+        return false
     }
 }

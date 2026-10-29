@@ -95,7 +95,6 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
     private var pendingRestorePosition: Long? = null
     private var restorePaused = false
     private var activePopup: BasePopupView? = null
-    private var isFailoverAttempting = false
     private val playbackPreferences by lazy { getSharedPreferences("playback_preferences", MODE_PRIVATE) }
     private val speeds = listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f)
 
@@ -127,12 +126,12 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
             subtitlesEnabled = activePlayer?.trackSelectionParameters?.disabledTrackTypes?.contains(C.TRACK_TYPE_TEXT) != true
             renderSubtitleButton(tracks.containsType(C.TRACK_TYPE_TEXT))
             binding.btnAudioTracks.isEnabled = tracks.containsType(C.TRACK_TYPE_AUDIO)
+            (activePopup as? PlayerSettingsDrawerPopup)?.refreshLabels()
         }
 
         override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
             renderSpeed(playbackParameters.speed)
-            val speedText = if (playbackParameters.speed == 1.0f) "正常速度" else "${playbackParameters.speed}x 倍速"
-            Toast.makeText(this@PlayerActivity, "播放速度：$speedText", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@PlayerActivity, getString(com.wkq.bao.feature.res.R.string.player_speed_format, playbackParameters.speed), Toast.LENGTH_SHORT).show()
         }
 
         override fun onTrackSelectionParametersChanged(parameters: TrackSelectionParameters) {
@@ -151,8 +150,13 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
             resetOsdTimer()
         }
 
+        override fun onRenderedFirstFrame() {
+            com.wkq.bao.core.base.diagnostics.AppDiagnostics.finishTiming(this@PlayerActivity, "playback_first_frame")
+        }
+
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-            handlePlaybackFailover()
+            // 回退由 TvPlayerController 唯一负责；最终失败通过播放回调显示。
+            binding.progressBuffering.visibility = View.VISIBLE
         }
     }
 
@@ -220,7 +224,7 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
         }
         binding.btnSubtitles.setOnClickListener { showTrackPicker(C.TRACK_TYPE_TEXT) }
         binding.btnAudioTracks.setOnClickListener { showTrackPicker(C.TRACK_TYPE_AUDIO) }
-        binding.btnPlayerRetry.setOnClickListener { isFailoverAttempting = false; loadEpisode(episodeId) }
+        binding.btnPlayerRetry.setOnClickListener { loadEpisode(episodeId) }
         listOf(
             binding.btnPlayPause,
             binding.btnRewind,
@@ -336,6 +340,7 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
     }
 
     private fun loadEpisode(targetEpisodeId: Long) {
+        com.wkq.bao.core.base.diagnostics.AppDiagnostics.beginTiming("playback_first_frame")
         activePopup?.dismiss()
         if (targetEpisodeId != episodeId) pendingRestorePosition = null
         episodeId = targetEpisodeId
@@ -350,6 +355,7 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
         binding.progressBuffering.visibility = View.VISIBLE
         playerController.playEpisode(seriesId, seasonId, targetEpisodeId) { success, message ->
             if (success) {
+                hidePlaybackError()
                 renderSourceBadge(message)
                 val skipIntroSeconds = playbackPreferences.getInt("skip_intro", 0)
                 if (skipIntroSeconds > 0 && (activePlayer?.currentPosition ?: 0L) < 3000L) {
@@ -357,7 +363,7 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
                     Toast.makeText(this@PlayerActivity, getString(com.wkq.bao.feature.res.R.string.player_skip_intro_toast, skipIntroSeconds), Toast.LENGTH_SHORT).show()
                 }
             } else {
-                handlePlaybackFailover()
+                showPlaybackError(message)
             }
         }
         showOsd()
@@ -367,9 +373,23 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
         binding.btnSpeed.text = getString(com.wkq.bao.feature.res.R.string.player_speed_format, speed)
     }
 
+    private fun selectedTrackLabel(type: Int): String {
+        val player = activePlayer ?: return getString(com.wkq.bao.feature.res.R.string.player_track_unavailable)
+        if (type in player.trackSelectionParameters.disabledTrackTypes) return getString(com.wkq.bao.feature.res.R.string.player_subtitles_off)
+        val groups = player.currentTracks.groups.filter { it.type == type }
+        val names = DefaultTrackNameProvider(resources)
+        for (group in groups) for (index in 0 until group.length) {
+            if (group.isTrackSelected(index)) return names.getTrackName(group.getTrackFormat(index))
+        }
+        return getString(if (groups.isEmpty()) com.wkq.bao.feature.res.R.string.player_track_unavailable else com.wkq.bao.feature.res.R.string.player_track_automatic)
+    }
+
     private fun showTrackPicker(type: Int) {
         val player = activePlayer ?: return
-        if (activePopup?.isShow == true) return
+        if (activePopup is PlayerSettingsDrawerPopup) {
+            activePopup?.dismiss()
+            activePopup = null
+        } else if (activePopup?.isShow == true) return
         val mediaId = player.currentMediaItem?.mediaId
         val nameProvider = DefaultTrackNameProvider(resources)
         val options = player.currentTracks.groups.filter { it.type == type }.flatMap { group ->
@@ -380,7 +400,10 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
                 TrackOption(group.mediaTrackGroup, index, label, isSelected)
             }
         }
-        if (options.isEmpty()) return
+        if (options.isEmpty()) {
+            Toast.makeText(this, com.wkq.bao.feature.res.R.string.player_track_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
         val subtitles = type == C.TRACK_TYPE_TEXT
         val hasAnySelected = options.any { it.selected }
         val prefix = if (subtitles) {
@@ -527,42 +550,14 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
         )
     }
 
-    private fun handlePlaybackFailover() {
-        if (isFailoverAttempting || episodeId <= 0L) {
-            showPlaybackError()
-            return
-        }
-        isFailoverAttempting = true
-        lifecycleScope.launch {
-            val available = playerController.getAvailableSources(episodeId)
-            val currentSource = playerController.getCurrentSource()
-            val backupSource = available.firstOrNull { src ->
-                src !is com.wkq.bao.core.media.resolver.PlaybackSource.Unavailable && src != currentSource
-            }
-            if (backupSource != null) {
-                val label = when (backupSource) {
-                    is com.wkq.bao.core.media.resolver.PlaybackSource.Local -> getString(com.wkq.bao.feature.res.R.string.player_source_local_format, backupSource.location.name)
-                    is com.wkq.bao.core.media.resolver.PlaybackSource.NasStream -> getString(com.wkq.bao.feature.res.R.string.player_source_nas_format)
-                    else -> ""
-                }
-                Toast.makeText(this@PlayerActivity, getString(com.wkq.bao.feature.res.R.string.player_failover_toast, label), Toast.LENGTH_LONG).show()
-                playerController.switchToSource(backupSource) { success, msg ->
-                    isFailoverAttempting = false
-                    if (success) {
-                        renderSourceBadge(msg)
-                        hidePlaybackError()
-                    } else {
-                        showPlaybackError()
-                    }
-                }
-            } else {
-                isFailoverAttempting = false
-                showPlaybackError()
-            }
-        }
-    }
-
-    private fun showPlaybackError() {
+    private fun showPlaybackError(reason: String = "source") {
+        binding.tvPlaybackFailure.setText(when (reason) {
+            "certificate" -> com.wkq.bao.feature.res.R.string.player_failure_certificate
+            "authentication" -> com.wkq.bao.feature.res.R.string.player_failure_authentication
+            "format" -> com.wkq.bao.feature.res.R.string.player_failure_format
+            "network" -> com.wkq.bao.feature.res.R.string.player_failure_network
+            else -> com.wkq.bao.feature.res.R.string.player_failure_source
+        })
         isSeeking = false
         binding.progressBuffering.visibility = View.GONE
         binding.layoutPlayerError.visibility = View.VISIBLE
@@ -624,7 +619,7 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
                         return super.dispatchKeyEvent(event)
                     }
                     if (event.repeatCount == 0) {
-                        cycleAspectRatioWithHud()
+                        showMoreSettingsDialog()
                     }
                     return true
                 }
@@ -835,6 +830,8 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
             }
 
             override fun onSwitchSource() {
+                activePopup?.dismiss()
+                activePopup = null
                 lifecycleScope.launch {
                     val available = playerController.getAvailableSources(episodeId)
                     if (available.size <= 1) {
@@ -856,10 +853,11 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
                             val targetSource = available[idx]
                             playerController.switchToSource(targetSource) { success, msg ->
                                 if (success) {
+                                    hidePlaybackError()
                                     renderSourceBadge(msg)
                                     Toast.makeText(this@PlayerActivity, getString(com.wkq.bao.feature.res.R.string.player_switch_source_success, msg), Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(this@PlayerActivity, msg, Toast.LENGTH_SHORT).show()
+                                    showPlaybackError(msg)
                                 }
                             }
                         }.show()
@@ -909,7 +907,12 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
 
             override fun getCurrentSourceLabel(): String {
                 return when (val current = playerController.getCurrentSource()) {
-                    is com.wkq.bao.core.media.resolver.PlaybackSource.Local -> current.location.name
+                    is com.wkq.bao.core.media.resolver.PlaybackSource.Local -> getString(when (current.location) {
+                        com.wkq.bao.core.media.storage.MediaStorageLocation.INTERNAL_STORAGE -> com.wkq.bao.feature.res.R.string.storage_internal
+                        com.wkq.bao.core.media.storage.MediaStorageLocation.TF_CARD -> com.wkq.bao.feature.res.R.string.storage_tf_card
+                        com.wkq.bao.core.media.storage.MediaStorageLocation.USB_DRIVE -> com.wkq.bao.feature.res.R.string.storage_usb_drive
+                        else -> com.wkq.bao.feature.res.R.string.storage_external
+                    })
                     is com.wkq.bao.core.media.resolver.PlaybackSource.NasStream -> "NAS"
                     else -> ""
                 }
@@ -933,6 +936,9 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
                 }
             }
 
+            override fun getCurrentSubtitlesLabel(): String = selectedTrackLabel(C.TRACK_TYPE_TEXT)
+            override fun getCurrentAudioLabel(): String = selectedTrackLabel(C.TRACK_TYPE_AUDIO)
+
             override fun hasMultipleEpisodes(): Boolean = seasonId > 0L
         })
 
@@ -940,6 +946,7 @@ open class PlayerActivity : BaseActivity<ActivityPlayerBinding>() {
         val popup = XPopup.Builder(this)
             .isDarkTheme(true)
             .popupPosition(com.lxj.xpopup.enums.PopupPosition.Right)
+            .popupWidth(minOf((400 * resources.displayMetrics.density).toInt(), resources.displayMetrics.widthPixels - (32 * resources.displayMetrics.density).toInt()))
             .setPopupCallback(object : com.lxj.xpopup.interfaces.SimpleCallback() {
                 override fun onDismiss(popupView: com.lxj.xpopup.core.BasePopupView?) {
                     if (activePopup === popupView) {

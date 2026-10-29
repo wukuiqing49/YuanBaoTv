@@ -10,7 +10,7 @@
     <string name="nav_all_media">All Media</string>
     <string name="nav_search">Search</string>
     <string name="nav_settings">Settings</string>
-    <string name="nav_downloads">Downloads &amp; Local</string>
+    <string name="nav_downloads">Local &amp; downloads</string>
     <string name="section_continue_watching">Continue Watching</string>
     <string name="section_cartoons">Featured Media</string>
     <string name="section_recently_added">Recently Added</string>
@@ -35,7 +35,7 @@
     <string name="title_nas_settings">NAS Settings</string>
     <string name="btn_add_nas">Add NAS</string>
     <string name="btn_add_local_media">Choose local videos</string>
-    <string name="btn_import_nas">Import from NAS</string>
+    <string name="btn_import_nas">Sources</string>
     <string name="btn_test_conn">Test Connection</string>
     <string name="btn_scan_now">Scan Now</string>
     <string name="btn_edit">Edit</string>
@@ -43,10 +43,10 @@
     <string name="status_disconnected">Disconnected</string>
     <string name="status_enabled">Enabled</string>
     <string name="status_disabled">Disabled</string>
-    <string name="title_downloads">Downloads &amp; Local Media</string>
+    <string name="title_downloads">Local &amp; downloads</string>
     <string name="section_downloading">Download tasks</string>
     <string name="downloads_empty_title">No active downloads</string>
-    <string name="downloads_empty_message">Download progress will appear here after you add media.</string>
+    <string name="downloads_empty_message">Start a download from video details or media sources, then track progress, pause or retry here.</string>
     <string name="section_downloaded_gallery">Downloaded Media</string>
     <string name="storage_space_format">%1$s free / %2$s</string>
     <string name="btn_pause">Pause</string>
@@ -85,9 +85,9 @@
     <string name="nas_protocol_smb">SMB</string>
     <string name="nas_protocol_webdav">WebDAV</string>
     <string name="nas_port">Port</string>
-    <string name="nas_editor_webdav_hint">HTTPS WebDAV, default port 5006</string>
+    <string name="nas_editor_webdav_hint">HTTP / HTTPS; use port 5005 for HTTP or 5006 for HTTPS. Use HTTP only on trusted networks.</string>
     <string name="nas_webdav_path">WebDAV path</string>
-    <string name="nas_editor_webdav_host_hint">Public domain or LAN IP. Do not include https://</string>
+    <string name="nas_editor_webdav_host_hint">Hostname or IP; optionally specify http:// or https://</string>
     <string name="nas_editor_webdav_path_hint">Media directory below the WebDAV root. Optional.</string>
     <string name="nas_editor_name_hint">Used to identify this NAS on this device. Optional.</string>
     <string name="nas_editor_host_hint">IP address or local network host name</string>
@@ -292,7 +292,7 @@
     <string name="cache_switch_tasks">Local media · Show downloads</string>
     <string name="cache_switch_library">Downloads · Show local media</string>
     <string name="cache_empty_title">No local media yet</string>
-    <string name="cache_empty_message">Import NAS media, then cache a movie or select episodes from its details. You can also scan storage to add existing files.</string>
+    <string name="cache_empty_message">Choose a directory and scan to see local videos here. Videos downloaded from details also appear here.</string>
     <string name="media_metadata_separator">\u0020·\u0020</string>
     <string name="continue_remaining_time">Remaining %1$d min</string>
     <string name="player_more">More</string>
@@ -335,4 +335,40 @@
     <string name="player_mode_title">Choose playback mode</string>
     <string name="player_mode_auto">Automatic: Xiaomi system player (TV XiaoAI controls)</string>
     <string name="player_mode_internal">Built-in player (continuous playback, subtitles and progress sync)</string>
+    <string name="downloads_cached_switch_tasks">Local titles: %1$d · View %2$d sync tasks</string>
+    <string name="downloads_tasks_switch_cached">Sync tasks: %1$d · View %2$d local titles</string>
+    <string name="player_failure_certificate">Cannot verify the NAS certificate. Install a trusted CA on this device or use a valid HTTPS certificate, then retry.</string>
+    <string name="player_failure_authentication">NAS access was denied. Check your account, password and folder permissions in NAS settings, then retry.</string>
+    <string name="player_failure_format">This device cannot decode the video. Try another source or a compatible video format.</string>
+    <string name="player_failure_network">Cannot connect to the NAS. Check its power and network connection, then retry.</string>
+    <string name="player_failure_source">Video unavailable. Reconnect the storage device, check folder access, or bring the NAS online, then retry.</string>
+
+    <!-- 媒体浏览与管理流程 -->
+    <string name="downloads_local_tab">Local videos</string>
+    <string name="downloads_tasks_tab">Downloads</string>
+    <string name="downloads_local_count">Local videos · %1$d</string>
+    <string name="downloads_tasks_count">Downloads · %1$d</string>
+    <string name="storage_manage_directories">Directories</string>
+    <string name="local_choose_videos">Choose local videos</string>
+    <string name="storage_available_format">%1$s available</string>
+    <string name="storage_device_space_format">%1$s · %2$s available</string>
+    <string name="nas_selection_size_format">%1$s · about %2$s</string>
+    <string name="nas_setup_steps">Connect your server → Scan videos → Play from your library</string>
+    <string name="nas_scan_background_hint">Scanning continues in the background. You can leave this page.</string>
+    <string name="nas_scan_ready_hint">Source configured. Scan its folder into your library, or browse files to download.</string>
+    <string name="nas_view_library">View library</string>
+    <string name="home_welcome_title">Your videos. Your home cinema.</string>
+    <string name="home_welcome_message">Choose videos on this device or a USB drive, or connect your home server. Scan them to browse artwork, episodes and resume watching.</string>
+    <string name="home_connect_server">Connect home server</string>
+    <string name="player_group_playback">Playback</string>
+    <string name="player_group_tracks">Audio and subtitles</string>
+    <string name="player_group_advanced">Source and picture</string>
+    <string name="player_setting_value">%1$s: %2$s</string>
+    <string name="player_track_unavailable">No track available</string>
+    <string name="player_track_automatic">Automatic</string>
+    <string name="player_subtitle_setting">Subtitles</string>
+    <string name="sources_open_action">Sources ›</string>
+    <string name="sources_open_description">Open media sources; Back returns to this page</string>
+    <string name="nas_scan_failed_guidance">Scan failed. Check the server connection and folder access, then retry.</string>
+    <string name="nas_source_actions">Source actions</string>
 </resources>

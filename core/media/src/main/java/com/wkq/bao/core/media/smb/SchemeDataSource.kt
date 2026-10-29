@@ -30,6 +30,7 @@ class SchemeDataSource(context: Context) : DataSource {
         delegate = when {
             dataSpec.uri.scheme == "smb" -> smbDataSource
             dataSpec.uri.scheme in setOf("https", "http") && WebDavCredentialRegistry.resolve(dataSpec.uri) != null -> webDavDataSource
+            dataSpec.uri.scheme == "http" -> throw java.io.IOException("HTTP playback requires a configured NAS source")
             else -> localDataSource
         }
         return delegate!!.open(dataSpec)

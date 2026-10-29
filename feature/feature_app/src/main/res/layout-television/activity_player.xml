@@ -42,7 +42,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/player_playback_failed" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_section" />
+        <TextView android:id="@+id/tv_playback_failure" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxWidth="420dp" android:padding="16dp" android:gravity="center" android:text="@string/player_playback_failed" android:textColor="@color/tv_text_primary" android:textSize="@dimen/ui_text_section" />
         <Button android:id="@+id/btn_player_retry" android:layout_width="120dp" android:layout_height="44dp" android:layout_marginTop="14dp" android:background="@drawable/bg_tv_button_focus" android:text="@string/btn_retry" android:textColor="@color/tv_button_text" />
     </LinearLayout>
 

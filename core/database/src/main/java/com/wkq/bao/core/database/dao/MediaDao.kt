@@ -12,6 +12,22 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MediaDao {
+    @RawQuery(observedEntities = [MediaSeriesEntity::class, MediaFileEntity::class,
+        MediaLocationEntity::class, MediaRemoteSourceEntity::class,
+        com.wkq.bao.core.database.entity.NasSourceEntity::class,
+        com.wkq.bao.core.database.entity.FavoriteEntity::class])
+    fun observeLibraryChanges(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<Int>
+
+    @RawQuery
+    suspend fun queryLibraryPage(query: androidx.sqlite.db.SupportSQLiteQuery): List<MediaSeriesEntity>
+
+    @RawQuery
+    suspend fun queryLibraryCount(query: androidx.sqlite.db.SupportSQLiteQuery): Int
+
+    @Transaction
+    suspend fun loadLibraryPage(query: com.wkq.bao.core.database.MediaLibraryQuery, limit: Int): com.wkq.bao.core.database.MediaLibraryPage =
+        com.wkq.bao.core.database.MediaLibraryPage(queryLibraryPage(query.pageSql(limit)), queryLibraryCount(query.countSql()))
+
     @Query("SELECT media_files.seriesId, media_locations.uri FROM media_locations INNER JOIN media_files ON media_files.id = media_locations.mediaFileId UNION SELECT seriesId, localUri AS uri FROM media_files WHERE localUri IS NOT NULL AND localUri != ''")
     fun observeLocalStorageLocations(): Flow<List<SeriesStorageLocation>>
 

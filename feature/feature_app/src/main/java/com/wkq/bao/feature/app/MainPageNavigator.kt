@@ -4,6 +4,8 @@ package com.wkq.bao.feature.app
 interface MainPageNavigator {
     fun showPage(page: Int)
 
+    fun openLocalMedia() = showPage(DOWNLOADS)
+
     companion object {
         const val HOME = 0
         const val LIBRARY = 1

@@ -39,3 +39,9 @@ python .agents/skills/android-build-workflow/scripts/validate_build_output.py --
 ```
 
 优先运行受影响模块最小 compile/test。涉及 app 壳、manifest、签名、release 或 native 时按构建规则运行 app 级任务，并明确未执行的设备、凭据或产物检查。
+
+## 项目网络例外
+
+仅在实际业务需要动态主机时读取项目的 `.agents/config/network-security-exceptions.json` 与其中的 review 文档。例外按精确 XML 路径登记，必须包含原因和复核文档；不得仅为通过门禁创建例外。验证 HTTP/HTTPS 在扫描、播放、下载中的一致性，以及协议、主机、端口、目录边界和重定向策略。TLS 校验绕过始终报错。
+
+本地验证与 CI 触发分开管理。接入 Skill 不自动创建或启用 GitHub Actions；已有触发条件仅按用户要求调整。

@@ -24,7 +24,7 @@
 - 正式发布缺失必需签名时失败；本地 unsigned release 必须明确标注。
 - ProGuard/R8 keep 规则保持最小范围并说明原因。
 - Android 7+ 对外文件使用 FileProvider/content URI；provider 不导出并使用临时 URI 授权。
-- 默认禁止明文流量；HTTP、自签 CA 或用户证书只做明确业务域的最小例外。
+- 默认禁止明文流量；HTTP、自签 CA 或用户证书只做明确业务域的最小例外。动态 NAS 主机无法静态列举时，例外须登记在 `.agents/config/network-security-exceptions.json`，说明运行时来源边界和证书策略；禁止跳过 TLS 校验。
 
 ## 高版本与 Native
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -131,12 +132,43 @@ def validate_manifest(app_manifest: Path, errors: list[str], warnings: list[str]
 
 
 def validate_network_security(root: Path, errors: list[str], warnings: list[str]) -> None:
+    exceptions: dict[str, str] = {}
+    config = root / ".agents/config/network-security-exceptions.json"
+    if config.exists():
+        try:
+            entries = json.loads(read_text(config))["cleartextExceptions"]
+            if not isinstance(entries, list):
+                raise ValueError("cleartextExceptions must be a list")
+            for entry in entries:
+                if not isinstance(entry, dict) or any(not isinstance(entry.get(key), str) for key in ("path", "reason", "review")):
+                    raise ValueError("exception fields must be strings")
+                relative = entry["path"]
+                if Path(relative).is_absolute() or Path(entry["review"]).is_absolute():
+                    raise ValueError("exception paths must be relative")
+                reason = entry["reason"].strip()
+                review = root / entry["review"]
+                target = root / relative
+                if not reason or not review.is_file() or not target.is_file():
+                    raise ValueError("exception requires an existing target, reason and review document")
+                if not target.resolve().is_relative_to(root.resolve()) or not review.resolve().is_relative_to(root.resolve()):
+                    raise ValueError("exception paths must stay inside the project")
+                exceptions[target.relative_to(root).as_posix()] = reason
+        except (KeyError, TypeError, ValueError, OSError) as exc:
+            exceptions.clear()
+            add(errors, "ERROR", config, f"invalid network exception: {exc}")
     for path in root.glob("**/src/main/res/xml/network_security_config.xml"):
         text = read_text(path)
-        if re.search(r"<base-config[^>]*cleartextTrafficPermitted=\"true\"", text):
-            add(errors, "ERROR", path, "base-config must not globally allow cleartext traffic.")
+        if re.search(r'<base-config[^>]*cleartextTrafficPermitted="true"', text):
+            if path.relative_to(root).as_posix() in exceptions:
+                add(warnings, "WARN", path, "documented dynamic-host cleartext exception; runtime origin restrictions still require verification.")
+            else:
+                add(errors, "ERROR", path, "base-config must not globally allow cleartext traffic.")
         if 'certificates src="user"' in text:
-            add(warnings, "WARN", path, "user certificates are trusted; verify this does not enter release unintentionally.")
+            add(warnings, "WARN", path, "user-installed CAs are trusted; verify the documented private-NAS certificate policy.")
+    for path in root.glob("**/src/main/**/*.kt"):
+        text = read_text(path)
+        if re.search(r"hostnameVerifier\s*\{[^}]*->\s*true\s*\}", text, re.I) or re.search(r"fun checkServerTrusted\([^)]*\)\s*\{\s*\}", text):
+            add(errors, "ERROR", path, "TLS certificate or hostname verification must not be bypassed.")
 
 
 def validate_file_paths(root: Path, errors: list[str]) -> None:

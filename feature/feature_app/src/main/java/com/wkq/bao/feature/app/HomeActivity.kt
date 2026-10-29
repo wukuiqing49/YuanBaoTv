@@ -24,9 +24,17 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
 
     companion object {
         const val EXTRA_INITIAL_PAGE = "extra_initial_page"
+        const val EXTRA_DOWNLOAD_TASKS = "extra_download_tasks"
         const val EXTRA_SEARCH_QUERY = "extra_search_query"
         private const val MIN_FONT_SCALE = 0.5f
         private const val MAX_TAB_FONT_SCALE = 1.15f
+
+        fun openDownloads(context: Context) {
+            context.startActivity(Intent(context, HomeActivity::class.java)
+                .putExtra(EXTRA_INITIAL_PAGE, MainPageNavigator.DOWNLOADS)
+                .putExtra(EXTRA_DOWNLOAD_TASKS, true)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        }
 
         fun open(context: Context, page: Int) {
             context.startActivity(
@@ -39,10 +47,13 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
 
     private val tabs by lazy { listOf(binding.tabHome, binding.tabLibrary, binding.tabDownloads) }
     private val navigationTabs by lazy { tabs + binding.tabNas }
+    var pendingLocalMediaSelection = false
+    var pendingDownloadTasks = false
     var pendingSearchQuery: String? = null
     private var restoredPage: Int? = null
     private val contentFocus = mutableMapOf<Int, java.lang.ref.WeakReference<View>>()
     private var lastNasLaunchTime = 0L
+    private var sourceReturnFocus: java.lang.ref.WeakReference<View>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         restoredPage = savedInstanceState?.getInt("selected_page")
@@ -117,10 +128,16 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) restoreVisibleFocus()
+        if (hasFocus) {
+            val returnTarget = sourceReturnFocus?.get()?.takeIf { it.isShown && it.isEnabled }
+            sourceReturnFocus = null
+            if (returnTarget?.requestFocus() != true) restoreVisibleFocus()
+        }
     }
 
     private fun applyRequestedPage(intent: Intent) {
+        pendingDownloadTasks = intent.getBooleanExtra(EXTRA_DOWNLOAD_TASKS, false)
+        intent.removeExtra(EXTRA_DOWNLOAD_TASKS)
         val searchQuery = intent.getStringExtra(EXTRA_SEARCH_QUERY)
         val requestedPage = if (!searchQuery.isNullOrBlank()) {
             pendingSearchQuery = searchQuery
@@ -169,10 +186,18 @@ class HomeActivity : BaseActivity<ActivityHomeHostBinding>(), MainPageNavigator 
         ViewCompat.requestApplyInsets(binding.root)
     }
 
+    override fun openLocalMedia() {
+        pendingLocalMediaSelection = true
+        showPage(MainPageNavigator.DOWNLOADS)
+        supportFragmentManager.fragments.filterIsInstance<DownloadsFragment>()
+            .firstOrNull()?.openLocalMediaIfRequested()
+    }
+
     override fun showPage(page: Int) {
         if (page == MainPageNavigator.NAS) {
             val now = android.os.SystemClock.uptimeMillis()
             if (now - lastNasLaunchTime > 600L) {
+                sourceReturnFocus = currentFocus?.let { java.lang.ref.WeakReference(it) }
                 lastNasLaunchTime = now
                 NasBrowserActivity.start(this)
             }

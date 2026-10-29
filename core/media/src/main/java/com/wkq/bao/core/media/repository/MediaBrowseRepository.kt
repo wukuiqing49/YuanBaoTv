@@ -8,6 +8,9 @@ import com.wkq.bao.core.database.entity.MediaSeriesEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import com.wkq.bao.core.database.MediaLibraryQuery
+import com.wkq.bao.core.database.MediaLibraryPage
 
 /** 首页和媒体库共享的只读媒体浏览能力。 */
 interface MediaBrowseRepository {
@@ -15,6 +18,20 @@ interface MediaBrowseRepository {
     val allSeries: Flow<List<MediaSeriesEntity>>
     val favoriteSeriesIds: Flow<Set<Long>> get() = flowOf(emptySet())
     val offlineSeriesIds: Flow<Set<Long>> get() = flowOf(emptySet())
+
+    fun observeLibrary(query: MediaLibraryQuery, limit: Int): Flow<MediaLibraryPage> =
+        combine(allSeries, favoriteSeriesIds) { items, favorites ->
+            val matching = items.filter { item ->
+                (query.type == null || item.type == query.type) && (!query.favoritesOnly || item.id in favorites) &&
+                    (query.text.isBlank() || item.title.contains(query.text.trim(), true) || item.originalTitle.contains(query.text.trim(), true))
+            }
+            val sorted = when (query.sort) {
+                "TITLE" -> matching.sortedWith(compareBy<MediaSeriesEntity> { it.title.lowercase(java.util.Locale.ROOT) }.thenBy { it.id })
+                "YEAR" -> matching.sortedWith(compareByDescending<MediaSeriesEntity> { it.year.toIntOrNull() ?: 0 }.thenBy { it.title }.thenBy { it.id })
+                else -> matching.sortedWith(compareByDescending<MediaSeriesEntity> { it.createdAt }.thenBy { it.id })
+            }
+            MediaLibraryPage(sorted.take(limit), sorted.size)
+        }
 
     fun observeSeriesByType(type: String?): Flow<List<MediaSeriesEntity>>
     suspend fun getFirstEpisode(seriesId: Long): EpisodeEntity?
@@ -30,7 +47,7 @@ class RoomMediaBrowseRepository private constructor(
 
     override val continueWatching: Flow<List<ContinueWatchingItem>> =
         database.watchHistoryDao().getContinueWatchingList().map { items ->
-            items.take(8).mapNotNull { item ->
+            items.mapNotNull { item ->
                 val target = PlaybackSelection(database).select(item.history.seriesId) ?: return@mapNotNull null
                 if (item.history.completed && target.episode.id == item.history.episodeId) return@mapNotNull null
                 val history = if (target.episode.id == item.history.episodeId) item.history else
@@ -44,6 +61,10 @@ class RoomMediaBrowseRepository private constructor(
     override val allSeries: Flow<List<MediaSeriesEntity>> = database.mediaDao().getPlayableSeries()
     override val favoriteSeriesIds: Flow<Set<Long>> = database.favoriteDao().getFavoriteSeries()
         .map { series -> series.mapTo(mutableSetOf()) { it.id } }
+
+    override fun observeLibrary(query: MediaLibraryQuery, limit: Int): Flow<MediaLibraryPage> =
+        database.mediaDao().observeLibraryChanges(androidx.sqlite.db.SimpleSQLiteQuery("SELECT 1"))
+            .map { database.mediaDao().loadLibraryPage(query, limit) }
 
     override fun observeSeriesByType(type: String?): Flow<List<MediaSeriesEntity>> =
         type?.let(database.mediaDao()::getPlayableSeriesByType) ?: database.mediaDao().getPlayableSeries()

@@ -161,9 +161,9 @@ class NasSettingsFragment : Fragment() {
                 Toast.makeText(requireContext(), com.wkq.bao.feature.res.R.string.storage_picker_missing, Toast.LENGTH_LONG).show()
                 return
             }
-            val options = physicalDevices.map { "${it.name} (可用: ${it.formattedFree})" }.toTypedArray()
+            val options = physicalDevices.map { getString(com.wkq.bao.feature.res.R.string.storage_device_space_format, if (it.location == com.wkq.bao.core.media.storage.MediaStorageLocation.INTERNAL_STORAGE) getString(com.wkq.bao.feature.res.R.string.storage_internal) else it.name, it.formattedFree) }.toTypedArray()
             XPopup.Builder(requireContext()).isDarkTheme(true)
-                .asCenterList("选择下载存储位置", options) { index, _ ->
+                .asCenterList(getString(com.wkq.bao.feature.res.R.string.nas_sync_target_title), options) { index, _ ->
                     val selected = physicalDevices.getOrNull(index) ?: return@asCenterList
                     storageManager.saveStorageRoot(selected.uri, selected.location)
                     storageManager.getAvailableStorageTarget()?.let { target ->
@@ -180,9 +180,9 @@ class NasSettingsFragment : Fragment() {
         } catch (_: Exception) {
             waitingForDownloadTarget = false
             if (physicalDevices.isNotEmpty()) {
-                val options = physicalDevices.map { "${it.name} (可用: ${it.formattedFree})" }.toTypedArray()
+                val options = physicalDevices.map { getString(com.wkq.bao.feature.res.R.string.storage_device_space_format, if (it.location == com.wkq.bao.core.media.storage.MediaStorageLocation.INTERNAL_STORAGE) getString(com.wkq.bao.feature.res.R.string.storage_internal) else it.name, it.formattedFree) }.toTypedArray()
                 XPopup.Builder(requireContext()).isDarkTheme(true)
-                    .asCenterList("选择下载存储位置", options) { index, _ ->
+                    .asCenterList(getString(com.wkq.bao.feature.res.R.string.nas_sync_target_title), options) { index, _ ->
                         val selected = physicalDevices.getOrNull(index) ?: return@asCenterList
                         storageManager.saveStorageRoot(selected.uri, selected.location)
                         storageManager.getAvailableStorageTarget()?.let { target ->

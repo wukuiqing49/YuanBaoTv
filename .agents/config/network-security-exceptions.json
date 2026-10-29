@@ -1,0 +1,9 @@
+{
+  "cleartextExceptions": [
+    {
+      "path": "app/src/main/res/xml/network_security_config.xml",
+      "reason": "用户配置的 NAS 主机和 IP 在运行时确定，HTTP WebDAV 需要平台明文许可；仅对配置来源执行，凭据按协议、主机、端口、路径匹配且禁止重定向。",
+      "review": "docs/network-security-policy.md"
+    }
+  ]
+}

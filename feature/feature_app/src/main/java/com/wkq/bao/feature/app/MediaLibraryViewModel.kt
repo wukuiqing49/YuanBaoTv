@@ -17,6 +17,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import com.wkq.bao.core.database.MediaLibraryQuery
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
@@ -60,28 +63,17 @@ class MediaLibraryViewModel(
             ?: LibrarySort.RECENT
     ))
 
-    val uiState: StateFlow<MediaLibraryUiState> = combine(
-        repository.allSeries.distinctUntilChanged(), repository.favoriteSeriesIds.distinctUntilChanged(), filters
-    ) { allSeries, favoriteIds, selection ->
-        val query = selection.query.trim()
-        val matching = allSeries.filter { series ->
-            (selection.type == null || series.type == selection.type) &&
-                (!selection.favoritesOnly || series.id in favoriteIds) &&
-                (query.isEmpty() || series.title.contains(query, ignoreCase = true) ||
-                    series.originalTitle.contains(query, ignoreCase = true))
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<MediaLibraryUiState> = combine(filters, visibleLimit) { selection, limit -> selection to limit }
+        .flatMapLatest { (selection, limit) ->
+            repository.observeLibrary(MediaLibraryQuery(selection.type, selection.query, selection.favoritesOnly, selection.sort.name), limit)
+                .map { page -> MediaLibraryUiState(
+                    loading = false, selectedType = selection.type, series = page.items,
+                    query = selection.query, favoritesOnly = selection.favoritesOnly,
+                    sort = selection.sort, totalCount = page.total
+                ) }
         }
-        val ordered = when (selection.sort) {
-            LibrarySort.RECENT -> matching.sortedWith(compareByDescending<MediaSeriesEntity> { it.createdAt }.thenBy { it.id })
-            LibrarySort.TITLE -> matching.sortedWith(compareBy<MediaSeriesEntity> { it.title.lowercase(Locale.ROOT) }.thenBy { it.id })
-            LibrarySort.YEAR -> matching.sortedWith(compareByDescending<MediaSeriesEntity> { it.year.toIntOrNull() ?: 0 }.thenBy { it.title }.thenBy { it.id })
-        }
-        MediaLibraryUiState(
-            loading = false, selectedType = selection.type, series = ordered,
-            query = selection.query, favoritesOnly = selection.favoritesOnly, sort = selection.sort
-        )
-    }
         .flowOn(filterDispatcher)
-        .combine(visibleLimit) { state, limit -> state.copy(series = state.series.take(limit), totalCount = state.series.size) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), MediaLibraryUiState(
             selectedType = filters.value.type, query = filters.value.query,
             favoritesOnly = filters.value.favoritesOnly, sort = filters.value.sort

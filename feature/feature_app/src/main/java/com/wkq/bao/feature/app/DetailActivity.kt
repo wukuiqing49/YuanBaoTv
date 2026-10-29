@@ -366,6 +366,9 @@ class DetailActivity : BaseActivity<ActivityDetailBinding>() {
     }
 
     private fun showDownloadResult(result: EnqueueDownloadsResult) {
+        if (result != EnqueueDownloadsResult.StorageTargetRequired && result != EnqueueDownloadsResult.NoItemsQueued) {
+            DownloadNotificationPermission.requestIfNeeded(this)
+        }
         val message = when (result) {
             EnqueueDownloadsResult.StorageTargetRequired -> getString(com.wkq.bao.feature.res.R.string.storage_target_required)
             EnqueueDownloadsResult.NoItemsQueued -> getString(com.wkq.bao.feature.res.R.string.download_no_items_queued)
